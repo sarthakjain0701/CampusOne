@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
+  <defs>
+    <linearGradient id="favGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#favGrad)" />
+  <!-- Cap -->
+  <polygon points="32,12 52,21 32,30 12,21" fill="#FFFFFF" />
+  <path d="M 20,25 L 20,31 C 20,36 44,36 44,31 L 44,25" fill="none" stroke="#FFFFFF" stroke-width="2" />
+  <path d="M 47,22 L 50,31" stroke="#FDE047" stroke-width="1.8" />
+
+  <!-- Book -->
+  <path d="M 14,39 C 23,36 30,40 31,50 C 23,47 15,48 14,39 Z" fill="#FFFFFF" opacity="0.95" />
+  <path d="M 50,39 C 41,36 34,40 33,50 C 41,47 49,48 50,39 Z" fill="#FFFFFF" opacity="0.95" />
+</svg>
