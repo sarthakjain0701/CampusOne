@@ -168,9 +168,41 @@ const studentService = {
       status: studentData.status || "ACTIVE"
     };
 
-    // Provision Firebase Auth + Firestore document
-    await window.BackendSimulationService.provisionUser(payload, 'STUDENT');
-    return payload;
+    // Provision Firebase Auth + Firestore document using Cloud Functions
+    try {
+      if (!window.firebase) {
+        throw new Error("Firebase SDK not found.");
+      }
+      const functions = window.firebase.functions();
+      const provisionUser = functions.httpsCallable('provisionUser');
+      
+      await provisionUser({
+        email: payload.email,
+        role: 'STUDENT',
+        profileData: payload
+      });
+      
+      return payload;
+    } catch (err) {
+      console.error("Cloud Function provisionUser failed:", err);
+      
+      if (err.code === 'functions/not-found') {
+        throw new Error("The provisioning service is unavailable.");
+      } else if (err.code === 'functions/permission-denied' || err.code === 'permission-denied') {
+        throw new Error("You do not have permission to perform this operation.");
+      } else if (err.code === 'functions/already-exists' || err.code === 'auth/email-already-in-use') {
+        throw new Error("This student account already exists.");
+      } else if (err.code === 'functions/invalid-argument' && err.message.includes('email')) {
+        throw new Error("Please enter a valid institutional email.");
+      } else if (err.code === 'functions/internal') {
+        console.error("Backend failure:", err);
+        throw new Error("User provisioning could not be completed.");
+      } else if (err.message === 'Failed to fetch' || err.code === 'functions/unavailable') {
+        throw new Error("Unable to connect to Firebase. Please try again.");
+      }
+      
+      throw new Error(err.message || "User provisioning could not be completed.");
+    }
   },
 
   // --------------------------------------------------------------------------
