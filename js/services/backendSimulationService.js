@@ -54,10 +54,16 @@ const BackendSimulationService = {
         await secondaryApp.auth().signOut();
       } catch (authErr) {
         if (authErr.code === 'auth/email-already-in-use') {
-          throw new Error("This email is already registered in Firebase Authentication.");
+          const err = new Error("This email is already registered in Firebase Authentication.");
+          err.code = authErr.code;
+          err.stage = 'Authentication';
+          throw err;
         }
         console.error("Auth creation failed:", authErr);
-        throw new Error("Unable to create authentication account. " + authErr.message);
+        const err = new Error("Unable to create authentication account. " + authErr.message);
+        err.code = authErr.code;
+        err.stage = 'Authentication';
+        throw err;
       }
 
       // 4. Create the Firestore Document using the Primary App (Authenticated as Admin)
@@ -72,12 +78,28 @@ const BackendSimulationService = {
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      await db.collection(collectionName).doc(email).set(docData);
+      try {
+        await db.collection(collectionName).doc(email).set(docData);
+      } catch (dbErr) {
+        const err = new Error(dbErr.message);
+        err.code = dbErr.code;
+        err.stage = 'Firestore';
+        throw err;
+      }
 
       return { success: true, message: "User provisioned successfully.", uid: uid, profile: docData };
 
     } catch (err) {
-      console.error("[PAMS PROVISIONING ERROR] Client-Side Fallback Failed:", err);
+      console.error("PROVISIONING DIAGNOSIS");
+      console.error("Provisioning stage: ", err.stage || (err.code && err.code.startsWith('auth/') ? 'Authentication' : 'Firestore'));
+      console.error("Firebase error code: ", err.code || 'UNKNOWN');
+      console.error("Firebase error message: ", err.message || 'UNKNOWN');
+      console.error("HTTP status: ", err.status || 'UNKNOWN');
+      console.error("Backend response: ", 'N/A (Client-side fallback)');
+      console.error("Collection: ", collectionName);
+      console.error("Document ID: ", email);
+      console.error("Authenticated user: ", window.firebase && window.firebase.auth().currentUser ? window.firebase.auth().currentUser.uid : 'None');
+
       throw new Error(err.message || "User provisioning could not be completed. Please contact the system administrator.");
     }
   }
