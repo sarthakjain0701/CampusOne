@@ -15,7 +15,7 @@ const ReportService = {
     if (!user) return [];
     const students = DataStore.get('STUDENTS') || MOCK_DATA.students || [];
     let scoped = students;
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
       scoped = students.filter(s => authorizedClassIds.includes(s.classId));
     }
@@ -27,7 +27,7 @@ const ReportService = {
     if (!user) return [];
     const allDepts = DataStore.get('DEPARTMENTS') || MOCK_DATA.departments || [];
     if (user.role === 'ADMIN') return allDepts;
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const assignments = AuthorizationService.getFacultyAssignments(user);
       const subjects = DataStore.get('SUBJECTS') || MOCK_DATA.subjects || [];
       const assignedSubjectIds = [...new Set(assignments.map(a => a.subjectId))];
@@ -46,7 +46,7 @@ const ReportService = {
     if (!user || !department) return [];
     const classes = DataStore.get('CLASSES') || MOCK_DATA.classes || [];
     let scoped = classes.filter(c => c.department === department);
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
       scoped = scoped.filter(c => authorizedClassIds.includes(c.id));
     }
@@ -60,7 +60,7 @@ const ReportService = {
     let scoped = classes.filter(c =>
       c.department === department && Number(c.semester) === Number(semester)
     );
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
       scoped = scoped.filter(c => authorizedClassIds.includes(c.id));
     }
@@ -72,7 +72,7 @@ const ReportService = {
     const assignments = DataStore.get('ASSIGNMENTS') || MOCK_DATA.assignments || [];
     const subjects = DataStore.get('SUBJECTS') || MOCK_DATA.subjects || [];
     let relevantAssignments = assignments.filter(a => a.classId === classId && a.status !== 'INACTIVE');
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
       relevantAssignments = relevantAssignments.filter(a => authorizedSubjectIds.includes(a.subjectId));
     }
@@ -92,7 +92,7 @@ const ReportService = {
       (s.rollNumber || '').toLowerCase() === regNo.trim().toLowerCase()
     );
     if (!student) return { error: `No student found with registration number "${regNo.trim()}".` };
-    if (user.role === 'FACULTY' && !AuthorizationService.canAccessStudent(user, student.id)) {
+    if (AuthorizationService.isAcademicStaff(user) && !AuthorizationService.canAccessStudent(user, student.id)) {
       return { error: 'Access Denied: This student is not in your assigned class/subject.' };
     }
     return { student };
@@ -100,6 +100,7 @@ const ReportService = {
 
   generateStudentReport(studentId, user) {
     if (!user) return { error: 'Not authenticated.' };
+    if (user.role === 'STUDENT') return { error: 'Access Denied: Students are not authorized to access Reports & Analytics.' };
     if (!AuthorizationService.canAccessStudent(user, studentId)) return { error: 'Access Denied.' };
 
     const students = DataStore.get('STUDENTS') || MOCK_DATA.students || [];
@@ -111,7 +112,7 @@ const ReportService = {
     const assignments = DataStore.get('ASSIGNMENTS') || MOCK_DATA.assignments || [];
 
     let relevantAssignments = assignments.filter(a => a.classId === student.classId);
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
       relevantAssignments = relevantAssignments.filter(a => authorizedSubjectIds.includes(a.subjectId));
     }
@@ -145,10 +146,11 @@ const ReportService = {
 
   generateAttendanceReport(filters, user) {
     if (!user) return { error: 'Not authenticated.' };
+    if (user.role === 'STUDENT') return { error: 'Access Denied: Students are not authorized to access Reports & Analytics.' };
     const { academicYear, classId, subjectId, dateFrom, dateTo } = filters;
     if (!classId) return { error: 'Please select at least a Section to generate a report.' };
 
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       if (classId && !AuthorizationService.canAccessClass(user, classId))
         return { error: 'Access Denied: You are not authorized to view this section.' };
       if (subjectId && !AuthorizationService.canAccessSubject(user, subjectId))

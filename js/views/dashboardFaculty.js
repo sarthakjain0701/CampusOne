@@ -12,7 +12,7 @@ const DashboardFaculty = {
     return `
       <div class="page-header">
         <h1>Welcome, ${myFaculty.name}! 👋</h1>
-        <p>Manage your assigned classes, lectures, and student attendance.</p>
+        <p>${user.role === 'LAB_ASSISTANT' ? 'Lab Assistant' : 'Faculty'} Portal — Manage your assigned classes, lectures, and student attendance.</p>
       </div>
 
       <!-- STATS (DYNAMIC) -->

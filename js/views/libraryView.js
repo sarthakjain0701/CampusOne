@@ -46,7 +46,7 @@ const LibraryView = {
           <p>${user.role === 'STUDENT' ? `Student: <strong>${loggedInStudent?.name || user.name}</strong> | Roll No: <strong>${loggedInStudent?.rollNo || loggedInStudent?.rollNumber || 'N/A'}</strong>` : 'Poornima Group Library Management & Book Issue/Return Portal'}</p>
         </div>
 
-        ${user.role === 'ADMIN' ? `
+        ${(user.role === 'ADMIN' || user.role === 'LIBRARIAN') ? `
           <div style="display:flex; gap:0.75rem;">
             <button class="btn-primary" onclick="LibraryView.openIssueBookModal()">
               <i data-lucide="book-plus"></i> Issue Book
@@ -59,7 +59,7 @@ const LibraryView = {
       </div>
 
       <!-- LIBRARY OPERATIONS CONTROL CARD FOR ADMIN -->
-      ${user.role === 'ADMIN' ? `
+      ${(user.role === 'ADMIN' || user.role === 'LIBRARIAN') ? `
         <div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color: white; border: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div>

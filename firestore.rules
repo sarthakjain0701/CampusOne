@@ -23,6 +23,19 @@ service cloud.firestore {
              get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.status == 'ACTIVE';
     }
 
+    function isStaff() {
+      // Check if the authenticated user is an active staff member (Faculty, Lab Assistant, or Librarian)
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/faculties/$(request.auth.token.email)) &&
+             get(/databases/$(database)/documents/faculties/$(request.auth.token.email)).data.status == 'ACTIVE';
+    }
+
+    function isActiveStaffWithRole(role) {
+      // Check if the authenticated user is an active staff member with a specific role
+      return isStaff() &&
+             get(/databases/$(database)/documents/faculties/$(request.auth.token.email)).data.role == role;
+    }
+
     // 2. Student Profiles
     // Students can read their own profile. Admins can read all student profiles for real-time sync.
     // Client writes strictly forbidden.
@@ -31,8 +44,8 @@ service cloud.firestore {
       allow write: if false; 
     }
 
-    // 3. Faculty Profiles
-    // Faculty can read their own profile. Admins can read all faculty profiles for management.
+    // 3. Faculty/Staff Profiles (Faculty, Lab Assistant, Librarian)
+    // Staff members can read their own profile. Admins can read all staff profiles for management.
     // Client writes strictly forbidden.
     match /faculties/{email} {
       allow read: if isOwnEmail(email) || isAdmin();

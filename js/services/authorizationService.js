@@ -2,9 +2,42 @@
    POORNIMA ATTENDANCE SYSTEM (PAMS) - CENTRALIZED AUTHORIZATION SERVICE
    Global Role-Based Access Control (RBAC) & Academic Privacy Engine
    Least-Privilege Model: Deny by Default
+
+   Supported Roles: STUDENT, FACULTY, LAB_ASSISTANT, LIBRARIAN, ADMIN
    ========================================================================== */
 
 const AuthorizationService = {
+  // ==========================================================================
+  // CENTRALIZED ROLE CHECK HELPERS
+  // ==========================================================================
+  isStudent(user) { return user?.role === 'STUDENT'; },
+  isFaculty(user) { return user?.role === 'FACULTY'; },
+  isLabAssistant(user) { return user?.role === 'LAB_ASSISTANT'; },
+  isLibrarian(user) { return user?.role === 'LIBRARIAN'; },
+  isAdmin(user) { return user?.role === 'ADMIN'; },
+
+  /**
+   * Conceptual grouping: Faculty + Lab Assistant share the Staff Portal.
+   * Their actual role values remain distinct for auditing and future permissions.
+   */
+  isAcademicStaff(user) {
+    return user?.role === 'FACULTY' || user?.role === 'LAB_ASSISTANT';
+  },
+
+  /**
+   * Returns user-friendly display name for a role string.
+   */
+  getRoleDisplayName(role) {
+    const map = {
+      'STUDENT': 'Student',
+      'FACULTY': 'Faculty',
+      'LAB_ASSISTANT': 'Lab Assistant',
+      'LIBRARIAN': 'Librarian',
+      'ADMIN': 'Admin'
+    };
+    return map[role] || role;
+  },
+
   /**
    * Get Faculty Assignments
    */
@@ -17,7 +50,7 @@ const AuthorizationService = {
       return assignments;
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       return assignments.filter(a => a.facultyId === user.id || a.facultyId === user.uid || a.facultyId === user.employeeId);
     }
 
@@ -34,7 +67,7 @@ const AuthorizationService = {
       return subjects.map(s => s.id);
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       const assignments = this.getFacultyAssignments(user);
       return [...new Set(assignments.map(a => a.subjectId))];
     }
@@ -52,7 +85,7 @@ const AuthorizationService = {
       return classes.map(c => c.id);
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       const assignments = this.getFacultyAssignments(user);
       return [...new Set(assignments.map(a => a.classId))];
     }
@@ -72,7 +105,7 @@ const AuthorizationService = {
       return student ? [student.id] : [user.id];
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       const authorizedClassIds = this.getAuthorizedClassIds(user);
       const authorizedStudents = students.filter(s => authorizedClassIds.includes(s.classId) || authorizedClassIds.includes(s.section));
       return authorizedStudents.map(s => s.id);
@@ -103,7 +136,7 @@ const AuthorizationService = {
     if (!user || !subjectId) return false;
     if (user.role === 'ADMIN') return true;
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       const authorizedSubjectIds = this.getAuthorizedSubjectIds(user);
       return authorizedSubjectIds.includes(subjectId);
     }
@@ -118,7 +151,7 @@ const AuthorizationService = {
     if (!user || !classId) return false;
     if (user.role === 'ADMIN') return true;
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       const authorizedClassIds = this.getAuthorizedClassIds(user);
       return authorizedClassIds.includes(classId);
     }
@@ -137,7 +170,7 @@ const AuthorizationService = {
       return this.canAccessStudent(user, studentId);
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       return this.canAccessStudent(user, studentId) && this.canAccessSubject(user, subjectId);
     }
 
@@ -151,7 +184,7 @@ const AuthorizationService = {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       return this.canAccessSubject(user, subjectId) && (classId ? this.canAccessClass(user, classId) : true);
     }
 
@@ -169,7 +202,7 @@ const AuthorizationService = {
       return this.canAccessStudent(user, studentId);
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       if (subjectId) return this.canAccessSubject(user, subjectId);
       if (classId) return this.canAccessClass(user, classId);
       if (studentId) return this.canAccessStudent(user, studentId);
@@ -186,7 +219,7 @@ const AuthorizationService = {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       return this.canAccessSubject(user, subjectId) && (classId ? this.canAccessClass(user, classId) : true);
     }
 
@@ -204,7 +237,7 @@ const AuthorizationService = {
       return this.canAccessStudent(user, studentId);
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       if (subjectId) return this.canAccessSubject(user, subjectId);
       if (studentId) return this.canAccessStudent(user, studentId);
       return true;
@@ -220,7 +253,7 @@ const AuthorizationService = {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       return this.canAccessSubject(user, subjectId) && (classId ? this.canAccessClass(user, classId) : true);
     }
 
@@ -237,7 +270,7 @@ const AuthorizationService = {
       return studentResultList;
     }
 
-    if (user.role === 'FACULTY') {
+    if (this.isAcademicStaff(user)) {
       const authorizedSubjectIds = this.getAuthorizedSubjectIds(user);
       // Filter list to include ONLY assigned subject results
       return studentResultList.filter(res => authorizedSubjectIds.includes(res.subjectId));
@@ -250,12 +283,12 @@ const AuthorizationService = {
    * Validate Access to Library Portal & Management
    * Student: ALLOW (Access own library portal)
    * Admin: ALLOW (Access library management)
-   * Faculty: DENY (No library portal access)
+   * Librarian: ALLOW (Access library management)
+   * Faculty/Lab Assistant: DENY (No library portal access)
    */
   canAccessLibrary(user) {
     if (!user) return false;
-    if (user.role === 'ADMIN' || user.role === 'STUDENT') return true;
-    if (user.role === 'FACULTY') return false;
+    if (user.role === 'ADMIN' || user.role === 'STUDENT' || user.role === 'LIBRARIAN') return true;
     return false;
   },
 

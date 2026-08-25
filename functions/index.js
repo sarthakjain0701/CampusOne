@@ -60,16 +60,16 @@ exports.provisionUser = functions.https.onCall(async (data, context) => {
 
   let collectionName = "";
   if (role === "STUDENT") collectionName = "authorizedUsers";
-  else if (role === "FACULTY") collectionName = "faculties";
+  else if (role === "FACULTY" || role === "LAB_ASSISTANT" || role === "LIBRARIAN") collectionName = "faculties";
   else if (role === "ADMIN") collectionName = "admins";
   else {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Invalid role specified."
+      "Invalid role specified. Accepted roles: STUDENT, FACULTY, LAB_ASSISTANT, LIBRARIAN, ADMIN."
     );
   }
 
-  // 4. Duplicate Check - Firestore
+  // 4. Duplicate Check - Firestore (within target collection)
   const db = admin.firestore();
   const existingDoc = await db.collection(collectionName).doc(normalizedEmail).get();
   if (existingDoc.exists) {
@@ -77,6 +77,18 @@ exports.provisionUser = functions.https.onCall(async (data, context) => {
       "already-exists",
       "A profile with this email already exists in PAMS."
     );
+  }
+
+  // 4b. Cross-collection duplicate check (prevent same email in multiple collections)
+  const crossCheckCollections = ["authorizedUsers", "faculties", "admins"].filter(c => c !== collectionName);
+  for (const crossCol of crossCheckCollections) {
+    const crossDoc = await db.collection(crossCol).doc(normalizedEmail).get();
+    if (crossDoc.exists) {
+      throw new functions.https.HttpsError(
+        "already-exists",
+        "This email is already registered under a different role in PAMS."
+      );
+    }
   }
 
   // 5. Provision Firebase Authentication Account

@@ -57,8 +57,8 @@ const LibraryService = {
    * Issues a book to a verified user
    */
   issueBook({ userId, bookName, author }, user) {
-    if (user && user.role === 'FACULTY') {
-      throw new Error("Access Denied: Faculty users are not authorized to perform library operations.");
+    if (user && (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT')) {
+      throw new Error("Access Denied: Staff users are not authorized to perform library operations.");
     }
     if (!userId) throw new Error("User selection is required.");
     if (!bookName || !bookName.trim()) throw new Error("Book title is required.");

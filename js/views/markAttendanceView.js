@@ -23,7 +23,7 @@ const MarkAttendanceView = {
     if (params.subjectId && subjects.some(s => s.id === params.subjectId)) { this.selectedSubjectId = params.subjectId; filtersChanged = true; }
     if (params.date) { this.selectedDate = params.date; filtersChanged = true; }
 
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       if (typeof AttendanceAssignmentService !== 'undefined') {
         // Enforce strict attendance assignment for Faculty
         const hasAccess = AttendanceAssignmentService.canMarkAttendance(user.id, this.selectedClassId, this.selectedSubjectId, this.selectedDate);
@@ -57,6 +57,11 @@ const MarkAttendanceView = {
       filtersChanged = true;
     } else if (filtersChanged || !this.mode) {
       this.mode = null;
+    }
+
+    // Security Check: Force VIEW mode for students to prevent any UI edit state
+    if (user.role === 'STUDENT') {
+      this.mode = 'VIEW';
     }
 
     const students = studentService.getStudents().filter(s => s.classId === this.selectedClassId || !s.classId);
@@ -93,9 +98,11 @@ const MarkAttendanceView = {
             <i data-lucide="lock" style="color:var(--color-text-muted);"></i> Attendance Already Marked
           </div>
           <div>
+            ${user.role !== 'STUDENT' ? `
             <button class="btn-primary" onclick="MarkAttendanceView.editAttendance()">
               <i data-lucide="edit"></i> Edit Attendance
             </button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -149,7 +156,7 @@ const MarkAttendanceView = {
       <div class="page-header">
         <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">Mark Attendance</h1>
         <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">
-          Select class, subject, and session date to record or modify student attendance. ${user.role === 'FACULTY' ? '<strong style="color:var(--color-primary);">(Scoped to assigned classes)</strong>' : ''}
+          Select class, subject, and session date to record or modify student attendance. ${AuthorizationService.isAcademicStaff(user) ? '<strong style="color:var(--color-primary);">(Scoped to assigned classes)</strong>' : ''}
         </p>
       </div>
 
@@ -157,7 +164,7 @@ const MarkAttendanceView = {
       <div class="mark-attendance-grid">
         <div class="attendance-select-card">
           <label><i data-lucide="layers"></i> Select Class</label>
-          ${user.role === 'FACULTY' ? `
+          ${AuthorizationService.isAcademicStaff(user) ? `
              <div style="font-weight: 700; color: var(--color-navy-dark); font-size: 1.05rem; padding-top: 0.25rem;">
                ${classes.find(c => c.id === this.selectedClassId)?.name || 'Unknown Class'}
              </div>
@@ -171,7 +178,7 @@ const MarkAttendanceView = {
 
         <div class="attendance-select-card">
           <label><i data-lucide="book-open"></i> Select Subject</label>
-          ${user.role === 'FACULTY' ? `
+          ${AuthorizationService.isAcademicStaff(user) ? `
              <div style="font-weight: 700; color: var(--color-navy-dark); font-size: 1.05rem; padding-top: 0.25rem;">
                ${subjects.find(s => s.id === this.selectedSubjectId)?.name || 'Unknown Subject'}
              </div>
@@ -189,7 +196,7 @@ const MarkAttendanceView = {
             <span id="display-att-date">${formattedDate}</span>
             ${this.mode !== 'EDIT' && user.role !== 'FACULTY' ? `<input type="date" id="sel-att-date" class="form-input" style="width: 24px; height: 24px; padding: 0; border: none; background: transparent; opacity: 0; position: absolute; right: 1rem; cursor: pointer;" value="${this.selectedDate}" onchange="MarkAttendanceView.onFilterChange()"> <i data-lucide="edit-3" style="cursor: pointer; color: var(--color-text-muted); width: 16px; height: 16px;"></i>` : ''}
           </div>
-          ${(this.mode === 'EDIT' || user.role === 'FACULTY') ? `<input type="hidden" id="sel-att-date" value="${this.selectedDate}">` : ''}
+          ${(this.mode === 'EDIT' || AuthorizationService.isAcademicStaff(user)) ? `<input type="hidden" id="sel-att-date" value="${this.selectedDate}">` : ''}
         </div>
       </div>
 

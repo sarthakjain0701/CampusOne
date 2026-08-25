@@ -21,7 +21,7 @@ const ExamResultsView = {
 
     if (user.role === 'STUDENT') {
       return this.renderStudentView(user);
-    } else if (user.role === 'FACULTY') {
+    } else if (AuthorizationService.isAcademicStaff(user)) {
       return this.renderFacultyView(user);
     } else {
       return this.renderAdminView(user);
@@ -485,7 +485,7 @@ const ExamResultsView = {
     let students = DataStore.get('STUDENTS') || [];
     let subjects = subjectService.getSubjects();
 
-    if (user && user.role === 'FACULTY') {
+    if (user && AuthorizationService.isAcademicStaff(user)) {
       const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
       subjects = subjects.filter(s => authorizedSubjectIds.includes(s.id));
       const authorizedStudentIds = AuthorizationService.getAuthorizedStudentIds(user);

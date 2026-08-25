@@ -35,11 +35,16 @@ const ProfileView = {
             </div>
         `;
       }
-    } else if (user.role === 'FACULTY') {
+    } else if (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT') {
       const facultyList = facultyService.getFaculty();
       const myFaculty = facultyList.find(f => f.email === user.email) || facultyList[0];
       if (myFaculty) {
+        const roleLabel = user.role === 'LAB_ASSISTANT' ? 'Lab Assistant' : 'Faculty';
         roleDetails = `
+            <div>
+              <label style="font-size:0.75rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Staff Type</label>
+              <p style="font-size:0.95rem; font-weight:600; color:var(--color-navy-dark);">${roleLabel}</p>
+            </div>
             <div>
               <label style="font-size:0.75rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Employee ID</label>
               <p style="font-size:0.95rem; font-weight:600; color:var(--color-navy-dark);">${myFaculty.employeeId || 'N/A'}</p>
@@ -50,10 +55,21 @@ const ProfileView = {
             </div>
             <div>
               <label style="font-size:0.75rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Designation</label>
-              <p style="font-size:0.95rem; font-weight:600; color:var(--color-navy-dark);">${myFaculty.designation || 'Faculty'}</p>
+              <p style="font-size:0.95rem; font-weight:600; color:var(--color-navy-dark);">${myFaculty.designation || roleLabel}</p>
             </div>
         `;
       }
+    } else if (user.role === 'LIBRARIAN') {
+      roleDetails = `
+            <div>
+              <label style="font-size:0.75rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Staff Type</label>
+              <p style="font-size:0.95rem; font-weight:600; color:var(--color-navy-dark);">Librarian</p>
+            </div>
+            <div>
+              <label style="font-size:0.75rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Access Level</label>
+              <p style="font-size:0.95rem; font-weight:600; color:var(--color-navy-dark);">Library Management</p>
+            </div>
+      `;
     } else {
       roleDetails = `
             <div>

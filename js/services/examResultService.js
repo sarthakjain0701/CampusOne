@@ -38,9 +38,9 @@ const ExamResultService = {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
     const results = this.getPublishedResults(studentId, semester, user);
 
-    if (results.length === 0 || (user && user.role === 'FACULTY')) {
+    if (results.length === 0 || (user && AuthorizationService.isAcademicStaff(user))) {
       // Faculty is NOT allowed to view overall student CGPA or overall PASS/FAIL across all subjects!
-      return { totalMarks: 0, maxMarks: 0, percentage: 0, sgpa: 0.0, status: 'N/A', isFacultyRestricted: user?.role === 'FACULTY' };
+      return { totalMarks: 0, maxMarks: 0, percentage: 0, sgpa: 0.0, status: 'N/A', isFacultyRestricted: AuthorizationService.isAcademicStaff(user) };
     }
 
     let totalEarned = 0;
