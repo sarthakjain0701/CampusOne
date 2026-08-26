@@ -57,6 +57,9 @@ const FirebaseService = {
     } else if (expectedRole === 'ADMIN') {
       collectionName = 'admins';
       roleText = 'Admin';
+    } else if (expectedRole === 'LIBRARIAN') {
+      collectionName = 'faculties';
+      roleText = 'Librarian';
     } else {
       await this.auth.signOut();
       throw new Error("Invalid role selected.");
@@ -75,8 +78,10 @@ const FirebaseService = {
       await this.auth.signOut();
       if (expectedRole === 'ADMIN') {
         throw new Error("This account is not registered as Admin.");
+      } else if (expectedRole === 'LIBRARIAN') {
+        throw new Error("This account is not registered as Librarian.");
       }
-      throw new Error(`This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.`);
+      throw new Error(${This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.});
     }
 
     const finalAuthData = authDoc.data();
@@ -85,8 +90,10 @@ const FirebaseService = {
       await this.auth.signOut();
       if (expectedRole === 'ADMIN') {
         throw new Error("This account is not registered as Admin.");
+      } else if (expectedRole === 'LIBRARIAN') {
+        throw new Error("This account is not registered as Librarian.");
       }
-      throw new Error(`This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.`);
+      throw new Error(${This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.});
     }
 
     if (finalAuthData.status && finalAuthData.status !== 'ACTIVE') {
@@ -140,3 +147,4 @@ const FirebaseService = {
 };
 
 window.FirebaseService = FirebaseService;
+

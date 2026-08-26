@@ -232,8 +232,17 @@ const App = {
       { id: 'classes', label: 'Classes', icon: 'layers', roles: ['ADMIN', 'FACULTY'] },
       { id: 'reports', label: 'Reports & Analytics', icon: 'file-text', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
       { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
-      { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
-      { id: 'settings', label: 'System Settings', icon: 'settings', roles: ['ADMIN'] }
+      { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'STUDENT', 'LIBRARIAN'] },
+      { id: 'settings', label: 'System Settings', icon: 'settings', roles: ['ADMIN'] },
+      { id: 'lib-dashboard', label: 'Dashboard', icon: 'home', roles: ['LIBRARIAN'] },
+      { id: 'lib-books', label: 'Library Management', icon: 'book', roles: ['LIBRARIAN'] },
+      { id: 'lib-circulation', label: 'Circulation', icon: 'refresh-cw', roles: ['LIBRARIAN'] },
+      { id: 'lib-members', label: 'Members', icon: 'users', roles: ['LIBRARIAN'] },
+      { id: 'lib-reservations', label: 'Reservations', icon: 'bookmark', roles: ['LIBRARIAN'] },
+      { id: 'lib-fines', label: 'Fines', icon: 'indian-rupee', roles: ['LIBRARIAN'] },
+      { id: 'lib-lost', label: 'Lost / Damaged', icon: 'alert-triangle', roles: ['LIBRARIAN'] },
+      { id: 'lib-reports', label: 'Reports', icon: 'bar-chart-2', roles: ['LIBRARIAN'] },
+      { id: 'lib-settings', label: 'Library Settings', icon: 'settings', roles: ['LIBRARIAN'] }
     ];
 
     return allItems.filter(item => item.roles.includes(role));
@@ -269,7 +278,16 @@ const App = {
       'notifications': 'Notification Center',
       'profile': 'User Profile',
       'settings': 'System Settings',
-      'change-password': 'Update Password'
+      'change-password': 'Update Password',
+      'lib-dashboard': 'Library Dashboard',
+      'lib-books': 'Book Management',
+      'lib-circulation': 'Circulation',
+      'lib-members': 'Library Members',
+      'lib-reservations': 'Reservations',
+      'lib-fines': 'Fines Management',
+      'lib-lost': 'Lost and Damaged Books',
+      'lib-reports': 'Library Reports',
+      'lib-settings': 'Library Settings'
     };
     return titles[this.currentView] || 'Poornima Attendance System';
   },
@@ -301,6 +319,7 @@ const App = {
     if (this.currentView === 'dashboard') {
       if (user.role === 'ADMIN') return window.DashboardAdmin.render();
       if (user.role === 'FACULTY') return window.DashboardFaculty.render();
+      if (user.role === 'LIBRARIAN') return window.LibDashboardView.render();
       return window.DashboardStudent.render();
     }
 
@@ -329,7 +348,16 @@ const App = {
       'notifications': window.NotificationsView,
       'profile': window.ProfileView,
       'settings': window.SettingsView,
-      'change-password': window.ChangePasswordView
+      'change-password': window.ChangePasswordView,
+      'lib-dashboard': window.LibDashboardView,
+      'lib-books': window.LibBooksView,
+      'lib-circulation': window.LibCirculationView,
+      'lib-members': window.LibMembersView,
+      'lib-reservations': window.LibReservationsView,
+      'lib-fines': window.LibFinesView,
+      'lib-lost': window.LibLostView,
+      'lib-reports': window.LibReportsView,
+      'lib-settings': window.LibSettingsView
     };
 
     const targetView = views[this.currentView];

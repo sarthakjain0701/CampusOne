@@ -127,8 +127,26 @@ const facultyService = {
       status: facultyData.status || "ACTIVE"
     };
 
-    await window.BackendSimulationService.provisionUser(payload, 'FACULTY');
-    return payload;
+    try {
+      const provisionUserFn = window.firebase.functions().httpsCallable('provisionUser');
+      await provisionUserFn({ role: 'FACULTY', email: officialEmail, profileData: payload });
+      return payload;
+    } catch (err) {
+      console.error("PROVISIONING DIAGNOSIS");
+      console.error("Provisioning failed");
+      console.error("Role: FACULTY");
+      console.error("Stage: Backend Cloud Function");
+      console.error("Cloud Function: provisionUser");
+      console.error("Error code: ", err.code || 'UNKNOWN');
+      console.error("Error message: ", err.message || 'UNKNOWN');
+      
+      let uiMessage = "Unable to provision faculty account. Please try again.";
+      if (err.code === 'already-exists') {
+        uiMessage = "Faculty account already exists.";
+      }
+      
+      throw new Error(uiMessage);
+    }
   },
 
   // --------------------------------------------------------------------------
@@ -214,3 +232,4 @@ const facultyService = {
 };
 
 window.facultyService = facultyService;
+

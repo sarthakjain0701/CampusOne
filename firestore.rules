@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserEmail() {
+      return request.auth.token.email.toLowerCase();
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/admins/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/admins/$(getUserEmail())).data.role == 'ADMIN' &&
+             get(/databases/$(database)/documents/admins/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+    
+    function isFaculty() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/faculties/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.role == 'FACULTY' &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+    
+    function isStudent() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/authorizedUsers/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/authorizedUsers/$(getUserEmail())).data.role == 'STUDENT' &&
+             get(/databases/$(database)/documents/authorizedUsers/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+
+    function isLibrarian() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/librarians/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/librarians/$(getUserEmail())).data.role == 'LIBRARIAN' &&
+             get(/databases/$(database)/documents/librarians/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+
+    // Admins Collection
+    match /admins/{email} {
+      allow read: if isAuthenticated() && (isAdmin() || email == getUserEmail());
+      allow write: if isAdmin();
+    }
+
+    // Faculties Collection
+    match /faculties/{email} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && email == getUserEmail() && 
+                    !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'uid', 'employeeId', 'email']));
+    }
+
+    // Students Collection
+    match /authorizedUsers/{email} {
+      allow read: if isAdmin() || isFaculty() || (isAuthenticated() && email == getUserEmail());
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && email == getUserEmail() && 
+                    !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'uid', 'registrationNo', 'rollNumber', 'email']));
+    }
+
+    // Librarians Collection
+    match /librarians/{email} {
+      allow read: if isAdmin() || (isAuthenticated() && email == getUserEmail());
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && email == getUserEmail() && 
+                    !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'uid', 'employeeId', 'email']));
+    }
+
+    // Users Collection (Session tracking created during login)
+    match /users/{uid} {
+      allow read, write: if isAuthenticated() && uid == request.auth.uid;
+    }
+    
+    // Library Collections
+    match /libraryBooks/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+    match /libraryBookCopies/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+    match /libraryCategories/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+    match /libraryAuthors/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+    match /libraryPublishers/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+    match /librarySettings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+
+    match /libraryTransactions/{docId} {
+      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.memberEmail == getUserEmail());
+      allow write: if isLibrarian();
+    }
+
+    match /libraryFines/{docId} {
+      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.memberEmail == getUserEmail());
+      allow write: if isLibrarian();
+    }
+
+    match /libraryReservations/{docId} {
+      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.memberEmail == getUserEmail());
+      allow write: if isLibrarian() || (isAuthenticated() && request.resource.data.memberEmail == getUserEmail());
+    }
+    
+    // Fallback: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

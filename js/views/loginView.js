@@ -7,7 +7,7 @@ const LoginView = {
   showPassword: false,
 
   render() {
-    return `
+    return \
       <div class="login-container">
         <!-- CENTERED FORM SECTION -->
         <div class="login-form-wrapper">
@@ -21,7 +21,7 @@ const LoginView = {
             </div>
 
             <!-- Role Selector Tabs -->
-            <div class="role-tabs">
+            <div class="role-tabs" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25rem;">
               <button type="button" class="role-tab ${this.selectedRole === 'ADMIN' ? 'active' : ''}" onclick="LoginView.setRole('ADMIN')">
                 <i data-lucide="shield"></i> Admin
               </button>
@@ -30,6 +30,9 @@ const LoginView = {
               </button>
               <button type="button" class="role-tab ${this.selectedRole === 'STUDENT' ? 'active' : ''}" onclick="LoginView.setRole('STUDENT')">
                 <i data-lucide="graduation-cap"></i> Student
+              </button>
+              <button type="button" class="role-tab ${this.selectedRole === 'LIBRARIAN' ? 'active' : ''}" onclick="LoginView.setRole('LIBRARIAN')">
+                <i data-lucide="book"></i> Librarian
               </button>
             </div>
 
@@ -46,7 +49,7 @@ const LoginView = {
                 <label class="form-label" for="login-password">Password</label>
                 <div class="input-container">
                   <i data-lucide="lock" class="input-icon"></i>
-                  <input type="${this.showPassword ? 'text' : 'password'}" id="login-password" class="form-input" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required>
+                  <input type="${this.showPassword ? 'text' : 'password'}" id="login-password" class="form-input" placeholder="••••••••" required>
                   <button type="button" class="toggle-password" onclick="LoginView.togglePasswordVisibility()" aria-label="Toggle password visibility">
                     <i data-lucide="${this.showPassword ? 'eye-off' : 'eye'}"></i>
                   </button>
@@ -60,12 +63,13 @@ const LoginView = {
           </div>
         </div>
       </div>
-    `;
+    \;
   },
 
   getDefaultEmail() {
     if (this.selectedRole === 'ADMIN') return 'admin@poornima.org';
     if (this.selectedRole === 'FACULTY') return 'faculty@poornima.org';
+    if (this.selectedRole === 'LIBRARIAN') return 'librarian@poornima.org';
     return 'student@poornima.org';
   },
 
@@ -104,18 +108,18 @@ const LoginView = {
     const password = document.getElementById('login-password').value;
 
     btn.disabled = true;
-    btn.innerHTML = `<i data-lucide="loader" class="spin"></i> LOGGING IN...`;
+    btn.innerHTML = \<i data-lucide="loader" class="spin"></i> LOGGING IN...\;
     if (window.lucide) window.lucide.createIcons();
 
     try {
       // Connect to authService
       const user = await window.authService.login(email, password, this.selectedRole);
-      UIService.showToast(`Welcome back, ${user.name}!`, 'success');
+      UIService.showToast(\Welcome back, ${user.name}!\, 'success');
       window.App.onLoginSuccess(user);
     } catch (err) {
       UIService.showToast(err.message, 'danger');
       btn.disabled = false;
-      btn.innerHTML = `LOG IN`;
+      btn.innerHTML = \LOG IN\;
       if (window.lucide) window.lucide.createIcons();
     }
   }
