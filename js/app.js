@@ -230,8 +230,23 @@ const App = {
   },
 
   getNavigationForRole(role) {
+    if (role === 'LIBRARIAN') {
+      return [
+        { id: 'library-dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['LIBRARIAN'] },
+        { id: 'library-books', label: 'Books & Inventory', icon: 'book', roles: ['LIBRARIAN'] },
+        { id: 'library-circulation', label: 'Circulation', icon: 'rotate-ccw', roles: ['LIBRARIAN'] },
+        { id: 'library-members', label: 'Members', icon: 'users', roles: ['LIBRARIAN'] },
+        { id: 'library-reservations', label: 'Reservations', icon: 'calendar-clock', roles: ['LIBRARIAN'] },
+        { id: 'library-fines', label: 'Fines & Payments', icon: 'indian-rupee', roles: ['LIBRARIAN'] },
+        { id: 'library-reports', label: 'Reports', icon: 'bar-chart', roles: ['LIBRARIAN'] },
+        { id: 'library-settings', label: 'Settings', icon: 'settings', roles: ['LIBRARIAN'] },
+        { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['LIBRARIAN'] },
+        { id: 'profile', label: 'User Profile', icon: 'user', roles: ['LIBRARIAN'] }
+      ];
+    }
+
     const allItems = [
-      { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'LIBRARIAN', 'STUDENT'] },
+      { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'mark-attendance', label: 'Attendance', icon: 'check-square', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT'] },
       { id: 'attendance-history', label: 'Attendance History', icon: 'history', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'attendance-assignments', label: 'Faculty Attendance Assignments', icon: 'calendar-check', roles: ['ADMIN'] },
@@ -240,8 +255,8 @@ const App = {
       { id: 'exam-results', label: 'Exam Results', icon: 'award', roles: ['ADMIN', 'STUDENT'] },
       { id: 'mid-term-marks', label: 'Mid-Term Marks', icon: 'file-spreadsheet', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'hall-ticket', label: 'Hall Ticket', icon: 'ticket', roles: ['STUDENT'] },
-      { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'LIBRARIAN', 'STUDENT'] },
-      { id: 'library', label: 'Library', icon: 'book', roles: ['ADMIN', 'LIBRARIAN', 'STUDENT'] },
+      { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'library', label: 'Library Portal', icon: 'book', roles: ['ADMIN', 'STUDENT'] },
       { id: 'exam-form', label: 'Exam Form', icon: 'file-text', roles: ['STUDENT'] },
       { id: 'digital-id', label: 'Digital ID Card', icon: 'id-card', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'exam-form-management', label: 'Exam Form Management', icon: 'check-square', roles: ['ADMIN'] },
@@ -252,8 +267,8 @@ const App = {
       { id: 'subjects', label: 'Subjects', icon: 'book-text', roles: ['ADMIN'] },
       { id: 'classes', label: 'Classes', icon: 'layers', roles: ['ADMIN'] },
       { id: 'reports', label: 'Reports & Analytics', icon: 'file-text', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT'] },
-      { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'LIBRARIAN', 'STUDENT'] },
-      { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'LIBRARIAN', 'STUDENT'] },
+      { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'settings', label: 'System Settings', icon: 'settings', roles: ['ADMIN'] }
     ];
 
@@ -290,7 +305,15 @@ const App = {
       'notifications': 'Notification Center',
       'profile': 'User Profile',
       'settings': 'System Settings',
-      'change-password': 'Update Password'
+      'change-password': 'Update Password',
+      'library-dashboard': 'Library Dashboard',
+      'library-books': 'Books & Inventory',
+      'library-circulation': 'Circulation Management',
+      'library-members': 'Library Members',
+      'library-reservations': 'Reservations',
+      'library-fines': 'Fines & Payments',
+      'library-reports': 'Library Reports',
+      'library-settings': 'Library Settings'
     };
     return titles[this.currentView] || 'Poornima Attendance System';
   },
@@ -326,6 +349,10 @@ const App = {
       if (user.role === 'LIBRARIAN') return window.DashboardLibrarian.render();
       return window.DashboardStudent.render();
     }
+    
+    if (this.currentView === 'library-dashboard') {
+      return window.DashboardLibrarian.render();
+    }
 
     const views = {
       'mark-attendance': window.MarkAttendanceView,
@@ -352,7 +379,14 @@ const App = {
       'notifications': window.NotificationsView,
       'profile': window.ProfileView,
       'settings': window.SettingsView,
-      'change-password': window.ChangePasswordView
+      'change-password': window.ChangePasswordView,
+      'library-books': window.LibraryBooksView,
+      'library-circulation': window.LibraryCirculationView,
+      'library-members': window.LibraryMembersView,
+      'library-reservations': window.LibraryReservationsView,
+      'library-fines': window.LibraryFinesView,
+      'library-reports': window.LibraryReportsView,
+      'library-settings': window.LibrarySettingsView
     };
 
     const targetView = views[this.currentView];

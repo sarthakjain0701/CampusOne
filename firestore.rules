@@ -71,5 +71,59 @@ service cloud.firestore {
         )
       );
     }
+
+    // 6. Library Management Collections
+    // Librarians and Admins have full read/write access.
+    // All users can read libraryBooks, libraryCategories, libraryAuthors, libraryPublishers.
+    // Users can read their own libraryTransactions, libraryFines, libraryReservations.
+    
+    function isLibrarian() {
+      return isActiveStaffWithRole('LIBRARIAN');
+    }
+
+    match /libraryBooks/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isLibrarian();
+    }
+    
+    match /libraryBookCopies/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isLibrarian();
+    }
+
+    match /libraryCategories/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isLibrarian();
+    }
+
+    match /libraryAuthors/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isLibrarian();
+    }
+
+    match /libraryPublishers/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isLibrarian();
+    }
+
+    match /libraryTransactions/{document=**} {
+      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin() || isLibrarian();
+    }
+
+    match /libraryReservations/{document=**} {
+      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow write: if isAuthenticated(); // Users can create reservations
+    }
+
+    match /libraryFines/{document=**} {
+      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin() || isLibrarian();
+    }
+
+    match /librarySettings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isLibrarian();
+    }
   }
 }
