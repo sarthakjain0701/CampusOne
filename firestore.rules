@@ -1,129 +1,16 @@
+// WARNING: The user explicitly requested to allow global read and write for all collections.
+// This is extremely insecure and should NOT be used in a real production environment.
+// The user stated they will handle security at the UI level.
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. Helper Functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isOwnEmail(email) {
-      return isAuthenticated() && request.auth.token.email == email;
-    }
-    
-    function isOwnUid(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    // Global allow read/write for all collections
+    match /{document=**} {
+      allow read, write: if true;
     }
 
-    function isAdmin() {
-      // Check if the authenticated user has an active Admin profile
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.role == 'ADMIN' &&
-             get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.status == 'ACTIVE';
-    }
-
-    function isStaff() {
-      // Check if the authenticated user is an active staff member (Faculty, Lab Assistant, or Librarian)
-      return isAuthenticated() &&
-             exists(/databases/$(database)/documents/faculties/$(request.auth.token.email)) &&
-             get(/databases/$(database)/documents/faculties/$(request.auth.token.email)).data.status == 'ACTIVE';
-    }
-
-    function isActiveStaffWithRole(role) {
-      // Check if the authenticated user is an active staff member with a specific role
-      return isStaff() &&
-             get(/databases/$(database)/documents/faculties/$(request.auth.token.email)).data.role == role;
-    }
-
-    // 2. Student Profiles
-    // Students can read their own profile. Admins can read all student profiles for real-time sync.
-    // Client writes strictly forbidden.
-    match /authorizedUsers/{email} {
-      allow read: if isOwnEmail(email) || isAdmin();
-      allow write: if false; 
-    }
-
-    // 3. Faculty/Staff Profiles (Faculty, Lab Assistant, Librarian)
-    // Staff members can read their own profile. Admins can read all staff profiles for management.
-    // Client writes strictly forbidden.
-    match /faculties/{email} {
-      allow read: if isOwnEmail(email) || isAdmin();
-      allow write: if false;
-    }
-
-    // 4. Admin Profiles
-    // Admins can read their own profile.
-    // Client writes strictly forbidden.
-    match /admins/{email} {
-      allow read: if isOwnEmail(email);
-      allow write: if false;
-    }
-
-    // 5. Global Users Cache
-    // Users can read/write their own session record.
-    match /users/{userId} {
-      allow read: if isOwnUid(userId);
-      // Allow creation or update, but prevent changing role/status on existing documents
-      allow write: if isOwnUid(userId) && (
-        resource == null || (
-          request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']) == false
-        )
-      );
-    }
-
-    // 6. Library Management Collections
-    // Librarians and Admins have full read/write access.
-    // All users can read libraryBooks, libraryCategories, libraryAuthors, libraryPublishers.
-    // Users can read their own libraryTransactions, libraryFines, libraryReservations.
-    
-    function isLibrarian() {
-      return isActiveStaffWithRole('LIBRARIAN');
-    }
-
-    match /libraryBooks/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isLibrarian();
-    }
-    
-    match /libraryBookCopies/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isLibrarian();
-    }
-
-    match /libraryCategories/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isLibrarian();
-    }
-
-    match /libraryAuthors/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isLibrarian();
-    }
-
-    match /libraryPublishers/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isLibrarian();
-    }
-
-    match /libraryTransactions/{document=**} {
-      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow write: if isAdmin() || isLibrarian();
-    }
-
-    match /libraryReservations/{document=**} {
-      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow write: if isAuthenticated(); // Users can create reservations
-    }
-
-    match /libraryFines/{document=**} {
-      allow read: if isAdmin() || isLibrarian() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow write: if isAdmin() || isLibrarian();
-    }
-
-    match /librarySettings/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isLibrarian();
-    }
   }
 }
