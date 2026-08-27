@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LIBRARY SERVICE (FIRESTORE)
    Comprehensive Library Operations
    ========================================================================== */
@@ -289,6 +289,13 @@ const LibraryService = {
     return unsubscribe;
   },
 
+  
+  getStudentLibraryHistory(studentId) {
+    if (window.MOCK_DATA && window.MOCK_DATA.libraryRecords) {
+      return window.MOCK_DATA.libraryRecords.filter(r => r.studentId === studentId || r.userId === studentId);
+    }
+    return [];
+  },
   stopListening() {
     this.listeners.forEach(unsub => unsub());
     this.listeners = [];
