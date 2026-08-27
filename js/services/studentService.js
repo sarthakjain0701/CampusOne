@@ -184,41 +184,43 @@ const studentService = {
   },
 
   // --------------------------------------------------------------------------
-  // UPDATE — Writes directly to Firestore document
-  // --------------------------------------------------------------------------
   async updateStudent(docId, updatedFields) {
-    const db = await this._ensureDb();
-
-    // Normalize roll number if being updated
     if (updatedFields.rollNumber) {
       updatedFields.rollNumber = updatedFields.rollNumber.trim().toUpperCase();
       updatedFields.rollNo = updatedFields.rollNumber;
     }
 
-    // Add timestamp
-    updatedFields.updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
-
     try {
-      await db.collection(this._collection()).doc(docId).update(updatedFields);
+      if (!window.BackendSimulationService) {
+        throw new Error("Client Provisioning Service is not loaded.");
+      }
+      const payload = {
+        email: docId,
+        ...updatedFields
+      };
+      await window.BackendSimulationService.updateUser(payload, 'STUDENT');
     } catch (err) {
-      console.error("Failed to update student in Firestore", err);
-      if (err.code === 'not-found') throw new Error("Student record not found in the database.");
-      if (err.code === 'permission-denied') throw new Error("You do not have permission to update this record.");
-      throw new Error("Unable to save student information. Please try again.");
+      console.error("Failed to update student via backend", err);
+      throw new Error(err.message || "Unable to save student information.");
     }
   },
 
   // --------------------------------------------------------------------------
-  // DELETE — Removes document from Firestore
+  // DELETE — Removes document from Firestore and disables Auth account
   // --------------------------------------------------------------------------
   async deleteStudent(docId) {
-    const db = await this._ensureDb();
     try {
+      if (!window.BackendSimulationService) {
+        throw new Error("Client Provisioning Service is not loaded.");
+      }
+      // Deactivate Auth account first
+      await window.BackendSimulationService.updateUser({ email: docId, status: 'INACTIVE' }, 'STUDENT');
+      
+      const db = await this._ensureDb();
       await db.collection(this._collection()).doc(docId).delete();
     } catch (err) {
       console.error("Failed to delete student from Firestore", err);
-      if (err.code === 'permission-denied') throw new Error("You do not have permission to delete this record.");
-      throw new Error("Unable to delete student record. Please try again.");
+      throw new Error(err.message || "Unable to delete student record. Please try again.");
     }
   },
 

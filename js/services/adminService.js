@@ -110,28 +110,42 @@ const adminService = {
     const payload = {
       name: adminData.name.trim(),
       email: adminData.email.trim().toLowerCase(),
-      status: adminData.status || 'ACTIVE'
+      status: adminData.status || 'ACTIVE',
+      role: 'ADMIN'
     };
 
-    await window.BackendSimulationService.provisionUser(payload, 'ADMIN');
-    return payload;
+    try {
+      if (!window.BackendSimulationService) {
+        throw new Error("Client Provisioning Service is not loaded.");
+      }
+      await window.BackendSimulationService.provisionUser(payload, 'ADMIN');
+      return payload;
+    } catch (err) {
+      console.error("[PAMS PROVISIONING ERROR]", err);
+      let uiMessage = err.message || "Unable to provision admin account. Please try again.";
+      if (err.message && err.message.includes('already exists')) {
+        uiMessage = "Admin account already exists.";
+      }
+      throw new Error(uiMessage);
+    }
   },
 
   // --------------------------------------------------------------------------
   // UPDATE — Writes directly to Firestore
   // --------------------------------------------------------------------------
   async updateAdmin(docId, updatedFields) {
-    const db = await this._ensureDb();
-
-    updatedFields.updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
-
     try {
-      await db.collection(this._collection()).doc(docId).update(updatedFields);
+      if (!window.BackendSimulationService) {
+        throw new Error("Client Provisioning Service is not loaded.");
+      }
+      const payload = {
+        email: docId,
+        ...updatedFields
+      };
+      await window.BackendSimulationService.updateUser(payload, 'ADMIN');
     } catch (err) {
-      console.error("Failed to update admin in Firestore", err);
-      if (err.code === 'not-found') throw new Error("Admin record not found in the database.");
-      if (err.code === 'permission-denied') throw new Error("You do not have permission to update this record.");
-      throw new Error("Unable to save admin information. Please try again.");
+      console.error("Failed to update admin via backend", err);
+      throw new Error(err.message || "Unable to save admin information.");
     }
   },
 
