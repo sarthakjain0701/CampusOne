@@ -1,10 +1,9 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LOGIN VIEW (PHASE 5 SERVICE-CONNECTED)
-   Supports 5 roles: ADMIN, FACULTY, LAB_ASSISTANT, LIBRARIAN, STUDENT
+   Supports a single, universal login screen for all roles.
    ========================================================================== */
 
 const LoginView = {
-  selectedRole: 'ADMIN',
   showPassword: false,
 
   render() {
@@ -21,31 +20,12 @@ const LoginView = {
               <p style="font-weight: 600; color: var(--color-primary); margin-top: 2px;">WELCOME BACK</p>
             </div>
 
-            <!-- Role Selector Tabs (5 roles) -->
-            <div class="role-tabs" style="flex-wrap: wrap;">
-              <button type="button" class="role-tab ${this.selectedRole === 'ADMIN' ? 'active' : ''}" data-role="ADMIN" onclick="LoginView.setRole('ADMIN')">
-                <i data-lucide="shield"></i> Admin
-              </button>
-              <button type="button" class="role-tab ${this.selectedRole === 'FACULTY' ? 'active' : ''}" data-role="FACULTY" onclick="LoginView.setRole('FACULTY')">
-                <i data-lucide="user"></i> Faculty
-              </button>
-              <button type="button" class="role-tab ${this.selectedRole === 'LAB_ASSISTANT' ? 'active' : ''}" data-role="LAB_ASSISTANT" onclick="LoginView.setRole('LAB_ASSISTANT')">
-                <i data-lucide="flask-conical"></i> Lab Assistant
-              </button>
-              <button type="button" class="role-tab ${this.selectedRole === 'LIBRARIAN' ? 'active' : ''}" data-role="LIBRARIAN" onclick="LoginView.setRole('LIBRARIAN')">
-                <i data-lucide="library"></i> Librarian
-              </button>
-              <button type="button" class="role-tab ${this.selectedRole === 'STUDENT' ? 'active' : ''}" data-role="STUDENT" onclick="LoginView.setRole('STUDENT')">
-                <i data-lucide="graduation-cap"></i> Student
-              </button>
-            </div>
-
             <form id="login-form" onsubmit="LoginView.handleSubmit(event)">
               <div class="form-group">
                 <label class="form-label" for="login-email">College Email Address</label>
                 <div class="input-container">
                   <i data-lucide="mail" class="input-icon"></i>
-                  <input type="email" id="login-email" class="form-input" placeholder="name@poornima.org" required value="${this.getDefaultEmail()}">
+                  <input type="email" id="login-email" class="form-input" placeholder="name@poornima.org" required value="">
                 </div>
               </div>
 
@@ -70,34 +50,6 @@ const LoginView = {
     `;
   },
 
-  getDefaultEmail() {
-    if (this.selectedRole === 'ADMIN') return 'admin@poornima.org';
-    if (this.selectedRole === 'FACULTY') return 'faculty@poornima.org';
-    if (this.selectedRole === 'LAB_ASSISTANT') return 'labassistant@poornima.org';
-    if (this.selectedRole === 'LIBRARIAN') return 'librarian@poornima.org';
-    return 'student@poornima.org';
-  },
-
-  setRole(role) {
-    this.selectedRole = role;
-    const emailInput = document.getElementById('login-email');
-    if (emailInput) emailInput.value = this.getDefaultEmail();
-    
-    // Use data-role attribute for reliable tab matching
-    document.querySelectorAll('.role-tab').forEach(tab => {
-      tab.classList.remove('active');
-      if (tab.getAttribute('data-role') === role) {
-        tab.classList.add('active');
-      }
-    });
-
-    const passwordGroup = document.getElementById('password-group');
-    const loginSubmitBtn = document.getElementById('btn-login-submit');
-
-    if (passwordGroup) passwordGroup.style.display = 'block';
-    if (loginSubmitBtn) loginSubmitBtn.style.display = 'inline-flex';
-  },
-
   togglePasswordVisibility() {
     this.showPassword = !this.showPassword;
     const input = document.getElementById('login-password');
@@ -118,8 +70,8 @@ const LoginView = {
     if (window.lucide) window.lucide.createIcons();
 
     try {
-      // Connect to authService
-      const user = await window.authService.login(email, password, this.selectedRole);
+      // Connect to authService (role is auto-detected on backend)
+      const user = await window.authService.login(email, password);
       UIService.showToast(`Welcome back, ${user.name}!`, 'success');
       window.App.onLoginSuccess(user);
     } catch (err) {

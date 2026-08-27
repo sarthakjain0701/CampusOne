@@ -372,3 +372,4 @@ const MarkAttendanceView = {
 };
 
 window.MarkAttendanceView = MarkAttendanceView;
+

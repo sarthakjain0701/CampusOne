@@ -614,3 +614,4 @@ const ReportsView = {
 };
 
 window.ReportsView = ReportsView;
+

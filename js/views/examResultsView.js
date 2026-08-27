@@ -623,3 +623,4 @@ const ExamResultsView = {
 };
 
 window.ExamResultsView = ExamResultsView;
+

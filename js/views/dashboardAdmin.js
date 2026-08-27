@@ -121,7 +121,7 @@ const DashboardAdmin = {
           <div class="stat-info">
             <h3>Outstanding Fines</h3>
             <div class="value" style="color:var(--color-danger); font-size:1.4rem;">
-              ₹${window.LibraryService ? LibraryService.getAllRecords().filter(r => r.fineStatus === 'UNPAID').reduce((sum, r) => sum + r.fineAmount, 0) : 0}
+              ₹${window.LibraryService ? 0 : 0}
             </div>
             <span class="stat-trend negative"><i data-lucide="indian-rupee"></i> Total Unpaid Library Fines</span>
           </div>
@@ -221,6 +221,25 @@ const DashboardAdmin = {
     `;
   },
 
+  async loadLibraryStats() {
+    try {
+      if (!window.LibraryService) {
+        console.warn("LibraryService is not available.");
+        return;
+      }
+
+      const stats = await LibraryService.getDashboardStats();
+
+      const fineElement = document.getElementById("admin-outstanding-fines");
+
+      if (fineElement) {
+        fineElement.textContent = Number(stats.pendingFinesTotal || 0).toLocaleString("en-IN");
+      }
+    } catch (error) {
+      console.warn("Unable to load library dashboard statistics:", error);
+    }
+  },
+
   initCharts() {
     const ctx = document.getElementById('adminAttendanceChart');
     if (!ctx) return;
@@ -256,3 +275,7 @@ const DashboardAdmin = {
 };
 
 window.DashboardAdmin = DashboardAdmin;
+
+
+
+

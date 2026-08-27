@@ -96,3 +96,4 @@ const ChangePasswordView = {
 };
 
 window.ChangePasswordView = ChangePasswordView;
+

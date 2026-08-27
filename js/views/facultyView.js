@@ -123,11 +123,21 @@ const FacultyView = {
     const html = `
       <form id="add-fac-form" onsubmit="return false;">
         <div class="form-group">
-          <label class="form-label">Staff Type *</label>
-          <select id="m-fac-role" class="form-select">
+          <label class="form-label">System Role *</label>
+          <select id="m-fac-role-val" class="form-select">
             <option value="FACULTY" selected>Faculty</option>
-            <option value="LAB_ASSISTANT">Lab Assistant</option>
+            <option value="STUDENT">Student</option>
             <option value="LIBRARIAN">Librarian</option>
+            <option value="LAB_ASSISTANT">Lab Assistant</option>
+            <option value="ADMIN">Administrator</option>
+            <option value="PROCTOR">Proctor</option>
+            <option value="HOD">HOD</option>
+            <option value="DEAN">Dean</option>
+            <option value="REGISTRAR">Registrar</option>
+            <option value="COE">COE</option>
+            <option value="FINANCE_OFFICER">Finance Officer</option>
+            <option value="IT_SUPPORT">IT Support</option>
+            <option value="MANAGEMENT">Management</option>
           </select>
         </div>
 
@@ -171,7 +181,7 @@ const FacultyView = {
           </div>
           <div class="form-group">
             <label class="form-label">Designation *</label>
-            <select id="m-fac-designation" class="form-select">
+            <select id="m-fac-designation" class="form-select" onchange="FacultyView.onDesignationChange(this.value, 'add')">
               <option value="" disabled selected>Select Designation ▼</option>
               <option value="Assistant Professor">Assistant Professor</option>
               <option value="Associate Professor">Associate Professor</option>
@@ -234,11 +244,26 @@ const FacultyView = {
     if(emailField) emailField.value = generated;
   },
 
+  onDesignationChange(designation, mode) {
+    const roleDisplay = mode === 'add' ? document.getElementById('m-fac-role-display') : document.getElementById('m-edit-fac-role-display');
+    const roleVal = mode === 'add' ? document.getElementById('m-fac-role-val') : document.getElementById('m-edit-fac-role-val');
+    
+    let newRole = 'FACULTY';
+    if (designation === 'Librarian') {
+      newRole = 'LIBRARIAN';
+    } else if (designation === 'Lab Assistant') {
+      newRole = 'LAB_ASSISTANT';
+    }
+    
+    if (roleDisplay) roleDisplay.value = newRole;
+    if (roleVal) roleVal.value = newRole;
+  },
+
   async saveNewFaculty() {
     const fname = document.getElementById('m-fac-fname').value.trim();
     const lname = document.getElementById('m-fac-lname').value.trim();
     const name = fname + (lname ? ' ' + lname : '');
-    const selectedRole = document.getElementById('m-fac-role').value;
+    const selectedRole = document.getElementById('m-fac-role-val').value;
 
     const data = {
       name: name,
@@ -289,6 +314,12 @@ const FacultyView = {
           <label class="form-label">Full Name</label>
           <input type="text" id="m-edit-fac-name" class="form-input" value="${fac.name || ''}">
         </div>
+        <div class="form-group">
+          <label class="form-label">System Role</label>
+          <select id="m-edit-fac-role-val" class="form-select">
+            ${['FACULTY','STUDENT','LIBRARIAN','LAB_ASSISTANT','ADMIN','PROCTOR','HOD','DEAN','REGISTRAR','COE','FINANCE_OFFICER','IT_SUPPORT','MANAGEMENT'].map(r => `<option value="${r}" ${(fac.role || fac.staffRole || 'FACULTY') === r ? 'selected' : ''}>${r.charAt(0) + r.slice(1).toLowerCase().replace('_', ' ')}</option>`).join('')}
+          </select>
+        </div>
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">Employee ID (Read-only)</label>
@@ -308,8 +339,8 @@ const FacultyView = {
           </div>
           <div class="form-group">
             <label class="form-label">Designation</label>
-            <select id="m-edit-fac-designation" class="form-select">
-              ${['Assistant Professor','Associate Professor','Professor','Lecturer','HOD'].map(d => `<option value="${d}" ${fac.designation === d ? 'selected' : ''}>${d}</option>`).join('')}
+            <select id="m-edit-fac-designation" class="form-select" onchange="FacultyView.onDesignationChange(this.value, 'edit')">
+              ${['Assistant Professor','Associate Professor','Professor','Lecturer','HOD','Librarian'].map(d => `<option value="${d}" ${fac.designation === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -347,6 +378,7 @@ const FacultyView = {
             name: document.getElementById('m-edit-fac-name').value.trim(),
             department: document.getElementById('m-edit-fac-dept').value,
             designation: document.getElementById('m-edit-fac-designation').value,
+            role: document.getElementById('m-edit-fac-role-val').value,
             qualification: document.getElementById('m-edit-fac-qual').value,
             specialization: document.getElementById('m-edit-fac-spec').value,
             phone: document.getElementById('m-edit-fac-phone').value.trim(),

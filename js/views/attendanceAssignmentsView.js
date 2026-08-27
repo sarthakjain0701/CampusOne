@@ -226,3 +226,4 @@ const AttendanceAssignmentsView = {
 };
 
 window.AttendanceAssignmentsView = AttendanceAssignmentsView;
+

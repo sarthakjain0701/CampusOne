@@ -137,3 +137,4 @@ const ClassesView = {
 };
 
 window.ClassesView = ClassesView;
+

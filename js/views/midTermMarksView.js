@@ -1134,3 +1134,4 @@ const MidTermMarksView = {
 };
 
 window.MidTermMarksView = MidTermMarksView;
+

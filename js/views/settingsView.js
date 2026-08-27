@@ -91,3 +91,4 @@ const SettingsView = {
 };
 
 window.SettingsView = SettingsView;
+

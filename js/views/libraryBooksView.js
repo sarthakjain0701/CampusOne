@@ -267,3 +267,4 @@ const LibraryBooksView = {
 };
 
 window.LibraryBooksView = LibraryBooksView;
+

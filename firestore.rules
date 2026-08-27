@@ -1,15 +1,219 @@
-// WARNING: The user explicitly requested to allow global read and write for all collections.
-// This is extremely insecure and should NOT be used in a real production environment.
-// The user stated they will handle security at the UI level.
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Global allow read/write for all collections
+
+    // ============================================================
+    // Helper Functions
+    // ============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/admins/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/admins/$(getUserEmail())).data.role == 'ADMIN' &&
+             get(/databases/$(database)/documents/admins/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+
+    function isFaculty() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/faculties/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.role == 'FACULTY' &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+
+    function isStudent() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/authorizedUsers/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/authorizedUsers/$(getUserEmail())).data.role == 'STUDENT' &&
+             get(/databases/$(database)/documents/authorizedUsers/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+
+    function isLibrarian() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/faculties/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.role == 'LIBRARIAN' &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+
+    // ============================================================
+    // Admins
+    // ============================================================
+
+    match /admins/{email} {
+      allow read: if isAuthenticated() &&
+                  (isAdmin() || email == getUserEmail());
+
+      allow write: if isAdmin();
+    }
+
+    // ============================================================
+    // Faculties
+    // ============================================================
+
+    match /faculties/{email} {
+      allow read: if isAuthenticated();
+
+      allow create, delete: if isAdmin();
+
+      allow update: if isAdmin() ||
+                    (isAuthenticated() &&
+                     email == getUserEmail() &&
+                     !request.resource.data.diff(resource.data)
+                       .affectedKeys()
+                       .hasAny([
+                         'role',
+                         'status',
+                         'uid',
+                         'employeeId',
+                         'email'
+                       ]));
+    }
+
+    // ============================================================
+    // Students
+    // ============================================================
+
+    match /authorizedUsers/{email} {
+      allow read: if isAdmin() ||
+                  isFaculty() ||
+                  (isAuthenticated() && email == getUserEmail());
+
+      allow create, delete: if isAdmin();
+
+      allow update: if isAdmin() ||
+                    (isAuthenticated() &&
+                     email == getUserEmail() &&
+                     !request.resource.data.diff(resource.data)
+                       .affectedKeys()
+                       .hasAny([
+                         'role',
+                         'status',
+                         'uid',
+                         'registrationNo',
+                         'rollNumber',
+                         'email'
+                       ]));
+    }
+
+
+    // ============================================================
+    // User Session Records
+    // ============================================================
+
+    match /users/{uid} {
+      allow read, write: if isAuthenticated() &&
+                         (uid == request.auth.uid || isAdmin());
+    }
+
+    // ============================================================
+    // Library - Books
+    // ============================================================
+
+    match /libraryBooks/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Book Copies
+    // ============================================================
+
+    match /libraryBookCopies/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Categories
+    // ============================================================
+
+    match /libraryCategories/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Authors
+    // ============================================================
+
+    match /libraryAuthors/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Publishers
+    // ============================================================
+
+    match /libraryPublishers/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Settings
+    // ============================================================
+
+    match /librarySettings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Transactions
+    // ============================================================
+
+    match /libraryTransactions/{docId} {
+      allow read: if isAdmin() ||
+                  isLibrarian() ||
+                  (isAuthenticated() &&
+                   resource.data.memberEmail == getUserEmail());
+
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Fines
+    // ============================================================
+
+    match /libraryFines/{docId} {
+      allow read: if isAdmin() ||
+                  isLibrarian() ||
+                  (isAuthenticated() &&
+                   resource.data.memberEmail == getUserEmail());
+
+      allow write: if isLibrarian();
+    }
+
+    // ============================================================
+    // Library - Reservations
+    // ============================================================
+
+    match /libraryReservations/{docId} {
+      allow read: if isAdmin() ||
+                  isLibrarian() ||
+                  (isAuthenticated() &&
+                   resource.data.memberEmail == getUserEmail());
+
+      allow write: if isLibrarian() ||
+                   (isAuthenticated() &&
+                    request.resource.data.memberEmail == getUserEmail());
+    }
+
+    // ============================================================
+    // Default Deny
+    // ============================================================
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
   }

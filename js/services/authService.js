@@ -6,7 +6,7 @@
 const authService = {
   STORAGE_KEY: 'pas_session_user',
 
-  async login(email, password, expectedRole) {
+  async login(email, password) {
     const safeEmail = email ? email.trim().toLowerCase() : '';
     
     // Validate inputs
@@ -22,7 +22,7 @@ const authService = {
     }
 
     // Call Firebase Service which handles Auth + Firestore Verification + Local Session
-    return await window.FirebaseService.loginWithEmailAndPassword(safeEmail, password, expectedRole);
+    return await window.FirebaseService.loginWithEmailAndPassword(safeEmail, password);
   },
 
   async logout() {

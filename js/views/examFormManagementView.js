@@ -384,3 +384,4 @@ const ExamFormManagementView = {
 };
 
 window.ExamFormManagementView = ExamFormManagementView;
+

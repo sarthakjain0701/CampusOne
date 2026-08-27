@@ -147,3 +147,4 @@ const SubjectsView = {
 };
 
 window.SubjectsView = SubjectsView;
+

@@ -162,3 +162,4 @@ const DashboardFaculty = {
 };
 
 window.DashboardFaculty = DashboardFaculty;
+

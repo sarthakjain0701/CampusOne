@@ -127,11 +127,24 @@ const facultyService = {
       designation: facultyData.designation || "Assistant Professor",
       qualification: facultyData.qualification || "Ph.D.",
       specialization: facultyData.specialization || "General",
-      status: facultyData.status || "ACTIVE"
+      status: facultyData.status || "ACTIVE",
+      role: facultyData.staffRole || "FACULTY"
     };
 
-    await window.BackendSimulationService.provisionUser(payload, provisionRole);
-    return payload;
+    try {
+      if (!window.BackendSimulationService) {
+        throw new Error("Client Provisioning Service is not loaded.");
+      }
+      await window.BackendSimulationService.provisionUser(payload, payload.role);
+      return payload;
+    } catch (err) {
+      console.error("[PAMS PROVISIONING ERROR]", err);
+      let uiMessage = err.message || "User provisioning could not be completed.";
+      if (err.message && err.message.includes('already exists')) {
+        uiMessage = "Faculty account already exists.";
+      }
+      throw new Error(uiMessage);
+    }
   },
 
   // --------------------------------------------------------------------------
