@@ -17,7 +17,7 @@ const DigitalLearningView = {
 
     if (user.role === 'STUDENT') {
       return this.renderStudentView(user);
-    } else if (user.role === 'FACULTY') {
+    } else if (AuthorizationService.isAcademicStaff(user)) {
       return this.renderFacultyView(user);
     } else {
       return this.renderAdminView(user);

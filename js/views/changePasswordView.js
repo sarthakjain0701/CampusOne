@@ -70,7 +70,7 @@ const ChangePasswordView = {
       const currentUser = authService.getCurrentUser();
       let collectionName = '';
       if (currentUser.role === 'STUDENT') collectionName = 'authorizedUsers';
-      if (currentUser.role === 'FACULTY') collectionName = 'faculties';
+      if (currentUser.role === 'FACULTY' || currentUser.role === 'LAB_ASSISTANT' || currentUser.role === 'LIBRARIAN') collectionName = 'faculties';
       if (currentUser.role === 'ADMIN') collectionName = 'admins';
 
       await window.FirebaseService.db.collection(collectionName).doc(currentUser.email).update({

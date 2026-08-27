@@ -20,7 +20,7 @@ const ReportsView = {
   render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div class="card" style="padding:2rem">Please log in.</div>`;
-    const isFaculty = user.role === 'FACULTY';
+    const isFaculty = AuthorizationService.isAcademicStaff(user);
 
     return `
       <div class="page-header" style="margin-bottom:1.5rem;">
@@ -168,7 +168,7 @@ const ReportsView = {
   postInit() {
     const user = authService.getCurrentUser();
     if (!user) return;
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const depts = ReportService.getDepartments(user);
       if (depts.length >= 1) {
         const deptEl = document.getElementById('rpt-dept');
@@ -194,7 +194,7 @@ const ReportsView = {
       if (dept) {
         const sems = ReportService.getSemesters(user, dept);
         sems.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = `Semester ${s}`; semEl.appendChild(o); });
-        if (user.role === 'FACULTY' && sems.length === 1) { semEl.value = sems[0]; this.onFilterChange('semester'); }
+        if (AuthorizationService.isAcademicStaff(user) && sems.length === 1) { semEl.value = sems[0]; this.onFilterChange('semester'); }
       }
     }
 
@@ -206,7 +206,7 @@ const ReportsView = {
       if (dept && sem) {
         const sections = ReportService.getSections(user, dept, sem);
         sections.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = `Section ${s.section} (${s.name})`; secEl.appendChild(o); });
-        if (user.role === 'FACULTY' && sections.length === 1) { secEl.value = sections[0].id; this.onFilterChange('section'); }
+        if (AuthorizationService.isAcademicStaff(user) && sections.length === 1) { secEl.value = sections[0].id; this.onFilterChange('section'); }
       }
     }
 
@@ -216,7 +216,7 @@ const ReportsView = {
       if (classId) {
         const subs = ReportService.getSubjectsForClass(user, classId);
         subs.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = `${s.code} — ${s.name}`; subEl.appendChild(o); });
-        if (user.role === 'FACULTY' && subs.length === 1) subEl.value = subs[0].id;
+        if (AuthorizationService.isAcademicStaff(user) && subs.length === 1) subEl.value = subs[0].id;
       }
     }
   },

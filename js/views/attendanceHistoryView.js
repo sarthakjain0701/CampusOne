@@ -12,7 +12,7 @@ const AttendanceHistoryView = {
     let classes = DataStore.get('CLASSES') || MOCK_DATA.classes || [];
     let subjects = DataStore.get('SUBJECTS') || MOCK_DATA.subjects || [];
 
-    if (user.role === 'FACULTY') {
+    if (AuthorizationService.isAcademicStaff(user)) {
       const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
       const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
 
@@ -45,7 +45,7 @@ const AttendanceHistoryView = {
       <div class="page-header">
         <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">Attendance History & Logs</h1>
         <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">
-          Review submitted attendance sessions and filter records. ${user.role === 'FACULTY' ? '<strong style="color:var(--color-primary);">(Faculty Scope: Assigned Subjects Only)</strong>' : ''}
+          Review submitted attendance sessions and filter records. ${AuthorizationService.isAcademicStaff(user) ? '<strong style="color:var(--color-primary);">(Faculty Scope: Assigned Subjects Only)</strong>' : ''}
         </p>
       </div>
 
@@ -63,9 +63,11 @@ const AttendanceHistoryView = {
         </div>
 
         <div>
+          ${user.role !== 'STUDENT' ? `
           <button class="btn-primary" onclick="App.navigateTo('mark-attendance')" style="font-weight:700;">
             <i data-lucide="plus" style="width:16px; height:16px; display:inline;"></i> Mark New Attendance
           </button>
+          ` : ''}
         </div>
       </div>
 
@@ -116,9 +118,11 @@ const AttendanceHistoryView = {
                       <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'VIEW' })">
                         VIEW
                       </button>
+                      ${user.role !== 'STUDENT' ? `
                       <button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'EDIT' })">
                         EDIT
                       </button>
+                      ` : ''}
                     </div>
                   </td>
                 </tr>

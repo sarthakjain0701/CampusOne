@@ -8,7 +8,7 @@ const attendanceService = {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
     const records = DataStore.get('ATTENDANCE') || [...MOCK_DATA.attendance];
 
-    if (user && typeof AuthorizationService !== 'undefined' && user.role === 'FACULTY') {
+    if (user && typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
       const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
       return records.filter(a => authorizedSubjectIds.includes(a.subjectId));
     }
@@ -60,7 +60,7 @@ const attendanceService = {
             if (!AuthorizationService.canEditAttendance(user, subjectId, classId)) {
               throw new Error("Access Denied: You are not authorized to mark or update attendance for this subject/class.");
             }
-            if (user.role === 'FACULTY' && typeof AttendanceAssignmentService !== 'undefined') {
+            if (AuthorizationService.isAcademicStaff(user) && typeof AttendanceAssignmentService !== 'undefined') {
               if (!AttendanceAssignmentService.canMarkAttendance(user.id, classId, subjectId, date)) {
                 throw new Error("Access Denied: You do not have an active attendance assignment for this class, subject, and date.");
               }
@@ -107,7 +107,7 @@ const attendanceService = {
 
             if (isUpdate) {
               // Prevent modifying another faculty member's attendance records unless Admin
-              if (user && user.role === 'FACULTY' && allAttendance[existingIndex].facultyId && allAttendance[existingIndex].facultyId !== user.id) {
+              if (user && AuthorizationService.isAcademicStaff(user) && allAttendance[existingIndex].facultyId && allAttendance[existingIndex].facultyId !== user.id) {
                 throw new Error("Access Denied: You cannot modify attendance records submitted by another faculty member.");
               }
               allAttendance[existingIndex] = rec;

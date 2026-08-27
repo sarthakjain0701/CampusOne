@@ -12,7 +12,7 @@ const DigitalIdView = {
 
     const userRole = user.role;
     let isStudentView = userRole === 'STUDENT';
-    let isFacultyView = userRole === 'FACULTY';
+    let isFacultyView = userRole === 'FACULTY' || userRole === 'LAB_ASSISTANT';
 
     if (userRole === 'ADMIN') {
       if (params.tab) this.activeTab = params.tab;

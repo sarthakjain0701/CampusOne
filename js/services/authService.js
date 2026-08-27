@@ -27,7 +27,7 @@ const authService = {
 
   async logout() {
     const user = this.getCurrentUser();
-    if (user && (user.role === 'STUDENT' || user.role === 'ADMIN') && window.FirebaseService) {
+    if (user && window.FirebaseService) {
       try {
         await window.FirebaseService.signOut();
       } catch (err) {

@@ -62,7 +62,7 @@ const midTermMarksService = {
     let students = DataStore.get('STUDENTS') || [];
 
     // Filter by Faculty Assignment Scope
-    if (user && typeof AuthorizationService !== 'undefined' && user.role === 'FACULTY') {
+    if (user && typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
       const authorizedStudentIds = AuthorizationService.getAuthorizedStudentIds(user);
       students = students.filter(s => authorizedStudentIds.includes(s.id));
     }
@@ -133,7 +133,7 @@ const midTermMarksService = {
     let studentMarks = marksData.filter(m => m.studentId === studentId && m.status !== 'DELETED');
 
     // Faculty Privacy Guard: Filter marks to ONLY assigned subjects!
-    if (user && typeof AuthorizationService !== 'undefined' && user.role === 'FACULTY') {
+    if (user && typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
       const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
       studentMarks = studentMarks.filter(m => authorizedSubjectIds.includes(m.subjectId));
     }

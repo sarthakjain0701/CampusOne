@@ -11,8 +11,8 @@ const FacultyView = {
 
     return `
       <div class="page-header">
-        <h1>Faculty Management</h1>
-        <p>Manage professors, instructors, and department affiliations.</p>
+        <h1>Staff Management</h1>
+        <p>Manage faculty, lab assistants, librarians, and department affiliations.</p>
       </div>
 
       <div class="toolbar">
@@ -22,7 +22,7 @@ const FacultyView = {
 
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
           <button class="btn-primary" onclick="FacultyView.openAddModal()">
-            <i data-lucide="user-plus"></i> Add New Faculty
+            <i data-lucide="user-plus"></i> Add New Staff
           </button>
           <button class="btn-secondary" onclick="BulkImportModal.open('FACULTY')" style="background:#F8FAFC; border-color:#CBD5E1; color:var(--color-navy-dark);">
             <i data-lucide="upload-cloud"></i> Import Faculty
@@ -38,8 +38,9 @@ const FacultyView = {
           <thead>
             <tr>
               <th>Employee ID</th>
-              <th>Faculty Name</th>
+              <th>Name</th>
               <th>Email</th>
+              <th>Role</th>
               <th>Designation</th>
               <th>Department</th>
               <th>Status</th>
@@ -47,7 +48,7 @@ const FacultyView = {
             </tr>
           </thead>
           <tbody id="faculty-table-body">
-            <tr><td colspan="7" style="text-align:center; padding:2rem;"><i data-lucide="loader" class="spin"></i> Loading Faculty...</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:2rem;"><i data-lucide="loader" class="spin"></i> Loading Staff...</td></tr>
           </tbody>
         </table>
       </div>
@@ -60,7 +61,7 @@ const FacultyView = {
       if (!tbody) return;
 
       if (err) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--color-danger);">${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--color-danger);">${err.message}</td></tr>`;
         return;
       }
 
@@ -74,14 +75,18 @@ const FacultyView = {
     if (!tbody) return;
 
     if (faculty.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--color-text-muted);">No faculty members found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--color-text-muted);">No staff members found.</td></tr>';
     } else {
-      tbody.innerHTML = faculty.map(f => `
+      tbody.innerHTML = faculty.map(f => {
+        const roleDisplay = AuthorizationService.getRoleDisplayName(f.role || 'FACULTY');
+        const roleBadgeClass = (f.role || 'FACULTY').toLowerCase().replace('_', '-');
+        return `
         <tr>
           <td><strong>${f.employeeId || 'N/A'}</strong></td>
           <td><div style="font-weight:600; color:var(--color-navy-dark);">${f.name || 'N/A'}</div></td>
           <td>${f.email || 'N/A'}</td>
-          <td>${f.designation || 'Faculty'}</td>
+          <td><span class="role-badge ${roleBadgeClass}" style="font-size:0.7rem; padding:0.15rem 0.5rem;">${roleDisplay}</span></td>
+          <td>${f.designation || 'Staff'}</td>
           <td><span class="status-badge active">${f.department || 'N/A'}</span></td>
           <td><span class="status-badge ${f.status === 'ACTIVE' ? 'present' : 'absent'}">${f.status || 'N/A'}</span></td>
           <td>
@@ -91,7 +96,8 @@ const FacultyView = {
             </div>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
     if (window.lucide) window.lucide.createIcons();
   },
@@ -116,6 +122,15 @@ const FacultyView = {
     
     const html = `
       <form id="add-fac-form" onsubmit="return false;">
+        <div class="form-group">
+          <label class="form-label">Staff Type *</label>
+          <select id="m-fac-role" class="form-select">
+            <option value="FACULTY" selected>Faculty</option>
+            <option value="LAB_ASSISTANT">Lab Assistant</option>
+            <option value="LIBRARIAN">Librarian</option>
+          </select>
+        </div>
+
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">First Name *</label>
@@ -202,9 +217,9 @@ const FacultyView = {
       </form>
     `;
 
-    UIService.openModal("Add Faculty Member", html, [
+    UIService.openModal("Add Staff Member", html, [
       { text: "Cancel", className: "btn-secondary", onClick: () => UIService.closeModal() },
-      { text: "Add Faculty", className: "btn-primary", onClick: () => this.saveNewFaculty() }
+      { text: "Add Staff", className: "btn-primary", onClick: () => this.saveNewFaculty() }
     ]);
     
     setTimeout(() => {
@@ -224,6 +239,7 @@ const FacultyView = {
     const fname = document.getElementById('m-fac-fname').value.trim();
     const lname = document.getElementById('m-fac-lname').value.trim();
     const name = fname + (lname ? ' ' + lname : '');
+    const selectedRole = document.getElementById('m-fac-role').value;
 
     const data = {
       name: name,
@@ -234,7 +250,8 @@ const FacultyView = {
       designation: document.getElementById('m-fac-designation').value,
       qualification: document.getElementById('m-fac-qual').value,
       specialization: document.getElementById('m-fac-spec').value,
-      status: document.getElementById('m-fac-status').value
+      status: document.getElementById('m-fac-status').value,
+      staffRole: selectedRole
     };
 
     if(!fname || !lname || !data.department || !data.designation || !data.employeeId) {
@@ -245,7 +262,8 @@ const FacultyView = {
     try {
       await facultyService.addFaculty(data);
       UIService.closeModal();
-      UIService.showToast("Faculty added successfully.", "success");
+      const roleLabel = AuthorizationService.getRoleDisplayName(selectedRole);
+      UIService.showToast(`${roleLabel} added successfully.`, "success");
     } catch (err) {
       UIService.showToast(err.message, "danger");
     }
@@ -322,7 +340,7 @@ const FacultyView = {
       </form>
     `;
 
-    UIService.openModal("Edit Faculty Member", html, [
+    UIService.openModal("Edit Staff Member", html, [
       { text: "Cancel", className: "btn-secondary", onClick: () => UIService.closeModal() },
       { text: "Update Faculty", className: "btn-primary", onClick: async () => {
         try {
@@ -336,7 +354,7 @@ const FacultyView = {
             status: document.getElementById('m-edit-fac-status').value
           });
           UIService.closeModal();
-          UIService.showToast("Faculty updated successfully.", "success");
+          UIService.showToast("Staff member updated successfully.", "success");
         } catch (e) {
           UIService.showToast(e.message, "danger");
         }
@@ -345,10 +363,10 @@ const FacultyView = {
   },
 
   deleteFaculty(docId) {
-    UIService.showConfirm("Delete Faculty?", "Are you sure you want to delete this faculty member?", async () => {
+    UIService.showConfirm("Delete Staff Member?", "Are you sure you want to delete this staff member?", async () => {
       try {
         await facultyService.deleteFaculty(docId);
-        UIService.showToast("Faculty deleted successfully.", "success");
+        UIService.showToast("Staff member deleted successfully.", "success");
       } catch (err) {
         UIService.showToast(err.message, "danger");
       }
