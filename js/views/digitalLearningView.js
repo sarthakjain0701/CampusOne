@@ -15,7 +15,7 @@ const DigitalLearningView = {
       this.activeSubjectId = params.subjectId;
     }
 
-    if (user.role === 'STUDENT') {
+    if (user.role && user.role.toUpperCase() === 'STUDENT') {
       return this.renderStudentView(user);
     } else if (AuthorizationService.isAcademicStaff(user)) {
       return this.renderFacultyView(user);
@@ -115,8 +115,8 @@ const DigitalLearningView = {
     // Default Overview Mode: Subject Cards
     return `
       <div class="page-header">
-        <h1>DIGITAL LEARNING PORTAL</h1>
-        <p>Access study notes, assignments, tutorial sheets, and book suggestions uploaded by faculty.</p>
+        <h1>DIGITAL LEARNING</h1>
+        <p>Access your available learning resources.</p>
       </div>
 
       <!-- SEARCH & FILTER BAR -->

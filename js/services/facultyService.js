@@ -130,6 +130,7 @@ const facultyService = {
       status: facultyData.status || "ACTIVE",
       role: facultyData.staffRole || "FACULTY"
     };
+
     try {
       const provisionUserFn = window.firebase.functions().httpsCallable('provisionUser');
       await provisionUserFn({ role: payload.role, email: officialEmail, profileData: payload });
