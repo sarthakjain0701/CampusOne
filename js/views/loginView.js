@@ -7,7 +7,7 @@ const LoginView = {
   showPassword: false,
 
   render() {
-    return \
+    return `
       <div class="login-container">
         <!-- CENTERED FORM SECTION -->
         <div class="login-form-wrapper">
@@ -63,7 +63,7 @@ const LoginView = {
           </div>
         </div>
       </div>
-    \;
+    `
   },
 
   getDefaultEmail() {
@@ -108,21 +108,23 @@ const LoginView = {
     const password = document.getElementById('login-password').value;
 
     btn.disabled = true;
-    btn.innerHTML = \<i data-lucide="loader" class="spin"></i> LOGGING IN...\;
+    btn.innerHTML = `<i data-lucide="loader" class="spin"></i> LOGGING IN...`;
     if (window.lucide) window.lucide.createIcons();
 
     try {
       // Connect to authService
       const user = await window.authService.login(email, password, this.selectedRole);
-      UIService.showToast(\Welcome back, ${user.name}!\, 'success');
+      UIService.showToast(`Welcome back, ${user.name}!`, 'success');
       window.App.onLoginSuccess(user);
     } catch (err) {
       UIService.showToast(err.message, 'danger');
       btn.disabled = false;
-      btn.innerHTML = \LOG IN\;
+      btn.innerHTML = 'LOG IN';
       if (window.lucide) window.lucide.createIcons();
     }
   }
 };
 
 window.LoginView = LoginView;
+
+

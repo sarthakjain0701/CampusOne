@@ -1,6 +1,6 @@
 const LibCirculationView = {
   render() {
-    return \
+    return `
       <div class="page-header">
         <div>
           <h1>CIRCULATION</h1>
@@ -14,7 +14,9 @@ const LibCirculationView = {
           <button class="btn-secondary" onclick="alert('Return Flow')">Return Book</button>
         </div>
       </div>
-    \;
+    `
   }
 };
 window.LibCirculationView = LibCirculationView;
+
+

@@ -154,3 +154,4 @@ const HallTicketView = {
 };
 
 window.HallTicketView = HallTicketView;
+

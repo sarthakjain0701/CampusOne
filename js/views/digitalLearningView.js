@@ -566,3 +566,4 @@ const DigitalLearningView = {
 };
 
 window.DigitalLearningView = DigitalLearningView;
+

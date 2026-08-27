@@ -133,3 +133,4 @@ const AssignmentsView = {
 };
 
 window.AssignmentsView = AssignmentsView;
+

@@ -274,3 +274,4 @@ const LibraryCirculationView = {
 };
 
 window.LibraryCirculationView = LibraryCirculationView;
+

@@ -1,6 +1,6 @@
 const LibSettingsView = {
   render() {
-    return \
+    return `
       <div class="page-header">
         <div>
           <h1>LIBRARY SETTINGS</h1>
@@ -10,7 +10,9 @@ const LibSettingsView = {
       <div class="card" style="padding:2rem;">
         <p>Settings placeholder.</p>
       </div>
-    \;
+    `
   }
 };
 window.LibSettingsView = LibSettingsView;
+
+

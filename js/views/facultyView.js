@@ -123,12 +123,9 @@ const FacultyView = {
     const html = `
       <form id="add-fac-form" onsubmit="return false;">
         <div class="form-group">
-          <label class="form-label">Staff Type *</label>
-          <select id="m-fac-role" class="form-select">
-            <option value="FACULTY" selected>Faculty</option>
-            <option value="LAB_ASSISTANT">Lab Assistant</option>
-            <option value="LIBRARIAN">Librarian</option>
-          </select>
+          <label class="form-label">System Role *</label>
+          <input type="text" id="m-fac-role-display" class="form-input" value="FACULTY" readonly style="background-color: var(--color-bg-main); font-weight: 600; color: var(--color-text-muted);">
+          <input type="hidden" id="m-fac-role-val" value="FACULTY">
         </div>
 
         <div class="form-grid-2">
@@ -171,7 +168,7 @@ const FacultyView = {
           </div>
           <div class="form-group">
             <label class="form-label">Designation *</label>
-            <select id="m-fac-designation" class="form-select">
+            <select id="m-fac-designation" class="form-select" onchange="FacultyView.onDesignationChange(this.value, 'add')">
               <option value="" disabled selected>Select Designation ▼</option>
               <option value="Assistant Professor">Assistant Professor</option>
               <option value="Associate Professor">Associate Professor</option>
@@ -235,11 +232,26 @@ const FacultyView = {
     if(emailField) emailField.value = generated;
   },
 
+  onDesignationChange(designation, mode) {
+    const roleDisplay = mode === 'add' ? document.getElementById('m-fac-role-display') : document.getElementById('m-edit-fac-role-display');
+    const roleVal = mode === 'add' ? document.getElementById('m-fac-role-val') : document.getElementById('m-edit-fac-role-val');
+    
+    let newRole = 'FACULTY';
+    if (designation === 'Librarian') {
+      newRole = 'LIBRARIAN';
+    } else if (designation === 'Lab Assistant') {
+      newRole = 'LAB_ASSISTANT';
+    }
+    
+    if (roleDisplay) roleDisplay.value = newRole;
+    if (roleVal) roleVal.value = newRole;
+  },
+
   async saveNewFaculty() {
     const fname = document.getElementById('m-fac-fname').value.trim();
     const lname = document.getElementById('m-fac-lname').value.trim();
     const name = fname + (lname ? ' ' + lname : '');
-    const selectedRole = document.getElementById('m-fac-role').value;
+    const selectedRole = document.getElementById('m-fac-role-val').value;
 
     const data = {
       name: name,
@@ -290,6 +302,11 @@ const FacultyView = {
           <label class="form-label">Full Name</label>
           <input type="text" id="m-edit-fac-name" class="form-input" value="${fac.name || ''}">
         </div>
+        <div class="form-group">
+          <label class="form-label">System Role</label>
+          <input type="text" id="m-edit-fac-role-display" class="form-input" value="${fac.role || fac.staffRole || 'FACULTY'}" readonly style="background-color: var(--color-bg-main); font-weight: 600; color: var(--color-text-muted);">
+          <input type="hidden" id="m-edit-fac-role-val" value="${fac.role || fac.staffRole || 'FACULTY'}">
+        </div>
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">Employee ID (Read-only)</label>
@@ -309,7 +326,7 @@ const FacultyView = {
           </div>
           <div class="form-group">
             <label class="form-label">Designation</label>
-            <select id="m-edit-fac-designation" class="form-select">
+            <select id="m-edit-fac-designation" class="form-select" onchange="FacultyView.onDesignationChange(this.value, 'edit')">
               ${['Assistant Professor','Associate Professor','Professor','Lecturer','HOD','Librarian'].map(d => `<option value="${d}" ${fac.designation === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
           </div>
@@ -348,6 +365,7 @@ const FacultyView = {
             name: document.getElementById('m-edit-fac-name').value.trim(),
             department: document.getElementById('m-edit-fac-dept').value,
             designation: document.getElementById('m-edit-fac-designation').value,
+            role: document.getElementById('m-edit-fac-role-val').value,
             qualification: document.getElementById('m-edit-fac-qual').value,
             specialization: document.getElementById('m-edit-fac-spec').value,
             phone: document.getElementById('m-edit-fac-phone').value.trim(),
@@ -375,5 +393,6 @@ const FacultyView = {
 };
 
 window.FacultyView = FacultyView;
+
 
 

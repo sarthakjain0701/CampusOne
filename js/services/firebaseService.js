@@ -81,7 +81,7 @@ const FirebaseService = {
       } else if (expectedRole === 'LIBRARIAN') {
         throw new Error("This account is not registered as Librarian.");
       }
-      throw new Error(${This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.});
+      throw new Error(`This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.`);
     }
 
     const finalAuthData = authDoc.data();
@@ -93,7 +93,7 @@ const FirebaseService = {
       } else if (expectedRole === 'LIBRARIAN') {
         throw new Error("This account is not registered as Librarian.");
       }
-      throw new Error(${This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.});
+      throw new Error(`This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.`);
     }
 
     if (finalAuthData.status && finalAuthData.status !== 'ACTIVE') {

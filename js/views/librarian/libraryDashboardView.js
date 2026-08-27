@@ -1,6 +1,6 @@
 const LibDashboardView = {
   render() {
-    return \
+    return `
       <div class="page-header">
         <div>
           <h1>LIBRARY DASHBOARD</h1>
@@ -11,7 +11,9 @@ const LibDashboardView = {
         <h2 style="font-weight:700; margin-bottom:1rem;">Dashboard Metrics Loading...</h2>
         <p>This is the main dashboard for the librarian.</p>
       </div>
-    \;
+    `
   }
 };
 window.LibDashboardView = LibDashboardView;
+
+

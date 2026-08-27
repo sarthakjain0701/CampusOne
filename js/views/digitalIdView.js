@@ -321,3 +321,4 @@ const DigitalIdView = {
 };
 
 window.DigitalIdView = DigitalIdView;
+

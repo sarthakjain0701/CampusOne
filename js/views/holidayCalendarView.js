@@ -465,3 +465,4 @@ const HolidayCalendarView = {
 };
 
 window.HolidayCalendarView = HolidayCalendarView;
+

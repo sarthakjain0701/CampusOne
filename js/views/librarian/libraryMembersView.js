@@ -1,6 +1,6 @@
 const LibMembersView = {
   render() {
-    return \
+    return `
       <div class="page-header">
         <div>
           <h1>LIBRARY MEMBERS</h1>
@@ -10,7 +10,9 @@ const LibMembersView = {
       <div class="card" style="padding:2rem;">
         <p>Members list placeholder.</p>
       </div>
-    \;
+    `
   }
 };
 window.LibMembersView = LibMembersView;
+
+

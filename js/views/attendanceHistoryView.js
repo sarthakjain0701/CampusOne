@@ -144,3 +144,4 @@ const AttendanceHistoryView = {
 };
 
 window.AttendanceHistoryView = AttendanceHistoryView;
+

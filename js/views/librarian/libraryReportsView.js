@@ -1,6 +1,6 @@
 const LibReportsView = {
   render() {
-    return \
+    return `
       <div class="page-header">
         <div>
           <h1>LIBRARY REPORTS</h1>
@@ -10,7 +10,9 @@ const LibReportsView = {
       <div class="card" style="padding:2rem;">
         <p>Reports placeholder.</p>
       </div>
-    \;
+    `
   }
 };
 window.LibReportsView = LibReportsView;
+
+

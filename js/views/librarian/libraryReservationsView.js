@@ -1,6 +1,6 @@
 const LibReservationsView = {
   render() {
-    return \
+    return `
       <div class="page-header">
         <div>
           <h1>RESERVATIONS</h1>
@@ -10,7 +10,9 @@ const LibReservationsView = {
       <div class="card" style="padding:2rem;">
         <p>Reservations placeholder.</p>
       </div>
-    \;
+    `
   }
 };
 window.LibReservationsView = LibReservationsView;
+
+
