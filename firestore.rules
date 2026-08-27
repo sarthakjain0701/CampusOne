@@ -1,3 +1,7 @@
+// WARNING: The user explicitly requested to allow global read and write for all collections.
+// This is extremely insecure and should NOT be used in a real production environment.
+// The user stated they will handle security at the UI level.
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -215,5 +219,6 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if false;
     }
+
   }
 }

@@ -115,6 +115,9 @@ const facultyService = {
 
     const officialEmail = facultyData.email.trim().toLowerCase();
 
+    // Determine the actual role (FACULTY, LAB_ASSISTANT, or LIBRARIAN)
+    const provisionRole = facultyData.staffRole || 'FACULTY';
+
     const payload = {
       employeeId: facultyData.employeeId.trim().toUpperCase(),
       name: facultyData.name.trim(),
@@ -127,7 +130,6 @@ const facultyService = {
       status: facultyData.status || "ACTIVE",
       role: facultyData.staffRole || "FACULTY"
     };
-
     try {
       const provisionUserFn = window.firebase.functions().httpsCallable('provisionUser');
       await provisionUserFn({ role: payload.role, email: officialEmail, profileData: payload });
@@ -233,4 +235,3 @@ const facultyService = {
 };
 
 window.facultyService = facultyService;
-

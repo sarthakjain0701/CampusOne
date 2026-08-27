@@ -175,7 +175,6 @@ const FacultyView = {
               <option value="Professor">Professor</option>
               <option value="Lecturer">Lecturer</option>
               <option value="HOD">HOD</option>
-              <option value="Librarian">Librarian</option>
             </select>
           </div>
         </div>
@@ -393,6 +392,4 @@ const FacultyView = {
 };
 
 window.FacultyView = FacultyView;
-
-
 

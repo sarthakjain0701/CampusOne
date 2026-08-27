@@ -54,12 +54,15 @@ const FirebaseService = {
     } else if (expectedRole === 'FACULTY') {
       collectionName = 'faculties';
       roleText = 'Faculty';
-    } else if (expectedRole === 'ADMIN') {
-      collectionName = 'admins';
-      roleText = 'Admin';
+    } else if (expectedRole === 'LAB_ASSISTANT') {
+      collectionName = 'faculties';
+      roleText = 'Lab Assistant';
     } else if (expectedRole === 'LIBRARIAN') {
       collectionName = 'faculties';
       roleText = 'Librarian';
+    } else if (expectedRole === 'ADMIN') {
+      collectionName = 'admins';
+      roleText = 'Admin';
     } else {
       await this.auth.signOut();
       throw new Error("Invalid role selected.");
@@ -73,27 +76,16 @@ const FirebaseService = {
       await this.auth.signOut();
       throw new Error("Unable to verify authorization. Please try again.");
     }
-
     if (!authDoc.exists) {
       await this.auth.signOut();
-      if (expectedRole === 'ADMIN') {
-        throw new Error("This account is not registered as Admin.");
-      } else if (expectedRole === 'LIBRARIAN') {
-        throw new Error("This account is not registered as Librarian.");
-      }
-      throw new Error(`This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.`);
+      throw new Error(`This account is not registered as ${roleText}.`);
     }
 
     const finalAuthData = authDoc.data();
 
     if (finalAuthData.role !== expectedRole) {
       await this.auth.signOut();
-      if (expectedRole === 'ADMIN') {
-        throw new Error("This account is not registered as Admin.");
-      } else if (expectedRole === 'LIBRARIAN') {
-        throw new Error("This account is not registered as Librarian.");
-      }
-      throw new Error(`This account is not registered as ${expectedRole === 'FACULTY' ? 'Faculty' : 'a Student'}.`);
+      throw new Error(`This account is not registered as ${roleText}. Your registered role is ${finalAuthData.role}.`);
     }
 
     if (finalAuthData.status && finalAuthData.status !== 'ACTIVE') {
@@ -147,4 +139,3 @@ const FirebaseService = {
 };
 
 window.FirebaseService = FirebaseService;
-

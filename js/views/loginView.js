@@ -1,5 +1,6 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LOGIN VIEW (PHASE 5 SERVICE-CONNECTED)
+   Supports 5 roles: ADMIN, FACULTY, LAB_ASSISTANT, LIBRARIAN, STUDENT
    ========================================================================== */
 
 const LoginView = {
@@ -20,19 +21,22 @@ const LoginView = {
               <p style="font-weight: 600; color: var(--color-primary); margin-top: 2px;">WELCOME BACK</p>
             </div>
 
-            <!-- Role Selector Tabs -->
-            <div class="role-tabs" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25rem;">
-              <button type="button" class="role-tab ${this.selectedRole === 'ADMIN' ? 'active' : ''}" onclick="LoginView.setRole('ADMIN')">
+            <!-- Role Selector Tabs (5 roles) -->
+            <div class="role-tabs" style="flex-wrap: wrap;">
+              <button type="button" class="role-tab ${this.selectedRole === 'ADMIN' ? 'active' : ''}" data-role="ADMIN" onclick="LoginView.setRole('ADMIN')">
                 <i data-lucide="shield"></i> Admin
               </button>
-              <button type="button" class="role-tab ${this.selectedRole === 'FACULTY' ? 'active' : ''}" onclick="LoginView.setRole('FACULTY')">
+              <button type="button" class="role-tab ${this.selectedRole === 'FACULTY' ? 'active' : ''}" data-role="FACULTY" onclick="LoginView.setRole('FACULTY')">
                 <i data-lucide="user"></i> Faculty
               </button>
-              <button type="button" class="role-tab ${this.selectedRole === 'STUDENT' ? 'active' : ''}" onclick="LoginView.setRole('STUDENT')">
-                <i data-lucide="graduation-cap"></i> Student
+              <button type="button" class="role-tab ${this.selectedRole === 'LAB_ASSISTANT' ? 'active' : ''}" data-role="LAB_ASSISTANT" onclick="LoginView.setRole('LAB_ASSISTANT')">
+                <i data-lucide="flask-conical"></i> Lab Assistant
               </button>
-              <button type="button" class="role-tab ${this.selectedRole === 'LIBRARIAN' ? 'active' : ''}" onclick="LoginView.setRole('LIBRARIAN')">
-                <i data-lucide="book"></i> Librarian
+              <button type="button" class="role-tab ${this.selectedRole === 'LIBRARIAN' ? 'active' : ''}" data-role="LIBRARIAN" onclick="LoginView.setRole('LIBRARIAN')">
+                <i data-lucide="library"></i> Librarian
+              </button>
+              <button type="button" class="role-tab ${this.selectedRole === 'STUDENT' ? 'active' : ''}" data-role="STUDENT" onclick="LoginView.setRole('STUDENT')">
+                <i data-lucide="graduation-cap"></i> Student
               </button>
             </div>
 
@@ -49,7 +53,7 @@ const LoginView = {
                 <label class="form-label" for="login-password">Password</label>
                 <div class="input-container">
                   <i data-lucide="lock" class="input-icon"></i>
-                  <input type="${this.showPassword ? 'text' : 'password'}" id="login-password" class="form-input" placeholder="••••••••" required>
+                  <input type="${this.showPassword ? 'text' : 'password'}" id="login-password" class="form-input" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required>
                   <button type="button" class="toggle-password" onclick="LoginView.togglePasswordVisibility()" aria-label="Toggle password visibility">
                     <i data-lucide="${this.showPassword ? 'eye-off' : 'eye'}"></i>
                   </button>
@@ -63,12 +67,13 @@ const LoginView = {
           </div>
         </div>
       </div>
-    `
+    `;
   },
 
   getDefaultEmail() {
     if (this.selectedRole === 'ADMIN') return 'admin@poornima.org';
     if (this.selectedRole === 'FACULTY') return 'faculty@poornima.org';
+    if (this.selectedRole === 'LAB_ASSISTANT') return 'labassistant@poornima.org';
     if (this.selectedRole === 'LIBRARIAN') return 'librarian@poornima.org';
     return 'student@poornima.org';
   },
@@ -78,9 +83,10 @@ const LoginView = {
     const emailInput = document.getElementById('login-email');
     if (emailInput) emailInput.value = this.getDefaultEmail();
     
+    // Use data-role attribute for reliable tab matching
     document.querySelectorAll('.role-tab').forEach(tab => {
       tab.classList.remove('active');
-      if (tab.innerText.toUpperCase().includes(role)) {
+      if (tab.getAttribute('data-role') === role) {
         tab.classList.add('active');
       }
     });
@@ -119,7 +125,7 @@ const LoginView = {
     } catch (err) {
       UIService.showToast(err.message, 'danger');
       btn.disabled = false;
-      btn.innerHTML = 'LOG IN';
+      btn.innerHTML = `LOG IN`;
       if (window.lucide) window.lucide.createIcons();
     }
   }
