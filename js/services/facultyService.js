@@ -115,6 +115,9 @@ const facultyService = {
 
     const officialEmail = facultyData.email.trim().toLowerCase();
 
+    // Determine the actual role (FACULTY, LAB_ASSISTANT, or LIBRARIAN)
+    const provisionRole = facultyData.staffRole || 'FACULTY';
+
     const payload = {
       employeeId: facultyData.employeeId.trim().toUpperCase(),
       name: facultyData.name.trim(),
@@ -127,26 +130,8 @@ const facultyService = {
       status: facultyData.status || "ACTIVE"
     };
 
-    try {
-      const provisionUserFn = window.firebase.functions().httpsCallable('provisionUser');
-      await provisionUserFn({ role: 'FACULTY', email: officialEmail, profileData: payload });
-      return payload;
-    } catch (err) {
-      console.error("PROVISIONING DIAGNOSIS");
-      console.error("Provisioning failed");
-      console.error("Role: FACULTY");
-      console.error("Stage: Backend Cloud Function");
-      console.error("Cloud Function: provisionUser");
-      console.error("Error code: ", err.code || 'UNKNOWN');
-      console.error("Error message: ", err.message || 'UNKNOWN');
-      
-      let uiMessage = "Unable to provision faculty account. Please try again.";
-      if (err.code === 'already-exists') {
-        uiMessage = "Faculty account already exists.";
-      }
-      
-      throw new Error(uiMessage);
-    }
+    await window.BackendSimulationService.provisionUser(payload, provisionRole);
+    return payload;
   },
 
   // --------------------------------------------------------------------------
@@ -232,4 +217,3 @@ const facultyService = {
 };
 
 window.facultyService = facultyService;
-

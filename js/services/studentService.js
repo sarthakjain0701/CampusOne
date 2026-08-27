@@ -168,27 +168,18 @@ const studentService = {
       status: studentData.status || "ACTIVE"
     };
 
-    // Provision Firebase Auth + Firestore document using Secure Cloud Function
+    // Provision Firebase Auth + Firestore document using Client-Side Fallback
     try {
-      const provisionUserFn = window.firebase.functions().httpsCallable('provisionUser');
-      await provisionUserFn({ role: 'STUDENT', email: officialEmail, profileData: payload });
+      if (!window.BackendSimulationService) {
+        throw new Error("Client Provisioning Service is not loaded.");
+      }
+      
+      await window.BackendSimulationService.provisionUser(payload, 'STUDENT');
       
       return payload;
     } catch (err) {
-      console.error("PROVISIONING DIAGNOSIS");
-      console.error("Provisioning failed");
-      console.error("Role: STUDENT");
-      console.error("Stage: Backend Cloud Function");
-      console.error("Cloud Function: provisionUser");
-      console.error("Error code: ", err.code || 'UNKNOWN');
-      console.error("Error message: ", err.message || 'UNKNOWN');
-      
-      let uiMessage = "Unable to create student account. Please try again.";
-      if (err.code === 'already-exists') {
-        uiMessage = "Student account already exists.";
-      }
-      
-      throw new Error(uiMessage);
+      console.error("[PAMS PROVISIONING ERROR]", err);
+      throw new Error(err.message || "User provisioning could not be completed.");
     }
   },
 

@@ -1,5 +1,6 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM (PAS) - MAIN APPLICATION ROUTER
+   Supports 5 roles: STUDENT, FACULTY, LAB_ASSISTANT, LIBRARIAN, ADMIN
    ========================================================================== */
 
 const App = {
@@ -44,6 +45,20 @@ const App = {
     if (window.lucide) window.lucide.createIcons();
   },
 
+  /**
+   * Returns a user-friendly display name for role badges and UI text.
+   */
+  getRoleDisplayName(role) {
+    const map = {
+      'STUDENT': 'Student',
+      'FACULTY': 'Faculty',
+      'LAB_ASSISTANT': 'Lab Assistant',
+      'LIBRARIAN': 'Librarian',
+      'ADMIN': 'Admin'
+    };
+    return map[role] || role;
+  },
+
   renderMainLayout() {
     const user = authService.getCurrentUser();
     if (!user) {
@@ -53,6 +68,7 @@ const App = {
 
     const appEl = document.getElementById('app');
     const sidebarMenu = this.getNavigationForRole(user.role);
+    const roleDisplayName = this.getRoleDisplayName(user.role);
 
     const unreadCount = notificationService.getUnreadCount(user);
     const badgeText = notificationService.getBadgeText(user);
@@ -66,7 +82,7 @@ const App = {
         <aside class="sidebar ${this.mobileSidebarOpen ? 'mobile-open' : ''}" id="sidebar">
           <div class="sidebar-header" style="padding: 1rem 1.25rem;">
             ${LogoComponent.render({ variant: 'full', theme: 'dark', size: 'small' })}
-            <span class="role-badge ${user.role.toLowerCase()}" style="margin-left: auto;">${user.role}</span>
+            <span class="role-badge ${user.role.toLowerCase().replace('_', '-')}" style="margin-left: auto;">${roleDisplayName}</span>
           </div>
 
           <div class="sidebar-menu">
@@ -134,7 +150,7 @@ const App = {
                 <div class="avatar">${user.name.charAt(0)}</div>
                 <div class="user-info-text">
                   <div class="name">${user.name}</div>
-                  <div class="role">${user.role}</div>
+                  <div class="role">${roleDisplayName}</div>
                 </div>
                 <i data-lucide="chevron-down" style="font-size: 14px; color: var(--color-text-muted);"></i>
               </div>
@@ -177,7 +193,12 @@ const App = {
 
     // Role Protection Check
     const allowedNavigation = this.getNavigationForRole(user.role);
-    const isAllowed = viewId === 'change-password' || allowedNavigation.some(item => item.id === viewId);
+    let isAllowed = viewId === 'change-password' || allowedNavigation.some(item => item.id === viewId);
+    
+    // Hidden route: Students can access mark-attendance for VIEW mode only
+    if (viewId === 'mark-attendance' && user.role === 'STUDENT') {
+      isAllowed = true;
+    }
 
     if (!isAllowed) {
       // For settings specifically, show the access denied view rather than a toast
@@ -209,40 +230,46 @@ const App = {
   },
 
   getNavigationForRole(role) {
+    if (role === 'LIBRARIAN') {
+      return [
+        { id: 'library-dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['LIBRARIAN'] },
+        { id: 'library-books', label: 'Books & Inventory', icon: 'book', roles: ['LIBRARIAN'] },
+        { id: 'library-circulation', label: 'Circulation', icon: 'rotate-ccw', roles: ['LIBRARIAN'] },
+        { id: 'library-members', label: 'Members', icon: 'users', roles: ['LIBRARIAN'] },
+        { id: 'library-reservations', label: 'Reservations', icon: 'calendar-clock', roles: ['LIBRARIAN'] },
+        { id: 'library-fines', label: 'Fines & Payments', icon: 'indian-rupee', roles: ['LIBRARIAN'] },
+        { id: 'library-reports', label: 'Reports', icon: 'bar-chart', roles: ['LIBRARIAN'] },
+        { id: 'library-settings', label: 'Settings', icon: 'settings', roles: ['LIBRARIAN'] },
+        { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['LIBRARIAN'] },
+        { id: 'profile', label: 'User Profile', icon: 'user', roles: ['LIBRARIAN'] }
+      ];
+    }
+
     const allItems = [
-      { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
-      { id: 'mark-attendance', label: 'Attendance', icon: 'check-square', roles: ['ADMIN', 'FACULTY'] },
-      { id: 'attendance-history', label: 'Attendance History', icon: 'history', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
+      { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'mark-attendance', label: 'Attendance', icon: 'check-square', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT'] },
+      { id: 'attendance-history', label: 'Attendance History', icon: 'history', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'attendance-assignments', label: 'Faculty Attendance Assignments', icon: 'calendar-check', roles: ['ADMIN'] },
-      { id: 'digital-learning', label: 'Digital Learning', icon: 'book-open', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
-      { id: 'timetable', label: 'Timetable', icon: 'calendar', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
+      { id: 'digital-learning', label: 'Digital Learning', icon: 'book-open', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'timetable', label: 'Timetable', icon: 'calendar', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'exam-results', label: 'Exam Results', icon: 'award', roles: ['ADMIN', 'STUDENT'] },
-      { id: 'mid-term-marks', label: 'Mid-Term Marks', icon: 'file-spreadsheet', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
+      { id: 'mid-term-marks', label: 'Mid-Term Marks', icon: 'file-spreadsheet', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'hall-ticket', label: 'Hall Ticket', icon: 'ticket', roles: ['STUDENT'] },
-      { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
-      { id: 'library', label: 'Library', icon: 'book', roles: ['ADMIN', 'STUDENT'] },
+      { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'library', label: 'Library Portal', icon: 'book', roles: ['ADMIN', 'STUDENT'] },
       { id: 'exam-form', label: 'Exam Form', icon: 'file-text', roles: ['STUDENT'] },
-      { id: 'digital-id', label: 'Digital ID Card', icon: 'id-card', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
+      { id: 'digital-id', label: 'Digital ID Card', icon: 'id-card', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'exam-form-management', label: 'Exam Form Management', icon: 'check-square', roles: ['ADMIN'] },
-      { id: 'students', label: 'Students', icon: 'graduation-cap', roles: ['ADMIN', 'FACULTY'] },
-      { id: 'faculty', label: 'Faculty', icon: 'users', roles: ['ADMIN'] },
+      { id: 'students', label: 'Students', icon: 'graduation-cap', roles: ['ADMIN'] },
+      { id: 'faculty', label: 'Staff Management', icon: 'users', roles: ['ADMIN'] },
       { id: 'admin-management', label: 'Admin Management', icon: 'shield', roles: ['ADMIN'] },
       { id: 'departments', label: 'Departments', icon: 'building-2', roles: ['ADMIN'] },
-      { id: 'subjects', label: 'Subjects', icon: 'book-text', roles: ['ADMIN', 'FACULTY'] },
-      { id: 'classes', label: 'Classes', icon: 'layers', roles: ['ADMIN', 'FACULTY'] },
-      { id: 'reports', label: 'Reports & Analytics', icon: 'file-text', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
-      { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
-      { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'STUDENT', 'LIBRARIAN'] },
-      { id: 'settings', label: 'System Settings', icon: 'settings', roles: ['ADMIN'] },
-      { id: 'lib-dashboard', label: 'Dashboard', icon: 'home', roles: ['LIBRARIAN'] },
-      { id: 'lib-books', label: 'Library Management', icon: 'book', roles: ['LIBRARIAN'] },
-      { id: 'lib-circulation', label: 'Circulation', icon: 'refresh-cw', roles: ['LIBRARIAN'] },
-      { id: 'lib-members', label: 'Members', icon: 'users', roles: ['LIBRARIAN'] },
-      { id: 'lib-reservations', label: 'Reservations', icon: 'bookmark', roles: ['LIBRARIAN'] },
-      { id: 'lib-fines', label: 'Fines', icon: 'indian-rupee', roles: ['LIBRARIAN'] },
-      { id: 'lib-lost', label: 'Lost / Damaged', icon: 'alert-triangle', roles: ['LIBRARIAN'] },
-      { id: 'lib-reports', label: 'Reports', icon: 'bar-chart-2', roles: ['LIBRARIAN'] },
-      { id: 'lib-settings', label: 'Library Settings', icon: 'settings', roles: ['LIBRARIAN'] }
+      { id: 'subjects', label: 'Subjects', icon: 'book-text', roles: ['ADMIN'] },
+      { id: 'classes', label: 'Classes', icon: 'layers', roles: ['ADMIN'] },
+      { id: 'reports', label: 'Reports & Analytics', icon: 'file-text', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT'] },
+      { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'settings', label: 'System Settings', icon: 'settings', roles: ['ADMIN'] }
     ];
 
     return allItems.filter(item => item.roles.includes(role));
@@ -251,7 +278,7 @@ const App = {
   getPageTitle() {
     const user = authService.getCurrentUser();
     if (this.currentView === 'dashboard') {
-      return `${user.role.charAt(0) + user.role.slice(1).toLowerCase()} Dashboard`;
+      return `${this.getRoleDisplayName(user.role)} Dashboard`;
     }
     const titles = {
       'mark-attendance': 'Mark Attendance',
@@ -268,7 +295,7 @@ const App = {
       'digital-id': 'Digital ID Card',
       'exam-form-management': 'Exam Form Management',
       'students': 'Student Management',
-      'faculty': 'Faculty Management',
+      'faculty': 'Staff Management',
       'admin-management': 'Admin Management',
       'departments': 'Department Management',
       'subjects': 'Subject Management',
@@ -279,15 +306,14 @@ const App = {
       'profile': 'User Profile',
       'settings': 'System Settings',
       'change-password': 'Update Password',
-      'lib-dashboard': 'Library Dashboard',
-      'lib-books': 'Book Management',
-      'lib-circulation': 'Circulation',
-      'lib-members': 'Library Members',
-      'lib-reservations': 'Reservations',
-      'lib-fines': 'Fines Management',
-      'lib-lost': 'Lost and Damaged Books',
-      'lib-reports': 'Library Reports',
-      'lib-settings': 'Library Settings'
+      'library-dashboard': 'Library Dashboard',
+      'library-books': 'Books & Inventory',
+      'library-circulation': 'Circulation Management',
+      'library-members': 'Library Members',
+      'library-reservations': 'Reservations',
+      'library-fines': 'Fines & Payments',
+      'library-reports': 'Library Reports',
+      'library-settings': 'Library Settings'
     };
     return titles[this.currentView] || 'Poornima Attendance System';
   },
@@ -295,7 +321,7 @@ const App = {
   getViewHtml() {
     const user = authService.getCurrentUser();
 
-    // SETTINGS ACCESS DENIED — Faculty/Student blocked from System Settings
+    // SETTINGS ACCESS DENIED — Non-Admin blocked from System Settings
     if (this.currentView === '__access_denied_settings__') {
       return `
         <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:5rem 2rem; text-align:center;">
@@ -316,11 +342,16 @@ const App = {
       `;
     }
 
+    // DASHBOARD ROUTING — role-specific dashboards
     if (this.currentView === 'dashboard') {
       if (user.role === 'ADMIN') return window.DashboardAdmin.render();
-      if (user.role === 'FACULTY') return window.DashboardFaculty.render();
-      if (user.role === 'LIBRARIAN') return window.LibDashboardView.render();
+      if (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT') return window.DashboardFaculty.render();
+      if (user.role === 'LIBRARIAN') return window.DashboardLibrarian.render();
       return window.DashboardStudent.render();
+    }
+    
+    if (this.currentView === 'library-dashboard') {
+      return window.DashboardLibrarian.render();
     }
 
     const views = {
@@ -349,15 +380,13 @@ const App = {
       'profile': window.ProfileView,
       'settings': window.SettingsView,
       'change-password': window.ChangePasswordView,
-      'lib-dashboard': window.LibDashboardView,
-      'lib-books': window.LibBooksView,
-      'lib-circulation': window.LibCirculationView,
-      'lib-members': window.LibMembersView,
-      'lib-reservations': window.LibReservationsView,
-      'lib-fines': window.LibFinesView,
-      'lib-lost': window.LibLostView,
-      'lib-reports': window.LibReportsView,
-      'lib-settings': window.LibSettingsView
+      'library-books': window.LibraryBooksView,
+      'library-circulation': window.LibraryCirculationView,
+      'library-members': window.LibraryMembersView,
+      'library-reservations': window.LibraryReservationsView,
+      'library-fines': window.LibraryFinesView,
+      'library-reports': window.LibraryReportsView,
+      'library-settings': window.LibrarySettingsView
     };
 
     const targetView = views[this.currentView];
@@ -389,7 +418,7 @@ const App = {
     const user = authService.getCurrentUser();
     if (this.currentView === 'dashboard') {
       if (user.role === 'ADMIN' && window.DashboardAdmin.initCharts) window.DashboardAdmin.initCharts();
-      if (user.role === 'FACULTY' && window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
+      if ((user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT') && window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
     } else if (this.currentView === 'reports') {
       if (window.ReportsView.postInit) window.ReportsView.postInit();
     } else if (this.currentView === 'students' && window.StudentsView.afterRender) {

@@ -113,26 +113,8 @@ const adminService = {
       status: adminData.status || 'ACTIVE'
     };
 
-    try {
-      const provisionUserFn = window.firebase.functions().httpsCallable('provisionUser');
-      await provisionUserFn({ role: 'ADMIN', email: adminData.email.trim().toLowerCase(), profileData: payload });
-      return payload;
-    } catch (err) {
-      console.error("PROVISIONING DIAGNOSIS");
-      console.error("Provisioning failed");
-      console.error("Role: ADMIN");
-      console.error("Stage: Backend Cloud Function");
-      console.error("Cloud Function: provisionUser");
-      console.error("Error code: ", err.code || 'UNKNOWN');
-      console.error("Error message: ", err.message || 'UNKNOWN');
-      
-      let uiMessage = "Unable to provision admin account. Please try again.";
-      if (err.code === 'already-exists') {
-        uiMessage = "Admin account already exists.";
-      }
-      
-      throw new Error(uiMessage);
-    }
+    await window.BackendSimulationService.provisionUser(payload, 'ADMIN');
+    return payload;
   },
 
   // --------------------------------------------------------------------------

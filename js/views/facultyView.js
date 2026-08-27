@@ -178,7 +178,6 @@ const FacultyView = {
               <option value="Professor">Professor</option>
               <option value="Lecturer">Lecturer</option>
               <option value="HOD">HOD</option>
-              <option value="Librarian">Librarian</option>
             </select>
           </div>
         </div>
@@ -310,7 +309,7 @@ const FacultyView = {
           <div class="form-group">
             <label class="form-label">Designation</label>
             <select id="m-edit-fac-designation" class="form-select">
-              ${['Assistant Professor','Associate Professor','Professor','Lecturer','HOD','Librarian'].map(d => `<option value="${d}" ${fac.designation === d ? 'selected' : ''}>${d}</option>`).join('')}
+              ${['Assistant Professor','Associate Professor','Professor','Lecturer','HOD'].map(d => `<option value="${d}" ${fac.designation === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -375,5 +374,3 @@ const FacultyView = {
 };
 
 window.FacultyView = FacultyView;
-
-
