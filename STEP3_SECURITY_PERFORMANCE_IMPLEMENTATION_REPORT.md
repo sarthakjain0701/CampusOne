@@ -171,3 +171,25 @@ Due to incomplete application of the queries in Pass 2 and a newly discovered un
 
 ### Overall Status
 **FIXES REQUIRED**
+
+## STEP 3 CLOSURE FAILURE ROOT-CAUSE DIAGNOSIS
+
+### Query findings
+- **4 unsafe reads**: `searchMembers`, `getBooks`, `getTransactions`, `getFines` inside `libraryBackendService.js`.
+- **4 unbounded reads**: `searchMembers`, `getBooks`, `getTransactions`, `getFines` inside `libraryBackendService.js`.
+
+### Listener findings
+- **3 listener failures**: `getBooks`, `getTransactions`, and `getFines` in `libraryBackendService.js` create unbounded `.onSnapshot` listeners. Furthermore, `app.js` lacks any navigation hook to call `LibraryBackendService.stopListening()`, meaning these listeners would leak heavily across page navigations if the service were active.
+
+### Previous-vs-current verification discrepancy
+The Pass 2 verification correctly identified that the active UI features were fast and safe, but it missed `libraryBackendService.js` because it is **dead code**. `app.js` and `index.html` do not import or use `libraryBackendService.js` (they use `libraryService.js` instead). The independent closure scan, however, statically analyzed all files in the `js/services/` folder and rightly flagged the highly dangerous methods remaining in that dead file.
+
+### Recommended fixes
+- **Delete `libraryBackendService.js` entirely**. It is an orphaned legacy service replaced by `libraryService.js` (which already implements bounded, paginated, and safe read patterns).
+- **Delete associated `.broken` files** (`libraryView.js.broken`, `libraryBooksView.js.broken`) that reference this dead service to prevent future static analysis false alarms or accidental reintroduction.
+
+### Live Verification
+NOT PERFORMED
+
+### Step 3 Status
+**FIXES REQUIRED**
