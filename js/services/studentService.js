@@ -58,7 +58,17 @@ const studentService = {
   async getStudentsFromFirestore() {
     const db = await this._ensureDb();
     try {
-      const snapshot = await db.collection(this._collection()).get();
+      const user = typeof authService !== 'undefined' ? authService.getCurrentUser() : null;
+      let query = db.collection(this._collection());
+      
+      if (user && user.role === 'STUDENT') {
+        const studentEmail = user.email || user.uid;
+        query = query.where(window.firebase.firestore.FieldPath.documentId(), '==', studentEmail);
+      } else {
+        query = query.limit(200);
+      }
+
+      const snapshot = await query.get();
       const students = [];
       snapshot.forEach(doc => {
         students.push({ id: doc.id, email: doc.id, ...doc.data() });

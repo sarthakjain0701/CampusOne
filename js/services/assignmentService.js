@@ -10,10 +10,22 @@ const assignmentService = {
     throw new Error("Firestore database is not initialized.");
   },
 
-  async getAssignments() {
+  async getAssignments(actorUser = null) {
     try {
       const db = this._getDb();
-      const snapshot = await db.collection('assignments').get();
+      const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
+      
+      let query = db.collection('assignments');
+      
+      if (user && user.role === 'FACULTY') {
+        // Faculty-specific: Safe filter
+        query = query.where('facultyId', '==', user.uid);
+      } else {
+        // Admin: Bounded read for reference collection
+        query = query.orderBy('createdAt', 'desc').limit(200);
+      }
+
+      const snapshot = await query.get();
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
       console.error("Failed to fetch assignments:", err);

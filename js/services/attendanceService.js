@@ -14,15 +14,29 @@ const attendanceService = {
   async getAttendance(actorUser = null) {
     try {
       const db = this._getDb();
-      const snapshot = await db.collection('attendance').limit(100).get();
-      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
       const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
-      if (user && typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
+      if (!user) return [];
+
+      let query = db.collection('attendance');
+
+      if (user.role === 'STUDENT') {
+        query = query.where('studentId', '==', user.uid);
+      } else if (typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
         const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
-        return records.filter(a => authorizedSubjectIds.includes(a.subjectId));
+        if (authorizedSubjectIds.length > 0 && authorizedSubjectIds.length <= 10) {
+          query = query.where('subjectId', 'in', authorizedSubjectIds);
+        } else if (authorizedSubjectIds.length === 0) {
+          return [];
+        } else {
+          query = query.orderBy('createdAt', 'desc').limit(300);
+        }
+      } else {
+        // Admin fallback
+        query = query.orderBy('createdAt', 'desc').limit(300);
       }
-      return records;
+
+      const snapshot = await query.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
       console.error("Failed to fetch attendance:", err);
       return [];

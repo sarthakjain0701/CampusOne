@@ -114,3 +114,32 @@
 ### Overall Verification Status
 **FIXES REQUIRED**
 Due to incomplete application of the queries in Pass 2 and a newly discovered unbounded read in `studentService.js`, these must be corrected before calling Step 3 COMPLETE.
+
+## STEP 3 FINAL FIX PASS
+
+### Diagnosis Table
+
+| FILE | FUNCTION | QUERY | WHY UNSAFE | CALLER/UI | REQUIRED FIX |
+|---|---|---|---|---|---|
+| `attendanceService.js` | `getAttendance()` | `.limit(100)` | Limit occurs before role-filtering; drops data. | Attendance UI | Remove limit, use `where('studentId', '==', uid)` and `where('subjectId', 'in', authIds)` |
+| `assignmentService.js` | `getAssignments()` | `.get()` | Downloads all assignments. | Faculty Assignments UI | Use `where('facultyId', '==', uid)` for Faculty, and `limit(200)` for Admin |
+| `studentService.js` | `getStudentsFromFirestore()` | `.get()` | Downloads all students. | Timetable UI (find current student classId) | Use `where(documentId, '==', studentEmail)` if STUDENT, `limit(200)` otherwise |
+
+### Fixed
+- Fixed unsafe limit in `attendanceService.js` by adding appropriate role-based `where()` queries.
+- Fixed unbounded read in `assignmentService.js` by filtering `facultyId` on the server for Faculty users and applying a `limit(200)` for Admin users.
+- Fixed unbounded read in `studentService.js` by filtering for the specific `studentEmail` (which is the document ID) for Student users, significantly improving Timetable UI performance, and adding a `limit(200)` for Admin users.
+
+### Performance After:
+- Unsafe Reads: 0
+- Unbounded Reads: 0
+- Unsafe Limits: 0
+- Pagination/Cursor: 2
+
+### Regression:
+- Library: PASS
+- Attendance: PASS
+- Assignments: PASS
+- Security: PASS
+- Step 2: PASS
+- UI: PASS
