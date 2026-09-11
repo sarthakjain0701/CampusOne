@@ -193,3 +193,51 @@ NOT PERFORMED
 
 ### Step 3 Status
 **FIXES REQUIRED**
+
+## STEP 3 — CONSOLIDATED LEGACY CLEANUP
+
+### Reference Audit Before Delete
+| FILE | REFERENCE | ACTIVE/DEAD | ACTION |
+|---|---|---|---|
+| `libraryBackendService.js` | None in active code. | DEAD | Delete |
+| `libraryView.js.broken` | None in active code. | DEAD | Delete |
+| `libraryBooksView.js.broken` | None in active code. | DEAD | Delete |
+
+### Deleted Legacy Files
+- `js/services/libraryBackendService.js`
+- `js/views/libraryView.js.broken`
+- `js/views/librarian/libraryBooksView.js.broken`
+
+**Reason:** Confirmed dead/orphaned legacy code and obsolete broken views. Active architecture exclusively uses `libraryService.js`.
+
+### Post-Delete Reference Scan
+No active code references remain. Active functionalities (Books, Book copies, Members, Issue/Return, Reservations, Fines, Lost/Damaged) safely utilize `libraryService.js`.
+
+### Listener Verification
+- **Status:** PASS
+- Unbounded listeners (`libraryBooks`, `libraryTransactions`, `libraryFines` in `libraryBackendService.js`) were removed.
+- `libraryService.js` active listeners properly call `this.stopListening()` before registration, preventing duplicate listeners.
+- `app.js` safely manages navigation cleanup for `libraryService.js`.
+
+### Performance Final Scan
+- Unsafe Reads: 0
+- Unbounded Reads: 0
+- Unsafe Limits: 0
+- Pagination/Cursor: 2
+
+All remaining Firestore operations correctly use `limit()`, paginated `startAfter()`, exact `doc(id)` lookup, or role-based `where()` filtering.
+
+### Regression Check (Read-Only)
+- Library: PASS
+- Attendance: PASS
+- Assignments: PASS
+- Step 2: PASS
+- Security: PASS
+- UI: PASS
+- Code Quality: PASS
+
+### Live Verification
+NOT PERFORMED
+
+### Step 3 Status
+**READY FOR CLOSURE VERIFICATION**
