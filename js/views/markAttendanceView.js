@@ -411,7 +411,7 @@ const MarkAttendanceView = {
     }
 
     try {
-      await attendanceService.saveAttendance(this.selectedClassId, this.selectedSubjectId, this.selectedDate, currentUser ? currentUser.id : 'FAC001', records, currentUser);
+      await attendanceService.saveAttendance(this.selectedClassId, this.selectedSubjectId, this.selectedDate, currentUser ? currentUser.uid : null, records, currentUser);
       UIService.showToast("Attendance updated successfully.", "success");
       
       // Reload the data from server

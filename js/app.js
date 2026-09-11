@@ -130,7 +130,7 @@ const App = {
     return map[role] || role;
   },
 
-  renderMainLayout() {
+  async renderMainLayout() {
     const user = authService.getCurrentUser();
     if (!user) {
       this.renderLogin();
@@ -143,6 +143,8 @@ const App = {
 
     const unreadCount = notificationService.getUnreadCount(user);
     const badgeText = notificationService.getBadgeText(user);
+
+    const viewHtml = await this.getViewHtml();
 
     appEl.innerHTML = `
       <div class="main-layout">
@@ -188,7 +190,7 @@ const App = {
             <div class="navbar-right">
               <div class="search-box">
                 <i data-lucide="search"></i>
-                <input type="text" class="search-input" placeholder="Global search..." onkeyup="App.handleGlobalSearch(this.value)">
+                <input type="text" class="search-input" placeholder="Global search..." onkeyup="App.handleGlobalSearch(this.value)"/>
               </div>
 
               <!-- NOTIFICATION BELL WITH BADGE -->
@@ -210,7 +212,7 @@ const App = {
                   </div>
 
                   <div style="padding:0.75rem; background:#F8FAFC; border-top:1px solid var(--color-border); text-align:center;">
-                    <button class="btn-xs btn-primary" onclick="App.navigateTo('notifications'); App.closeNotificationDropdown();" style="width:100%; justify-content:center; padding:0.5rem; font-weight:700;">
+                    <button class="btn-xs btn-primary" onclick="App.navigateTo('notifications'); App.closeNotificationDropdown();" style="width:100%; justify-content:center; padding:0.5rem; font-weight:800;">
                       Go to Notification Center
                     </button>
                   </div>
@@ -230,7 +232,7 @@ const App = {
 
           <!-- VIEWPORT CONTAINER -->
           <main class="content-area" id="view-container">
-            ${this.getViewHtml()}
+            ${viewHtml}
           </main>
         </div>
       </div>
@@ -286,10 +288,11 @@ const App = {
     this.renderMainLayout();
   },
 
-  renderCurrentView() {
+  async renderCurrentView() {
     const container = document.getElementById('view-container');
     if (container) {
-      container.innerHTML = this.getViewHtml();
+      const html = await this.getViewHtml();
+      container.innerHTML = html;
       if (window.lucide) window.lucide.createIcons();
       this.postRenderView();
     }
@@ -517,6 +520,12 @@ const App = {
       window.LibraryReportsView.afterRender();
     } else if (this.currentView === 'library-settings' && window.LibrarySettingsView && window.LibrarySettingsView.afterRender) {
       window.LibrarySettingsView.afterRender();
+    } else if (
+        this.currentView === 'mark-attendance' &&
+        window.MarkAttendanceView &&
+        window.MarkAttendanceView.afterRender
+    ) {
+        window.MarkAttendanceView.afterRender();
     }
   },
 

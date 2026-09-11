@@ -115,7 +115,7 @@ const attendanceService = {
         throw new Error("Access Denied: You are not authorized to mark or update attendance for this subject/class.");
       }
       if (AuthorizationService.isAcademicStaff(user) && typeof AttendanceAssignmentService !== 'undefined') {
-        const canMark = await AttendanceAssignmentService.canMarkAttendance(user.id, classId, subjectId, date);
+        const canMark = await AttendanceAssignmentService.canMarkAttendance(user.uid, classId, subjectId, date);
         if (!canMark) {
           throw new Error("Access Denied: You do not have an active attendance assignment for this class, subject, and date.");
         }
@@ -169,7 +169,7 @@ const attendanceService = {
 
       const rec = {
         studentId: r.studentId,
-        facultyId: facultyId || (user ? user.id : "FAC001"),
+        facultyId: facultyId || (user ? user.uid : null),
         subjectId: subjectId,
         classId: classId,
         date: date,

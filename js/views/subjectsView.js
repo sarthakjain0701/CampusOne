@@ -3,8 +3,14 @@
    ========================================================================== */
 
 const SubjectsView = {
-  render() {
-    const subjects = subjectService.getSubjects();
+  async render() {
+    let subjects = [];
+    try {
+      subjects = await subjectService.getSubjectsFromFirestore();
+    } catch (e) {
+      console.warn('Failed to load subjects from Firestore, falling back to mock data.', e);
+      subjects = subjectService.getSubjects();
+    }
 
     return `
       <div class="page-header">
@@ -114,7 +120,7 @@ const SubjectsView = {
     ]);
   },
 
-  saveSub() {
+  async saveSub() {
     const data = {
       code: document.getElementById('m-sub-code').value,
       name: document.getElementById('m-sub-name').value,
@@ -124,10 +130,10 @@ const SubjectsView = {
     };
 
     try {
-      subjectService.addSubject(data);
+      await subjectService.addSubject(data);
       UIService.closeModal();
       UIService.showToast("Subject added successfully.", "success");
-      App.renderCurrentView();
+      await App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");
     }

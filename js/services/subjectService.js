@@ -49,23 +49,40 @@ const subjectService = {
     return [...MOCK_DATA.subjects];
   },
 
-  addSubject(subData) {
+  async addSubject(subData) {
     if (!Validation.isRequired(subData.code) || !Validation.isRequired(subData.name)) {
       throw new Error("Subject Code and Name are required.");
     }
-
-    const newSub = {
-      id: "SUB" + String(MOCK_DATA.subjects.length + 1).padStart(3, '0'),
-      code: subData.code.trim().toUpperCase(),
-      name: subData.name.trim(),
-      department: subData.department || "Computer Science & Engineering",
-      semester: Number(subData.semester) || 2,
-      credits: Number(subData.credits) || 3,
-      status: subData.status || "ACTIVE"
-    };
-
-    MOCK_DATA.subjects.unshift(newSub);
-    return newSub;
+    try {
+      const db = await this._ensureDb();
+      const docRef = await db.collection(this._collection()).add({
+        code: subData.code.trim().toUpperCase(),
+        name: subData.name.trim(),
+        department: subData.department || "Computer Science & Engineering",
+        semester: Number(subData.semester) || 2,
+        credits: Number(subData.credits) || 3,
+        status: subData.status || "ACTIVE"
+      });
+      const doc = await docRef.get();
+      const newSub = { id: doc.id, ...doc.data() };
+      // Update mock for UI fallback
+      MOCK_DATA.subjects.unshift(newSub);
+      return newSub;
+    } catch (err) {
+      console.error("Failed to add subject to Firestore", err);
+      // Fallback to mock behavior
+      const newSub = {
+        id: "SUB" + String(MOCK_DATA.subjects.length + 1).padStart(3, '0'),
+        code: subData.code.trim().toUpperCase(),
+        name: subData.name.trim(),
+        department: subData.department || "Computer Science & Engineering",
+        semester: Number(subData.semester) || 2,
+        credits: Number(subData.credits) || 3,
+        status: subData.status || "ACTIVE"
+      };
+      MOCK_DATA.subjects.unshift(newSub);
+      return newSub;
+    }
   },
 
   updateSubject(id, updatedFields) {
