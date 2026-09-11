@@ -143,3 +143,31 @@ Due to incomplete application of the queries in Pass 2 and a newly discovered un
 - Security: PASS
 - Step 2: PASS
 - UI: PASS
+
+## STEP 3 CLOSURE VERIFICATION
+
+### Read-Only Performance Scan
+- **attendanceService.js**: SAFE (Filtered by role)
+- **assignmentService.js**: SAFE (Filtered by role / bounded)
+- **studentService.js**: SAFE (Filtered by docId / bounded)
+- **libraryService.js**: SAFE (Paginated / Cursor used)
+- **libraryBackendService.js**: UNSAFE
+  - `searchMembers()` uses `this.db.collection('authorizedUsers').get()` (Unbounded read).
+  - `getBooks()`, `getTransactions()`, `getFines()` use unbounded `.onSnapshot()` listeners which download entire collections.
+
+### Verification Results
+- **Performance**: FAIL (Unsafe queries discovered in `libraryBackendService.js`)
+- **Security**: PASS (Auth, RBAC, Temp Password intact)
+- **Listeners**: FAIL (Unbounded listeners in `libraryBackendService.js`)
+- **Error Handling**: PASS
+- **Step 2 Regression**: PASS
+- **UI Regression**: PASS
+- **Code Quality**: PASS
+
+- **Unsafe Reads**: 4 (`searchMembers`, `getBooks`, `getTransactions`, `getFines` in `libraryBackendService.js`)
+- **Unbounded Reads**: 4
+- **Unsafe Limits**: 0
+- **Pagination/Cursor**: 2
+
+### Overall Status
+**FIXES REQUIRED**
