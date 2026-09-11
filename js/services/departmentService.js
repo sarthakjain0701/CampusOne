@@ -3,12 +3,46 @@
    ========================================================================== */
 
 const departmentService = {
-  getDepartments() {
-    return [...MOCK_DATA.departments];
+  _collection() {
+    return 'departments';
   },
 
-  getDepartmentById(id) {
-    return MOCK_DATA.departments.find(d => d.id === id) || null;
+  async _ensureDb() {
+    if (!window.FirebaseService) throw new Error("Firebase Service is not loaded.");
+    await window.FirebaseService.init();
+    if (!window.FirebaseService.db) throw new Error("Firestore is not available.");
+    return window.FirebaseService.db;
+  },
+
+  async getDepartmentsFromFirestore() {
+    const db = await this._ensureDb();
+    try {
+      const snapshot = await db.collection(this._collection()).get();
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      return list;
+    } catch (err) {
+      console.error("Failed to fetch departments from Firestore", err);
+      throw new Error("Unable to load departments from database.");
+    }
+  },
+
+  async getDepartmentById(id) {
+    const db = await this._ensureDb();
+    try {
+      const doc = await db.collection(this._collection()).doc(id).get();
+      if (!doc.exists) return null;
+      return { id: doc.id, ...doc.data() };
+    } catch (err) {
+      console.error("Failed to fetch department", err);
+      throw new Error("Unable to load department information.");
+    }
+  },
+
+  getDepartments() {
+    return [...MOCK_DATA.departments];
   },
 
   addDepartment(deptData) {

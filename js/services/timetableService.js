@@ -73,9 +73,17 @@ const TimetableService = {
   },
 
   async getStudentTimetable(studentId) {
-    const students = typeof studentService !== 'undefined' ? studentService.getStudents() : DataStore.get('STUDENTS') || [];
-    const student = students.find(s => s.id === studentId || s.userId === studentId);
-    const classId = student ? (student.classId || "CLS001") : "CLS001";
+    let classId = "CLS001";
+    if (typeof studentService !== 'undefined' && studentService.getStudentById) {
+      try {
+        const student = await studentService.getStudentById(studentId);
+        if (student && student.classId) {
+          classId = student.classId;
+        }
+      } catch (e) {
+        console.error("Error fetching student:", e);
+      }
+    }
     return this.getClassTimetable(classId);
   },
 
@@ -127,9 +135,21 @@ const TimetableService = {
       return t.day && e.day && t.day.toLowerCase() === e.day.toLowerCase();
     };
 
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : DataStore.get('SUBJECTS') || [];
-    const facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : DataStore.get('FACULTY') || [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : DataStore.get('CLASSES') || [];
+    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+    
+    let facultyList = [];
+    if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
+      try {
+        facultyList = await facultyService.getFacultyFromFirestore();
+      } catch (e) {
+        console.warn("Failed to fetch faculty from Firestore, falling back to mock", e);
+        facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
+      }
+    } else {
+      facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
+    }
+
+    const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
 
     // 1. DUPLICATE SLOT CHECK
     const duplicate = list.find(t =>
@@ -298,10 +318,22 @@ const TimetableService = {
       pageSize = 10
     } = options;
 
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : DataStore.get('SUBJECTS') || [];
-    const facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : DataStore.get('FACULTY') || [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : DataStore.get('CLASSES') || [];
-    const departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : DataStore.get('DEPARTMENTS') || [];
+    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+    
+    let facultyList = [];
+    if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
+      try {
+        facultyList = await facultyService.getFacultyFromFirestore();
+      } catch (e) {
+        console.warn("Failed to fetch faculty from Firestore, falling back to mock", e);
+        facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
+      }
+    } else {
+      facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
+    }
+
+    const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
+    const departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
 
     // Helper date comparison
     const todayStr = new Date().toISOString().split('T')[0];

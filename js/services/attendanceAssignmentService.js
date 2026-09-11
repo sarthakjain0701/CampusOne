@@ -83,9 +83,9 @@ const AttendanceAssignmentService = {
        throw new Error("Another faculty is already assigned to take attendance for this specific timetable session.");
     }
 
-    const timetable = typeof TimetableService !== 'undefined' ? TimetableService.getTimetableById(timetableId) : null;
+    const timetable = typeof TimetableService !== 'undefined' ? await TimetableService.getTimetableById(timetableId) : null;
     if (timetable) {
-      const allTimetables = typeof TimetableService !== 'undefined' ? TimetableService.getAllTimetables() : [];
+      const allTimetables = typeof TimetableService !== 'undefined' ? await TimetableService.getAllTimetables() : [];
       const facultyOtherAssignments = assignments.filter(a => a.facultyId === facultyId && a.status === 'ACTIVE');
       
       for (const assign of facultyOtherAssignments) {
@@ -138,7 +138,7 @@ const AttendanceAssignmentService = {
     if (typeof AcademicCalendarService !== 'undefined' && typeof TimetableService !== 'undefined') {
       const dayName = AcademicCalendarService.getDayName(date);
       for (const assign of relevantAssignments) {
-        const tt = TimetableService.getTimetableById(assign.timetableId);
+        const tt = await TimetableService.getTimetableById(assign.timetableId);
         if (tt && tt.day === dayName) {
            return true;
         }

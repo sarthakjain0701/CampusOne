@@ -3,12 +3,50 @@
    ========================================================================== */
 
 const subjectService = {
-  getSubjects() {
-    return [...MOCK_DATA.subjects];
+  _collection() {
+    return 'subjects';
   },
 
-  getSubjectById(id) {
-    return MOCK_DATA.subjects.find(s => s.id === id) || null;
+  async _ensureDb() {
+    if (!window.FirebaseService) throw new Error("Firebase Service is not loaded.");
+    await window.FirebaseService.init();
+    if (!window.FirebaseService.db) throw new Error("Firestore is not available.");
+    return window.FirebaseService.db;
+  },
+
+  async getSubjectsFromFirestore() {
+    const db = await this._ensureDb();
+    try {
+      const snapshot = await db.collection(this._collection()).get();
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      return list;
+    } catch (err) {
+      console.error("Failed to fetch subjects from Firestore", err);
+      // Fallback to mock data strictly if Firestore fails, to prevent total UI collapse 
+      // but ideally this should throw or return controlled error as per instructions.
+      // Instructions: "If Firestore fails, return a controlled error/state rather than silently showing stale mock data."
+      throw new Error("Unable to load subjects from database.");
+    }
+  },
+
+  async getSubjectById(id) {
+    const db = await this._ensureDb();
+    try {
+      const doc = await db.collection(this._collection()).doc(id).get();
+      if (!doc.exists) return null;
+      return { id: doc.id, ...doc.data() };
+    } catch (err) {
+      console.error("Failed to fetch subject", err);
+      throw new Error("Unable to load subject information.");
+    }
+  },
+
+  // Legacy sync methods
+  getSubjects() {
+    return [...MOCK_DATA.subjects];
   },
 
   addSubject(subData) {

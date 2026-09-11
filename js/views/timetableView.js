@@ -29,7 +29,9 @@ const TimetableView = {
   timetablesData: {
     weekly: [],
     scheduledSlots: null,
-    stats: null
+    stats: null,
+    faculty: null,
+    students: null
   },
 
   afterRender() {
@@ -40,6 +42,50 @@ const TimetableView = {
 
   async fetchData() {
     try {
+      if (!this.timetablesData.faculty) {
+        if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
+          try { this.timetablesData.faculty = await facultyService.getFacultyFromFirestore(); }
+          catch(e) { this.timetablesData.faculty = (this.timetablesData && this.timetablesData.faculty) || []; }
+        } else {
+          this.timetablesData.faculty = (this.timetablesData && this.timetablesData.faculty) || [];
+        }
+      }
+      if (!this.timetablesData.students) {
+        if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
+          try { this.timetablesData.students = await studentService.getStudentsFromFirestore(); }
+          catch(e) { this.timetablesData.students = typeof studentService !== 'undefined' ? studentService.getStudents() : []; }
+        } else {
+          this.timetablesData.students = typeof studentService !== 'undefined' ? studentService.getStudents() : [];
+        }
+      }
+
+      if (!this.timetablesData.subjects) {
+        if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
+          try { this.timetablesData.subjects = await subjectService.getSubjectsFromFirestore(); }
+          catch(e) { this.timetablesData.subjects = (this.timetablesData && this.timetablesData.subjects) || []; }
+        } else {
+          this.timetablesData.subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+        }
+      }
+
+      if (!this.timetablesData.classes) {
+        if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
+          try { this.timetablesData.classes = await classService.getClassesFromFirestore(); }
+          catch(e) { this.timetablesData.classes = (this.timetablesData && this.timetablesData.classes) || []; }
+        } else {
+          this.timetablesData.classes = (this.timetablesData && this.timetablesData.classes) || [];
+        }
+      }
+
+      if (!this.timetablesData.departments) {
+        if (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore) {
+          try { this.timetablesData.departments = await departmentService.getDepartmentsFromFirestore(); }
+          catch(e) { this.timetablesData.departments = (this.timetablesData && this.timetablesData.departments) || []; }
+        } else {
+          this.timetablesData.departments = (this.timetablesData && this.timetablesData.departments) || [];
+        }
+      }
+
       if (this.activeTab === 'weekly') {
         this.timetablesData.weekly = await TimetableService.getAllTimetables();
       } else {
@@ -155,12 +201,13 @@ const TimetableView = {
   // =========================================================================
   renderWeeklyTab(user) {
     const isAdmin = user.role === 'ADMIN';
-    const classes = classService.getClasses();
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
 
     let sectionId = this.selectedSection !== 'ALL' ? this.selectedSection : (classes[0] ? classes[0].id : 'CLS001');
 
     if (user.role === 'STUDENT') {
-      const student = DataStore.get('STUDENTS').find(s => s.email === user.email || s.userId === user.uid) || DataStore.get('STUDENTS')[0];
+      const studentList = this.timetablesData.students || [];
+      const student = studentList.find(s => s.email === user.email || s.userId === user.uid) || studentList[0];
       sectionId = student ? (student.classId || 'CLS001') : 'CLS001';
     }
 
@@ -233,8 +280,8 @@ const TimetableView = {
       { label: '12:00 PM – 01:00 PM', start: '12:00', end: '13:00' }
     ];
 
-    const subjects = subjectService.getSubjects();
-    const faculty = DataStore.get('FACULTY') || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = this.timetablesData.faculty || [];
 
     return `
       <div class="card" style="padding:0; overflow:hidden; border:1px solid var(--color-border); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
@@ -284,8 +331,8 @@ const TimetableView = {
   },
 
   renderTimetableList(entries) {
-    const subjects = subjectService.getSubjects();
-    const faculty = DataStore.get('FACULTY') || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = this.timetablesData.faculty || [];
 
     return `
       <div class="timetable-list-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap:1rem;">
@@ -338,10 +385,10 @@ const TimetableView = {
     // Fetch Paginated & Filtered Data (already done in fetchData)
     const data = this.timetablesData.scheduledSlots || { items: [], totalRecords: 0, startIndex: 0, endIndex: 0, currentPage: 1, totalPages: 1 };
 
-    const departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : DataStore.get('DEPARTMENTS') || [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : DataStore.get('CLASSES') || [];
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : DataStore.get('SUBJECTS') || [];
-    const faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : DataStore.get('FACULTY') || [];
+    const departments = (this.timetablesData && this.timetablesData.departments) || [];
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = this.timetablesData.faculty || [];
 
     const todayStr = new Date().toISOString().split('T')[0];
     const isTodayFilterActive = this.dateFilter === 'TODAY' || this.specificDate === todayStr;
@@ -830,10 +877,10 @@ const TimetableView = {
    * OPEN ADD SCHEDULED SLOT MODAL
    */
   openAddModal() {
-    const departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : DataStore.get('DEPARTMENTS') || [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : DataStore.get('CLASSES') || [];
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : DataStore.get('SUBJECTS') || [];
-    const faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : DataStore.get('FACULTY') || [];
+    const departments = (this.timetablesData && this.timetablesData.departments) || [];
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = (this.timetablesData && this.timetablesData.faculty) || [];
 
     const defaultDate = new Date().toISOString().split('T')[0];
     const defaultDay = AcademicCalendarService.getDayName(defaultDate);
@@ -942,10 +989,10 @@ const TimetableView = {
       return;
     }
 
-    const departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : DataStore.get('DEPARTMENTS') || [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : DataStore.get('CLASSES') || [];
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : DataStore.get('SUBJECTS') || [];
-    const faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : DataStore.get('FACULTY') || [];
+    const departments = (this.timetablesData && this.timetablesData.departments) || [];
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = (this.timetablesData && this.timetablesData.faculty) || [];
 
     const slotDate = entry.date || new Date().toISOString().split('T')[0];
     const slotDay = AcademicCalendarService.getDayName(slotDate) || entry.day;
@@ -1181,9 +1228,9 @@ const TimetableView = {
     const entry = await TimetableService.getTimetableById(id);
     if (!entry) return;
 
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : DataStore.get('SUBJECTS') || [];
-    const faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : DataStore.get('FACULTY') || [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : DataStore.get('CLASSES') || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = (this.timetablesData && this.timetablesData.faculty) || [];
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
 
     const sub = subjects.find(s => s.id === entry.subjectId);
     const fac = faculty.find(f => f.id === entry.facultyId);
