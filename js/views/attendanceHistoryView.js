@@ -4,11 +4,11 @@
    ========================================================================== */
 
 const AttendanceHistoryView = {
-  render() {
+  async render() {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
 
-    const attendance = attendanceService.getAttendance(user);
+    const attendance = await attendanceService.getAttendance(user);
     let classes = DataStore.get('CLASSES') || MOCK_DATA.classes || [];
     let subjects = DataStore.get('SUBJECTS') || MOCK_DATA.subjects || [];
 

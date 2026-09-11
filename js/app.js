@@ -518,14 +518,14 @@ const App = {
       window.LibraryFinesView.afterRender();
     } else if (this.currentView === 'library-reports' && window.LibraryReportsView && window.LibraryReportsView.afterRender) {
       window.LibraryReportsView.afterRender();
-    } else if (this.currentView === 'library-settings' && window.LibrarySettingsView && window.LibrarySettingsView.afterRender) {
-      window.LibrarySettingsView.afterRender();
-    } else if (
-        this.currentView === 'mark-attendance' &&
-        window.MarkAttendanceView &&
-        window.MarkAttendanceView.afterRender
-    ) {
-        window.MarkAttendanceView.afterRender();
+    } else if (this.currentView === 'mark-attendance' && window.MarkAttendanceView && window.MarkAttendanceView.afterRender) {
+      window.MarkAttendanceView.afterRender();
+    } else if (this.currentView === 'attendance-assignments' && window.AttendanceAssignmentsView && window.AttendanceAssignmentsView.afterRender) {
+      window.AttendanceAssignmentsView.afterRender();
+    } else if (this.currentView === 'attendance-history' && window.AttendanceHistoryView && window.AttendanceHistoryView.afterRender) {
+      window.AttendanceHistoryView.afterRender();
+    } else if (this.currentView === 'timetable' && window.TimetableView && window.TimetableView.afterRender) {
+      window.TimetableView.afterRender();
     }
   },
 
