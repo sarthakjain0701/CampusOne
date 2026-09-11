@@ -34,7 +34,7 @@ const SettingsView = {
     return `
       <div class="page-header">
         <h1>System Settings</h1>
-        <p>Configure attendance warning thresholds, notification rules, and database seed data.</p>
+        <p>Configure attendance warning thresholds, notification rules, database seed data, and system migrations.</p>
       </div>
 
       <div class="dashboard-grid">
@@ -61,6 +61,20 @@ const SettingsView = {
 
         <div class="card">
           <div class="card-header">
+            <h3 class="card-title"><i data-lucide="database"></i> Reference Data Migration</h3>
+          </div>
+          <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:1.5rem;">
+            Safely migrate baseline static reference data (Subjects, Classes, Departments) to authoritative Firestore collections.
+            This action is idempotent and conflict-safe.
+          </p>
+
+          <button id="btn-run-migration" class="btn-primary" style="background-color: var(--color-warning); color: var(--color-warning-foreground);" onclick="SettingsView.runReferenceMigration()">
+            <i data-lucide="server"></i> Run Live Migration
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
             <h3 class="card-title"><i data-lucide="database"></i> Database Seed & Reset</h3>
           </div>
           <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:1.5rem;">
@@ -73,6 +87,55 @@ const SettingsView = {
         </div>
       </div>
     `;
+  },
+
+  async runReferenceMigration() {
+    const user = (typeof authService !== 'undefined') ? authService.getCurrentUser() : null;
+    if (!user || user.role !== 'ADMIN') {
+      UIService.showToast('Access Denied: Only Admin can run migration.', 'danger');
+      return;
+    }
+
+    UIService.showConfirm("Run Reference Data Migration", "Are you sure you want to run the Firestore Reference Data Migration? This action is conflict-safe.", async () => {
+      const btn = document.getElementById('btn-run-migration');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="lucide lucide-loader"></i> Migrating...';
+      }
+
+      try {
+        if (!window.ReferenceMigrationService) {
+          throw new Error("ReferenceMigrationService is not loaded.");
+        }
+        
+        const result = await window.ReferenceMigrationService.runMigration();
+        
+        if (result.status === 'SUCCESS') {
+          const r = result.report;
+          const details = `
+            Subjects: ${r.subjects.created} created, ${r.subjects.existing} existing, ${r.subjects.errors} errors.\n
+            Classes: ${r.classes.created} created, ${r.classes.existing} existing, ${r.classes.errors} errors.\n
+            Departments: ${r.departments.created} created, ${r.departments.existing} existing, ${r.departments.errors} errors.\n
+            Conflicts: ${r.conflicts.length}
+          `;
+          alert("Migration Completed Successfully!\n" + details);
+          UIService.showToast("Migration completed successfully.", "success");
+        } else {
+          alert("Migration Failed:\n" + result.message);
+          UIService.showToast("Migration failed.", "danger");
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Migration Error: " + e.message);
+        UIService.showToast("Migration error occurred.", "danger");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="server"></i> Run Live Migration';
+          if (window.lucide) window.lucide.createIcons();
+        }
+      }
+    });
   },
 
   resetData() {
