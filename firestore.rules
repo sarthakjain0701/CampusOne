@@ -234,6 +234,25 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Academic Reference Data
+    // ============================================================
+
+    match /subjects/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /classes/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /departments/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ============================================================
     // Default Deny
     // ============================================================
 
