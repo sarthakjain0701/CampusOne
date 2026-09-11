@@ -20,9 +20,33 @@ const LibraryService = {
   // ------------------------------------------------------------------------
   // BOOKS
   // ------------------------------------------------------------------------
-  async getBooks() {
+  async getBooks(limitCount = 50, lastVisible = null) {
     const db = this._getDb();
-    const snapshot = await db.collection('libraryBooks').limit(100).get();
+    let query = db.collection('libraryBooks').orderBy('title').limit(limitCount);
+    if (lastVisible) {
+      query = query.startAfter(lastVisible);
+    }
+    const snapshot = await query.get();
+    return {
+      books: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      lastVisible: snapshot.docs[snapshot.docs.length - 1] || null
+    };
+  },
+
+  async searchBooks(searchQuery, limitCount = 50) {
+    const db = this._getDb();
+    if (!searchQuery) {
+      const snap = await db.collection('libraryBooks').orderBy('title').limit(limitCount).get();
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+    
+    // Support prefix search with Title Case
+    const upperQuery = searchQuery.charAt(0).toUpperCase() + searchQuery.slice(1);
+    const snapshot = await db.collection('libraryBooks')
+      .where('title', '>=', upperQuery)
+      .where('title', '<=', upperQuery + '\uf8ff')
+      .limit(limitCount)
+      .get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   },
 

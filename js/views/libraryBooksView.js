@@ -7,6 +7,9 @@ const LibraryBooksView = {
   books: [],
   loading: true,
   errorMessage: null,
+  lastVisible: null,
+  hasMore: true,
+  searchTimeout: null,
 
   afterRender() {
     if (this.loading) {
@@ -14,10 +17,19 @@ const LibraryBooksView = {
     }
   },
 
-  async fetchBooks() {
+  async fetchBooks(loadMore = false) {
     this.errorMessage = null;
     try {
-      this.books = await LibraryService.getBooks();
+      if (!loadMore) {
+        this.books = [];
+        this.lastVisible = null;
+        this.hasMore = true;
+      }
+      const res = await LibraryService.getBooks(50, this.lastVisible);
+      this.books = [...this.books, ...(res.books || [])];
+      this.lastVisible = res.lastVisible;
+      if (!res.books || res.books.length < 50) this.hasMore = false;
+      
       this.loading = false;
       App.renderCurrentView();
     } catch (error) {
@@ -125,18 +137,35 @@ const LibraryBooksView = {
               </tbody>
             </table>
           </div>
+          ${this.hasMore ? `
+          <div style="padding: 1.5rem; text-align: center;">
+            <button class="btn-secondary" onclick="LibraryBooksView.fetchBooks(true)">
+              Load More Books
+            </button>
+          </div>
+          ` : ''}
         `}
       </div>
     `;
   },
 
   filterBooks(query) {
-    const q = query.toLowerCase();
-    const rows = document.querySelectorAll('#books-table tbody tr');
-    rows.forEach(row => {
-      const text = row.innerText.toLowerCase();
-      row.style.display = text.includes(q) ? '' : 'none';
-    });
+    if (this.searchTimeout) clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(async () => {
+      const q = query.trim();
+      if (!q) {
+        this.fetchBooks(false);
+        return;
+      }
+      try {
+        const searched = await LibraryService.searchBooks(q, 50);
+        this.books = searched;
+        this.hasMore = false; // Disable load more during search
+        App.renderCurrentView();
+      } catch (err) {
+        console.error("Search error:", err);
+      }
+    }, 400);
   },
 
   openAddBookModal() {

@@ -34,10 +34,10 @@ const attendanceService = {
       const db = this._getDb();
       const snapshot = await db.collection('attendance').where('studentId', '==', studentId).get();
       const records = snapshot.docs.map(doc => doc.data());
-      
+
       const total = records.length;
       const present = records.filter(a => a.status === 'PRESENT').length;
-      return typeof AttendanceCalculator !== 'undefined' ? AttendanceCalculator.calculateAttendance(present, total) : { total, present, percentage: total ? Math.round((present/total)*100) : 0 };
+      return typeof AttendanceCalculator !== 'undefined' ? AttendanceCalculator.calculateAttendance(present, total) : { total, present, percentage: total ? Math.round((present / total) * 100) : 0 };
     } catch (err) {
       console.error("Failed to fetch student attendance:", err);
       return { total: 0, present: 0, percentage: 0 };
@@ -52,10 +52,10 @@ const attendanceService = {
         .where('subjectId', '==', subjectId)
         .get();
       const records = snapshot.docs.map(doc => doc.data());
-      
+
       const total = records.length;
       const present = records.filter(a => a.status === 'PRESENT').length;
-      return typeof AttendanceCalculator !== 'undefined' ? AttendanceCalculator.calculateAttendance(present, total) : { total, present, percentage: total ? Math.round((present/total)*100) : 0 };
+      return typeof AttendanceCalculator !== 'undefined' ? AttendanceCalculator.calculateAttendance(present, total) : { total, present, percentage: total ? Math.round((present / total) * 100) : 0 };
     } catch (err) {
       console.error("Failed to fetch student subject attendance:", err);
       return { total: 0, present: 0, percentage: 0 };
@@ -134,7 +134,7 @@ const attendanceService = {
       .where('subjectId', '==', subjectId)
       .where('date', '==', date)
       .get();
-    
+
     const existingRecords = new Map();
     existingSnapshot.docs.forEach(doc => {
       existingRecords.set(doc.data().studentId, { id: doc.id, ...doc.data() });

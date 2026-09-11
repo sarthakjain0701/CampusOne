@@ -37,3 +37,52 @@
 | `attendanceService.js` | `getAttendance()` | `100` | NO | Used to fetch attendance. The client-side logic then filters by `studentId`. An initial fetch limit of 100 causes the client to receive 100 random records and filter them, resulting in virtually 0 records for any given student. Needs a `where('studentId', '==', user.uid)` clause directly instead of a blind limit. |
 | `assignmentService.js` | `getAssignments()` | `200` | NO | Used by Faculty dashboards to list their classes. A flat limit risks truncating assignments in a large system. It should either be unbounded if treated as a small reference dataset, or properly paginated/filtered by `facultyId`. |
 | `libraryBackendService.js` | `searchMembers()` | `None` | NO | Still performs an entirely unbounded read on `authorizedUsers` and `faculties`. |
+
+## Implementation Pass 2
+
+**Files Changed:**
+- `js/services/libraryService.js`
+- `js/services/attendanceService.js`
+- `js/services/assignmentService.js`
+- `js/services/libraryBackendService.js`
+- `js/views/libraryBooksView.js`
+- `js/views/libraryCirculationView.js`
+
+### Changes Implemented
+
+1. **`libraryService.js` (`getBooks`)**
+   - **Old Query**: `.limit(100)`
+   - **New Strategy**: Added `limit(50)` with `lastVisible` cursor support. Added `searchBooks(searchQuery, limitCount)` for prefix-based filtering.
+   - **UI Impact**: 
+     - `libraryBooksView.js`: Implemented a "Load More Books" button for safe cursor-based pagination. Refactored `filterBooks` to debounce and hit the server using `searchBooks`, replacing the client-side DOM filter.
+     - `libraryCirculationView.js`: Added an incremental prefix-search input to the Issue Book modal, removing the unbounded giant `<select>` load. The `<select>` options populate strictly from the debounced search results.
+
+2. **`attendanceService.js` (`getAttendance`)**
+   - **Old Query**: `.limit(100)`
+   - **New Strategy**: 
+     - For Students: `where('studentId', '==', user.uid)`.
+     - For Faculty: `where('subjectId', 'in', authorizedSubjectIds)`.
+     - For Admins: `orderBy('createdAt', 'desc').limit(300)` (safe bound).
+   - **UI Impact**: Fixes the critical bug where a global `.limit(100)` caused the client-side filter to find zero records for a specific student.
+
+3. **`assignmentService.js` (`getAssignments`)**
+   - **Old Query**: `.limit(200)`
+   - **New Strategy**: 
+     - For Faculty: `where('facultyId', '==', user.uid)`.
+     - For Admins: `orderBy('createdAt', 'desc').limit(200)`.
+   - **UI Impact**: Ensures faculty see exactly all their assigned subjects without arbitrary truncations, while keeping the admin overview safely bounded.
+
+4. **`libraryBackendService.js` (`searchMembers`)**
+   - **Old Query**: Unbounded `.get()` on both `authorizedUsers` and `faculties`.
+   - **New Strategy**: Prefix search using `where('email', '>=', lowerQuery).where('email', '<=', lowerQuery + '\uf8ff').limit(20)` independently on both collections before merging.
+   - **UI Impact**: The backend now performs safe bounded searches, restricting results to a maximum of 40 documents per search.
+
+### Regression Verification (Static)
+
+- **Library UI**: PASS
+- **Attendance**: PASS
+- **Assignments**: PASS
+- **Security**: PASS (No rules or authentication logic weakened)
+- **Step 2 Reference Data**: PASS
+
+**Live Verification**: NOT PERFORMED

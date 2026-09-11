@@ -13,7 +13,7 @@ const assignmentService = {
   async getAssignments() {
     try {
       const db = this._getDb();
-      const snapshot = await db.collection('assignments').limit(200).get();
+      const snapshot = await db.collection('assignments').get();
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
       console.error("Failed to fetch assignments:", err);
@@ -61,7 +61,7 @@ const assignmentService = {
     const docRef = db.collection('assignments').doc(id);
     const doc = await docRef.get();
     if (!doc.exists) throw new Error("Assignment record not found.");
-    
+
     await docRef.delete();
     return { id, ...doc.data() };
   }

@@ -36,9 +36,9 @@ const LibraryBackendService = {
     bookData.availableCopies = parseInt(bookData.totalCopies || 0);
     bookData.issuedCopies = 0;
     bookData.reservedCopies = 0;
-    
+
     const docRef = await this.db.collection('libraryBooks').add(bookData);
-    
+
     // Auto-generate generic copies based on totalCopies
     for (let i = 0; i < bookData.availableCopies; i++) {
       await this.db.collection('libraryBookCopies').add({
@@ -80,7 +80,7 @@ const LibraryBackendService = {
   async issueBook(memberEmail, bookId, copyId) {
     this.init();
     const batch = this.db.batch();
-    
+
     const bookRef = this.db.collection('libraryBooks').doc(bookId);
     const copyRef = this.db.collection('libraryBookCopies').doc(copyId);
     const txRef = this.db.collection('libraryTransactions').doc();
@@ -128,7 +128,7 @@ const LibraryBackendService = {
 
     const bookRef = this.db.collection('libraryBooks').doc(tx.bookId);
     const copyRef = this.db.collection('libraryBookCopies').doc(tx.copyId);
-    
+
     const bookDoc = await bookRef.get();
     const bookData = bookDoc.data();
 
@@ -187,12 +187,12 @@ const LibraryBackendService = {
     const students = snapshot.docs.map(doc => doc.data());
     const facultySnap = await this.db.collection('faculties').get();
     const faculties = facultySnap.docs.map(doc => doc.data());
-    
+
     const all = [...students, ...faculties];
     const lowerQuery = query.toLowerCase();
-    
-    return all.filter(u => 
-      (u.name && u.name.toLowerCase().includes(lowerQuery)) || 
+
+    return all.filter(u =>
+      (u.name && u.name.toLowerCase().includes(lowerQuery)) ||
       (u.email && u.email.toLowerCase().includes(lowerQuery)) ||
       (u.rollNumber && u.rollNumber.toLowerCase().includes(lowerQuery))
     );

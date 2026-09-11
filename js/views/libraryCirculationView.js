@@ -114,7 +114,8 @@ const LibraryCirculationView = {
   },
 
   async openIssueModal() {
-    const books = await LibraryService.getBooks();
+    const res = await LibraryService.getBooks(50);
+    const books = res.books || [];
     const availableBooks = books.filter(b => b.availableCopies > 0);
 
     const modalId = 'pams-issue-book-modal';
@@ -139,7 +140,8 @@ const LibraryCirculationView = {
                 <input type="text" id="issue-user-id" class="form-input" placeholder="e.g. student@poornima.edu.in" required>
               </div>
               <div class="form-group" style="margin-bottom:1.5rem;">
-                <label class="form-label">Select Book *</label>
+                <label class="form-label">Search & Select Book *</label>
+                <input type="text" id="issue-book-search" class="form-input" style="margin-bottom:0.5rem;" placeholder="Search book title..." onkeyup="LibraryCirculationView.searchDropdown(this.value)">
                 <select id="issue-book-id" class="form-select" onchange="LibraryCirculationView.loadAvailableCopies(this.value)" required>
                   <option value="">-- Select a Book --</option>
                   ${availableBooks.map(b => `<option value="${b.id}">${b.title} (${b.availableCopies} available)</option>`).join('')}
@@ -164,6 +166,25 @@ const LibraryCirculationView = {
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     if (window.lucide) window.lucide.createIcons();
+  },
+
+  searchTimeout: null,
+  async searchDropdown(query) {
+    if (this.searchTimeout) clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(async () => {
+      try {
+        const books = await LibraryService.searchBooks(query.trim(), 50);
+        const availableBooks = books.filter(b => b.availableCopies > 0);
+        const select = document.getElementById('issue-book-id');
+        if (select) {
+          select.innerHTML = '<option value="">-- Select a Book --</option>' + availableBooks.map(b => `<option value="${b.id}">${b.title} (${b.availableCopies} available)</option>`).join('');
+          document.getElementById('issue-copy-id').innerHTML = '<option value="">-- Select Book First --</option>';
+          document.getElementById('issue-copy-id').disabled = true;
+        }
+      } catch (e) {
+        console.error("Error searching dropdown books:", e);
+      }
+    }, 400);
   },
 
   async loadAvailableCopies(bookId) {
