@@ -32,7 +32,8 @@ const CloudFunctionsService = {
         success: true, 
         message: result.data.message || "User provisioned successfully.", 
         uid: result.data.uid, 
-        profile: userData 
+        profile: userData,
+        tempPassword: result.data.tempPassword
       };
 
     } catch (err) {

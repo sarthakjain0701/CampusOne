@@ -134,7 +134,8 @@ const facultyService = {
       if (!window.CloudFunctionsService) {
         throw new Error("Client Provisioning Service is not loaded.");
       }
-      await window.CloudFunctionsService.provisionUser(payload, payload.role);
+      const provisionResult = await window.CloudFunctionsService.provisionUser(payload, payload.role);
+      payload.tempPassword = provisionResult.tempPassword;
       return payload;
     } catch (err) {
       console.error("[PAMS PROVISIONING ERROR]", err);

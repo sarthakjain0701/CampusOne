@@ -219,7 +219,8 @@ const adminService = {
       throw new Error("Backend Provisioning Service is not loaded.");
     }
 
-    await window.CloudFunctionsService.provisionUser(payload, role);
+    const provisionResult = await window.CloudFunctionsService.provisionUser(payload, role);
+    payload.tempPassword = provisionResult.tempPassword;
     this.invalidateCache();
     return payload;
   },

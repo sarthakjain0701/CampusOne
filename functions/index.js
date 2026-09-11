@@ -129,7 +129,15 @@ exports.provisionUser = functions.https.onCall(async (data, context) => {
 
     await db.collection(collectionName).doc(normalizedEmail).set(docData);
     
-    return { success: true, message: "User provisioned successfully.", uid: newUserRecord.uid };
+    return { 
+      success: true, 
+      message: "User provisioned successfully.", 
+      uid: newUserRecord.uid,
+      email: normalizedEmail,
+      role: role,
+      tempPassword: tempPassword,
+      mustChangePassword: true
+    };
   } catch (dbError) {
     console.error("Firestore creation failed, rolling back Auth...", dbError);
     // 7. Partial Failure Rollback

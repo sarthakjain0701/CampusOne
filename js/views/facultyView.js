@@ -355,10 +355,15 @@ const FacultyView = {
     }
 
     try {
-      await facultyService.addFaculty(data);
+      const addedFac = await facultyService.addFaculty(data);
       UIService.closeModal();
       const roleLabel = AuthorizationService.getRoleDisplayName(selectedRole);
-      UIService.showToast(`${roleLabel} added successfully.`, "success");
+      if (addedFac.tempPassword) {
+        alert(`${roleLabel} added successfully.\n\nTemporary Password: ${addedFac.tempPassword}\n\nThe user must change this password after first login. Please copy this password securely.`);
+        UIService.showToast(`${roleLabel} added successfully.`, "success");
+      } else {
+        UIService.showToast(`${roleLabel} added successfully.`, "success");
+      }
       this.loadFaculty(false);
     } catch (err) {
       UIService.showToast(err.message, "danger");

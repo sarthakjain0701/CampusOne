@@ -292,9 +292,14 @@ const AdminManagementView = {
         const role = document.getElementById('m-admin-role').value;
 
         try {
-          await window.adminService.addUser({ name, email, role });
+          const addedUser = await window.adminService.addUser({ name, email, role });
           UIService.closeModal();
-          UIService.showToast("User provisioned successfully.", "success");
+          if (addedUser.tempPassword) {
+            alert(`User provisioned successfully.\n\nTemporary Password: ${addedUser.tempPassword}\n\nThe user must change this password after first login. Please copy this password securely.`);
+            UIService.showToast("User provisioned successfully.", "success");
+          } else {
+            UIService.showToast("User provisioned successfully.", "success");
+          }
           this.loadUsers(true);
         } catch (err) {
           UIService.showToast(err.message, "danger");
