@@ -135,7 +135,13 @@ const TimetableService = {
       return t.day && e.day && t.day.toLowerCase() === e.day.toLowerCase();
     };
 
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+    let subjects = [];
+    if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
+      try { subjects = await subjectService.getSubjectsFromFirestore(); }
+      catch(e) { console.warn('Failed to fetch subjects from Firestore', e); subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : []; }
+    } else {
+      subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+    }
     
     let facultyList = [];
     if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
@@ -149,7 +155,13 @@ const TimetableService = {
       facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
     }
 
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
+    let classes = [];
+    if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
+      try { classes = await classService.getClassesFromFirestore(); }
+      catch(e) { console.warn('Failed to fetch classes from Firestore', e); classes = typeof classService !== 'undefined' ? classService.getClasses() : []; }
+    } else {
+      classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
+    }
 
     // 1. DUPLICATE SLOT CHECK
     const duplicate = list.find(t =>
@@ -318,7 +330,13 @@ const TimetableService = {
       pageSize = 10
     } = options;
 
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+    let subjects = [];
+    if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
+      try { subjects = await subjectService.getSubjectsFromFirestore(); }
+      catch(e) { console.warn('Failed to fetch subjects from Firestore', e); subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : []; }
+    } else {
+      subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+    }
     
     let facultyList = [];
     if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
@@ -332,8 +350,20 @@ const TimetableService = {
       facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
     }
 
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
-    const departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
+    let classes = [];
+    if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
+      try { classes = await classService.getClassesFromFirestore(); }
+      catch(e) { console.warn('Failed to fetch classes from Firestore', e); classes = typeof classService !== 'undefined' ? classService.getClasses() : []; }
+    } else {
+      classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
+    }
+    let departments = [];
+    if (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore) {
+      try { departments = await departmentService.getDepartmentsFromFirestore(); }
+      catch(e) { console.warn('Failed to fetch departments from Firestore', e); departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : []; }
+    } else {
+      departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
+    }
 
     // Helper date comparison
     const todayStr = new Date().toISOString().split('T')[0];
