@@ -310,9 +310,29 @@ const StudentsView = {
     };
 
     try {
-      await studentService.addStudent(studentData);
+      const addedStu = await studentService.addStudent(studentData);
       UIService.closeModal();
-      UIService.showToast("Student added successfully.", "success");
+      
+      if (addedStu.tempPassword) {
+        const pwdHtml = `
+          <div style="text-align:center; padding: 1rem;">
+            <h2 style="margin-bottom: 1rem; color: var(--color-navy-dark);">Temporary Password</h2>
+            <div style="font-family: monospace; font-size: 1.5rem; background: #F1F5F9; padding: 1rem; border-radius: 8px; font-weight: bold; color: var(--color-primary); letter-spacing: 2px;">
+              ${addedStu.tempPassword}
+            </div>
+            <p style="margin-top: 1rem; color: var(--color-danger); font-size: 0.9rem;">The user must change this password after first login.</p>
+          </div>
+        `;
+        UIService.openModal("Student Provisioned", pwdHtml, [
+          { text: "Copy & Close", className: "btn-primary", onClick: () => {
+            navigator.clipboard.writeText(addedStu.tempPassword);
+            UIService.closeModal();
+          }}
+        ]);
+        UIService.showToast("Student added successfully.", "success");
+      } else {
+        UIService.showToast("Student added successfully.", "success");
+      }
       this.loadStudents(false); // Refresh list
     } catch (err) {
       UIService.showToast(err.message, "danger");

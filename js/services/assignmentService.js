@@ -13,7 +13,7 @@ const assignmentService = {
   async getAssignments() {
     try {
       const db = this._getDb();
-      const snapshot = await db.collection('assignments').get();
+      const snapshot = await db.collection('assignments').limit(200).get();
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
       console.error("Failed to fetch assignments:", err);

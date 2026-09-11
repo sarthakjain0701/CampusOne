@@ -14,7 +14,7 @@ const attendanceService = {
   async getAttendance(actorUser = null) {
     try {
       const db = this._getDb();
-      const snapshot = await db.collection('attendance').get();
+      const snapshot = await db.collection('attendance').limit(100).get();
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);

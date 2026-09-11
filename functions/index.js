@@ -131,7 +131,6 @@ exports.provisionUser = functions.https.onCall(async (data, context) => {
     
     return { 
       success: true, 
-      message: "User provisioned successfully.", 
       uid: newUserRecord.uid,
       email: normalizedEmail,
       role: role,

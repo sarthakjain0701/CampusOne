@@ -22,7 +22,7 @@ const LibraryService = {
   // ------------------------------------------------------------------------
   async getBooks() {
     const db = this._getDb();
-    const snapshot = await db.collection('libraryBooks').get();
+    const snapshot = await db.collection('libraryBooks').limit(100).get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   },
 
@@ -244,13 +244,12 @@ const LibraryService = {
     try {
       // Parallelize independent collection queries
       const [booksSnap, finesSnap, overdueSnap] = await Promise.all([
-        db.collection('libraryBooks').get().catch(e => { console.warn("Books fetch notice:", e); return { docs: [], size: 0, forEach: () => {} }; }),
-        db.collection('libraryFines').where('status', '==', 'PENDING').get().catch(e => { console.warn("Fines fetch notice:", e); return { docs: [], forEach: () => {} }; }),
+        db.collection('libraryBooks').get(),
+        db.collection('libraryFines').where('status', '==', 'PENDING').get(),
         db.collection('libraryTransactions')
           .where('status', 'in', ['ISSUED', 'OVERDUE'])
           .where('dueDate', '<', todayStr)
           .get()
-          .catch(e => { console.warn("Overdue fetch notice:", e); return { docs: [], size: 0 }; })
       ]);
 
       // Process Books Aggregation
@@ -273,7 +272,7 @@ const LibraryService = {
       return stats;
     } catch (err) {
       console.error("Failed to load library dashboard stats in parallel:", err);
-      return stats;
+      throw new Error("Unable to load library dashboard statistics.");
     }
   },
 

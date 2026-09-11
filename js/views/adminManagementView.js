@@ -295,7 +295,21 @@ const AdminManagementView = {
           const addedUser = await window.adminService.addUser({ name, email, role });
           UIService.closeModal();
           if (addedUser.tempPassword) {
-            alert(`User provisioned successfully.\n\nTemporary Password: ${addedUser.tempPassword}\n\nThe user must change this password after first login. Please copy this password securely.`);
+            const pwdHtml = `
+              <div style="text-align:center; padding: 1rem;">
+                <h2 style="margin-bottom: 1rem; color: var(--color-navy-dark);">Temporary Password</h2>
+                <div style="font-family: monospace; font-size: 1.5rem; background: #F1F5F9; padding: 1rem; border-radius: 8px; font-weight: bold; color: var(--color-primary); letter-spacing: 2px;">
+                  ${addedUser.tempPassword}
+                </div>
+                <p style="margin-top: 1rem; color: var(--color-danger); font-size: 0.9rem;">The user must change this password after first login.</p>
+              </div>
+            `;
+            UIService.openModal("User Provisioned", pwdHtml, [
+              { text: "Copy & Close", className: "btn-primary", onClick: () => {
+                navigator.clipboard.writeText(addedUser.tempPassword);
+                UIService.closeModal();
+              }}
+            ]);
             UIService.showToast("User provisioned successfully.", "success");
           } else {
             UIService.showToast("User provisioned successfully.", "success");

@@ -50,9 +50,9 @@ const adminService = {
 
       const [adminsSnap, facultiesSnap, studentsSnap] = await this._withTimeout(
         Promise.all([
-          fetchAdmins ? adminsQuery.get().catch(e => { console.warn("Admins fetch notice:", e); return { docs: [] }; }) : Promise.resolve({ docs: [] }),
-          fetchFaculties ? facultiesQuery.get().catch(e => { console.warn("Faculties fetch notice:", e); return { docs: [] }; }) : Promise.resolve({ docs: [] }),
-          fetchStudents ? studentsQuery.get().catch(e => { console.warn("Students fetch notice:", e); return { docs: [] }; }) : Promise.resolve({ docs: [] })
+          fetchAdmins ? adminsQuery.get() : Promise.resolve({ docs: [] }),
+          fetchFaculties ? facultiesQuery.get() : Promise.resolve({ docs: [] }),
+          fetchStudents ? studentsQuery.get() : Promise.resolve({ docs: [] })
         ]),
         8000,
         "Failed to load users within timeout limit. Please retry."

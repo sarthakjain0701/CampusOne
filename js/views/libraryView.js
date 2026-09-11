@@ -27,14 +27,8 @@ const LibraryView = {
 
       // Parallelize queries aligning with Firestore security rules
       const [transSnapshot, fineSnapshot] = await Promise.all([
-        db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get().catch(e => {
-          console.warn("Transactions query warning:", e);
-          return { docs: [] };
-        }),
-        db.collection('libraryFines').where('memberEmail', '==', userEmail).get().catch(e => {
-          console.warn("Fines query warning:", e);
-          return { docs: [] };
-        })
+        db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get(),
+        db.collection('libraryFines').where('memberEmail', '==', userEmail).get()
       ]);
 
       this.transactions = transSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));

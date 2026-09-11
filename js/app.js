@@ -482,7 +482,7 @@ const App = {
     if (this.currentView !== 'admin-management' && window.adminService && window.adminService.stopListening) {
       window.adminService.stopListening();
     }
-    if (!this.currentView.startsWith('library') && window.LibraryService && window.LibraryService.stopListening) {
+    if (this.currentView !== 'library-circulation' && window.LibraryService && window.LibraryService.stopListening) {
       window.LibraryService.stopListening();
     }
 
