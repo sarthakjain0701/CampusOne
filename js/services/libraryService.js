@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LIBRARY SERVICE (FIRESTORE)
    Comprehensive Library Operations
    ========================================================================== */
@@ -225,6 +225,9 @@ const LibraryService = {
   // ------------------------------------------------------------------------
   // DASHBOARD & ANALYTICS
   // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  // DASHBOARD & ANALYTICS (PARALLELIZED QUERIES)
+  // ------------------------------------------------------------------------
   async getDashboardStats() {
     const db = this._getDb();
     const stats = {
@@ -236,40 +239,53 @@ const LibraryService = {
       pendingFinesTotal: 0
     };
 
-    // Books Aggregation
-    const books = await db.collection('libraryBooks').get();
-    stats.totalBooks = books.size;
-    books.forEach(doc => {
-      const data = doc.data();
-      stats.totalCopies += (data.totalCopies || 0);
-      stats.availableCopies += (data.availableCopies || 0);
-      stats.issuedCopies += (data.issuedCopies || 0);
-    });
-
-    // Fines Aggregation
-    const fines = await db.collection('libraryFines').where('status', '==', 'PENDING').get();
-    fines.forEach(doc => {
-      stats.pendingFinesTotal += (doc.data().amount || 0);
-    });
-
-    // Overdue Approximation
     const todayStr = new Date().toISOString();
-    const overdue = await db.collection('libraryTransactions')
-                            .where('status', 'in', ['ISSUED', 'OVERDUE'])
-                            .where('dueDate', '<', todayStr)
-                            .get();
-    stats.overdueCount = overdue.size;
 
-    return stats;
+    try {
+      // Parallelize independent collection queries
+      const [booksSnap, finesSnap, overdueSnap] = await Promise.all([
+        db.collection('libraryBooks').get().catch(e => { console.warn("Books fetch notice:", e); return { docs: [], size: 0, forEach: () => {} }; }),
+        db.collection('libraryFines').where('status', '==', 'PENDING').get().catch(e => { console.warn("Fines fetch notice:", e); return { docs: [], forEach: () => {} }; }),
+        db.collection('libraryTransactions')
+          .where('status', 'in', ['ISSUED', 'OVERDUE'])
+          .where('dueDate', '<', todayStr)
+          .get()
+          .catch(e => { console.warn("Overdue fetch notice:", e); return { docs: [], size: 0 }; })
+      ]);
+
+      // Process Books Aggregation
+      stats.totalBooks = booksSnap.size || 0;
+      booksSnap.forEach(doc => {
+        const data = doc.data();
+        stats.totalCopies += (data.totalCopies || 0);
+        stats.availableCopies += (data.availableCopies || 0);
+        stats.issuedCopies += (data.issuedCopies || 0);
+      });
+
+      // Process Fines Aggregation
+      finesSnap.forEach(doc => {
+        stats.pendingFinesTotal += (doc.data().amount || 0);
+      });
+
+      // Process Overdue Aggregation
+      stats.overdueCount = overdueSnap.size || 0;
+
+      return stats;
+    } catch (err) {
+      console.error("Failed to load library dashboard stats in parallel:", err);
+      return stats;
+    }
   },
 
   // ------------------------------------------------------------------------
   // REAL-TIME LISTENERS
   // ------------------------------------------------------------------------
   listenToActiveTransactions(callback) {
+    this.stopListening(); // Ensure previous listeners are cleaned up before starting a new one
     const db = this._getDb();
     const unsubscribe = db.collection('libraryTransactions')
       .where('status', 'in', ['ISSUED', 'OVERDUE'])
+      .limit(100)
       .onSnapshot(snapshot => {
         const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         callback(transactions);
@@ -279,8 +295,10 @@ const LibraryService = {
   },
   
   listenToBooks(callback) {
+    this.stopListening(); // Ensure previous listeners are cleaned up before starting a new one
     const db = this._getDb();
     const unsubscribe = db.collection('libraryBooks')
+      .limit(100)
       .onSnapshot(snapshot => {
         const books = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         callback(books);
@@ -297,8 +315,10 @@ const LibraryService = {
     return [];
   },
   stopListening() {
-    this.listeners.forEach(unsub => unsub());
-    this.listeners = [];
+    if (this.listeners && this.listeners.length > 0) {
+      this.listeners.forEach(unsub => unsub && typeof unsub === 'function' && unsub());
+      this.listeners = [];
+    }
   }
 };
 

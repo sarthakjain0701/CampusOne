@@ -24,7 +24,53 @@ const TimetableView = {
   sortOrder: 'asc',
   page: 1,
   pageSize: 10,
-  isLoading: false,
+  
+  loading: true,
+  timetablesData: {
+    weekly: [],
+    scheduledSlots: null,
+    stats: null
+  },
+
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      if (this.activeTab === 'weekly') {
+        this.timetablesData.weekly = await TimetableService.getAllTimetables();
+      } else {
+        const queryOptions = {
+          search: this.searchQuery,
+          dateFilter: this.dateFilter,
+          specificDate: this.specificDate,
+          startDate: this.startDate,
+          endDate: this.endDate,
+          day: this.selectedDay,
+          department: this.selectedDepartment,
+          section: this.selectedSection,
+          facultyId: this.selectedFaculty,
+          subjectId: this.selectedSubject,
+          status: this.selectedStatus,
+          sortBy: this.sortBy,
+          sortOrder: this.sortOrder,
+          page: this.page,
+          pageSize: this.pageSize
+        };
+        this.timetablesData.stats = await TimetableService.getSummaryStats();
+        this.timetablesData.scheduledSlots = await TimetableService.getScheduledSlots(queryOptions);
+      }
+      this.loading = false;
+      App.renderCurrentView();
+    } catch (err) {
+      this.loading = false;
+      console.error("Failed to load timetables:", err);
+      App.renderCurrentView();
+    }
+  },
 
   render(params = {}) {
     const user = authService.getCurrentUser();
@@ -36,6 +82,25 @@ const TimetableView = {
     if (!params.keepTab && !this._initializedTab) {
       this.activeTab = isAdmin ? 'scheduled' : 'weekly';
       this._initializedTab = true;
+    }
+
+    if (this.loading) {
+      return `
+        <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem;">
+          <div>
+            <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0; display:flex; align-items:center; gap:0.6rem;">
+              <i data-lucide="calendar" style="color:var(--color-primary); width:28px; height:28px;"></i> TIMETABLE
+            </h1>
+            <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">
+              Manage and organize academic classes and scheduled sessions efficiently.
+            </p>
+          </div>
+        </div>
+        <div class="card" style="padding: 3rem; text-align: center;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading timetable data...</p>
+        </div>
+      `;
     }
 
     return `
@@ -81,6 +146,7 @@ const TimetableView = {
 
   setActiveTab(tabName) {
     this.activeTab = tabName;
+    this.loading = true;
     App.renderCurrentView();
   },
 
@@ -98,7 +164,7 @@ const TimetableView = {
       sectionId = student ? (student.classId || 'CLS001') : 'CLS001';
     }
 
-    const rawTimetable = TimetableService.getAllTimetables();
+    const rawTimetable = this.timetablesData.weekly || [];
     let filtered = rawTimetable.filter(t => (t.sectionId === sectionId || t.classId === sectionId) && t.status === 'ACTIVE');
 
     if (this.selectedDay !== 'ALL') {
@@ -267,28 +333,10 @@ const TimetableView = {
   // =========================================================================
   renderScheduledSlotsTab(user) {
     const isAdmin = user.role === 'ADMIN';
-    const stats = TimetableService.getSummaryStats();
+    const stats = this.timetablesData.stats || { totalSlots: 0, activeSlots: 0, todaySlots: 0, thisWeekSlots: 0 };
 
-    // Fetch Paginated & Filtered Data
-    const queryOptions = {
-      search: this.searchQuery,
-      dateFilter: this.dateFilter,
-      specificDate: this.specificDate,
-      startDate: this.startDate,
-      endDate: this.endDate,
-      day: this.selectedDay,
-      department: this.selectedDepartment,
-      section: this.selectedSection,
-      facultyId: this.selectedFaculty,
-      subjectId: this.selectedSubject,
-      status: this.selectedStatus,
-      sortBy: this.sortBy,
-      sortOrder: this.sortOrder,
-      page: this.page,
-      pageSize: this.pageSize
-    };
-
-    const data = TimetableService.getScheduledSlots(queryOptions);
+    // Fetch Paginated & Filtered Data (already done in fetchData)
+    const data = this.timetablesData.scheduledSlots || { items: [], totalRecords: 0, startIndex: 0, endIndex: 0, currentPage: 1, totalPages: 1 };
 
     const departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : DataStore.get('DEPARTMENTS') || [];
     const classes = typeof classService !== 'undefined' ? classService.getClasses() : DataStore.get('CLASSES') || [];
@@ -718,6 +766,7 @@ const TimetableView = {
     this.sortBy = 'date';
     this.sortOrder = 'asc';
     this.page = 1;
+    this.loading = true;
     App.renderCurrentView();
   },
 
@@ -729,14 +778,8 @@ const TimetableView = {
   },
 
   renderScheduledSlotsTabOnly() {
-    const container = document.getElementById('timetable-tab-content');
-    if (container && this.activeTab === 'scheduled') {
-      const user = authService.getCurrentUser();
-      container.innerHTML = this.renderScheduledSlotsTab(user);
-      if (window.lucide) window.lucide.createIcons();
-    } else {
-      App.renderCurrentView();
-    }
+    this.loading = true;
+    App.renderCurrentView();
   },
 
   // =========================================================================
@@ -892,8 +935,8 @@ const TimetableView = {
   /**
    * OPEN EDIT SCHEDULED SLOT MODAL
    */
-  openEditModal(id) {
-    const entry = TimetableService.getTimetableById(id);
+  async openEditModal(id) {
+    const entry = await TimetableService.getTimetableById(id);
     if (!entry) {
       UIService.showToast("Scheduled slot not found.", "danger");
       return;
@@ -1014,7 +1057,7 @@ const TimetableView = {
   /**
    * Process Save / Update Slot with Calendar Warnings Interruption
    */
-  processSaveSlot(formType, editId = null) {
+  async processSaveSlot(formType, editId = null) {
     const date = document.getElementById(`${formType}-tt-date`).value;
     const startTime = document.getElementById(`${formType}-tt-start`).value;
     const endTime = document.getElementById(`${formType}-tt-end`).value;
@@ -1029,15 +1072,15 @@ const TimetableView = {
     const role = user ? user.role : 'ADMIN';
     const statusObj = AcademicCalendarService.getDateStatus(date, role);
 
-    const executeSave = () => {
+    const executeSave = async () => {
       try {
         if (formType === 'add') {
-          TimetableService.createTimetableEntry({
+          await TimetableService.createTimetableEntry({
             date, startTime, endTime, departmentId, sectionId, subjectId, facultyId, room, status
           });
           UIService.showToast("Scheduled slot created successfully.", "success");
         } else {
-          TimetableService.updateTimetableEntry(editId, {
+          await TimetableService.updateTimetableEntry(editId, {
             date, startTime, endTime, departmentId, sectionId, subjectId, facultyId, room, status
           });
           UIService.showToast("Scheduled slot updated successfully.", "success");
@@ -1062,7 +1105,7 @@ const TimetableView = {
     }
 
     // Direct save if working day or special working day
-    executeSave();
+    await executeSave();
   },
 
   /**
@@ -1134,8 +1177,8 @@ const TimetableView = {
   /**
    * DELETE SCHEDULED SLOT CONFIRMATION MODAL
    */
-  confirmDeleteModal(id) {
-    const entry = TimetableService.getTimetableById(id);
+  async confirmDeleteModal(id) {
+    const entry = await TimetableService.getTimetableById(id);
     if (!entry) return;
 
     const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : DataStore.get('SUBJECTS') || [];
@@ -1178,9 +1221,9 @@ const TimetableView = {
           text: 'Delete',
           className: 'btn-primary',
           style: 'background:#EF4444; border-color:#EF4444;',
-          onClick: () => {
+          onClick: async () => {
             try {
-              TimetableService.deleteTimetableEntry(id);
+              await TimetableService.deleteTimetableEntry(id);
               UIService.showToast("Scheduled slot deleted successfully.", "info");
               UIService.closeModal();
               this.renderScheduledSlotsTabOnly();

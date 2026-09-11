@@ -1,43 +1,48 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LIBRARIAN DASHBOARD (FIRESTORE)
-   Library-focused dashboard for the LIBRARIAN role.
+   Library-focused dashboard for the LIBRARIAN role with instant shell rendering
    ========================================================================== */
 
 const DashboardLibrarian = {
-  loading: true,
+  loading: false,
   stats: null,
   activeTransactions: [],
+  _isFetching: false,
 
   async fetchStats() {
+    if (this._isFetching) return;
+    this._isFetching = true;
+
     try {
       this.stats = await LibraryService.getDashboardStats();
       this.loading = false;
-      App.renderCurrentView(); // Re-render once stats are fetched
+      this._isFetching = false;
+      
+      // Update DOM values smoothly
+      const s = this.stats;
+      const issuedEl = document.getElementById('lib-dash-issued');
+      if (issuedEl) issuedEl.innerText = s.issuedCopies;
+      const overdueEl = document.getElementById('lib-dash-overdue');
+      if (overdueEl) overdueEl.innerText = s.overdueCount;
+      const finesEl = document.getElementById('lib-dash-fines');
+      if (finesEl) finesEl.innerText = `₹${s.pendingFinesTotal}`;
+      const booksEl = document.getElementById('lib-dash-books');
+      if (booksEl) booksEl.innerText = s.totalBooks;
+      const availEl = document.getElementById('lib-dash-avail');
+      if (availEl) availEl.innerText = `${s.availableCopies} available copies`;
     } catch (err) {
       console.error("Failed to fetch library stats", err);
-      UIService.showToast("Failed to load dashboard stats", "danger");
       this.loading = false;
+      this._isFetching = false;
     }
   },
 
   render() {
-    const user = authService.getCurrentUser();
+    const user = authService.getCurrentUser() || { name: 'Librarian' };
     
-    // Initial render trigger fetch
-    if (this.loading && !this.stats) {
-      this.fetchStats();
-      return `
-        <div class="page-header">
-          <div>
-            <h1>Welcome, ${user.name}! 📚</h1>
-            <p>Library Management Dashboard — Manage book issues, returns, and overdue records.</p>
-          </div>
-        </div>
-        <div class="card" style="padding: 3rem; text-align: center;">
-          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
-          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading live dashboard statistics...</p>
-        </div>
-      `;
+    // Trigger non-blocking background fetch if stats not ready
+    if (!this.stats) {
+      setTimeout(() => this.fetchStats(), 0);
     }
 
     const s = this.stats || { totalBooks: 0, availableCopies: 0, issuedCopies: 0, overdueCount: 0, pendingFinesTotal: 0 };
@@ -46,7 +51,7 @@ const DashboardLibrarian = {
       <div class="page-header">
         <div>
           <h1>Welcome, ${user.name}! 📚</h1>
-          <p>Library Management Dashboard — Live statistics from Firestore.</p>
+          <p>Library Management Dashboard — Live statistics and quick operations.</p>
         </div>
       </div>
 
@@ -55,7 +60,7 @@ const DashboardLibrarian = {
         <div class="stat-card" onclick="App.navigateTo('library-circulation')" style="cursor:pointer;">
           <div class="stat-info">
             <h3>Currently Issued</h3>
-            <div class="value">${s.issuedCopies}</div>
+            <div class="value" id="lib-dash-issued">${this.stats ? s.issuedCopies : '<span class="loading-dots">...</span>'}</div>
             <span class="stat-trend positive">Active borrowings</span>
           </div>
           <div class="stat-icon blue"><i data-lucide="book-open"></i></div>
@@ -64,8 +69,8 @@ const DashboardLibrarian = {
         <div class="stat-card" onclick="App.navigateTo('library-circulation')" style="cursor:pointer;">
           <div class="stat-info">
             <h3>Overdue Books</h3>
-            <div class="value" style="color: ${s.overdueCount > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">
-              ${s.overdueCount}
+            <div class="value" id="lib-dash-overdue" style="color: ${s.overdueCount > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">
+              ${this.stats ? s.overdueCount : '<span class="loading-dots">...</span>'}
             </div>
             <span class="stat-trend ${s.overdueCount > 0 ? 'negative' : 'positive'}">
               ${s.overdueCount > 0 ? 'Action required' : 'No overdue items'}
@@ -77,8 +82,8 @@ const DashboardLibrarian = {
         <div class="stat-card" onclick="App.navigateTo('library-fines')" style="cursor:pointer;">
           <div class="stat-info">
             <h3>Pending Fines</h3>
-            <div class="value" style="color: ${s.pendingFinesTotal > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">
-              ₹${s.pendingFinesTotal}
+            <div class="value" id="lib-dash-fines" style="color: ${s.pendingFinesTotal > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">
+              ${this.stats ? `₹${s.pendingFinesTotal}` : '<span class="loading-dots">...</span>'}
             </div>
             <span class="stat-trend ${s.pendingFinesTotal > 0 ? 'warning' : 'positive'}">
               Unpaid library fines
@@ -90,8 +95,8 @@ const DashboardLibrarian = {
         <div class="stat-card" onclick="App.navigateTo('library-books')" style="cursor:pointer;">
           <div class="stat-info">
             <h3>Total Book Titles</h3>
-            <div class="value">${s.totalBooks}</div>
-            <span class="stat-trend positive">${s.availableCopies} available copies</span>
+            <div class="value" id="lib-dash-books">${this.stats ? s.totalBooks : '<span class="loading-dots">...</span>'}</div>
+            <span class="stat-trend positive" id="lib-dash-avail">${s.availableCopies} available copies</span>
           </div>
           <div class="stat-icon purple"><i data-lucide="library"></i></div>
         </div>

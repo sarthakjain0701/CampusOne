@@ -41,10 +41,14 @@ const AuthorizationService = {
   /**
    * Get Faculty Assignments
    */
-  getFacultyAssignments(user) {
+  async getFacultyAssignments(user) {
     if (!user) return [];
-    const assignments = (typeof DataStore !== 'undefined' ? DataStore.get('ASSIGNMENTS') : null) || 
-                        (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.assignments : []);
+    let assignments = [];
+    if (typeof assignmentService !== 'undefined') {
+      assignments = await assignmentService.getAssignments();
+    } else {
+      assignments = typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.assignments : [];
+    }
 
     if (user.role === 'ADMIN') {
       return assignments;
@@ -60,15 +64,15 @@ const AuthorizationService = {
   /**
    * Get Authorized Subject IDs for User
    */
-  getAuthorizedSubjectIds(user) {
+  async getAuthorizedSubjectIds(user) {
     if (!user) return [];
     if (user.role === 'ADMIN') {
-      const subjects = typeof DataStore !== 'undefined' ? DataStore.get('SUBJECTS') || [] : [];
+      const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
       return subjects.map(s => s.id);
     }
 
     if (this.isAcademicStaff(user)) {
-      const assignments = this.getFacultyAssignments(user);
+      const assignments = await this.getFacultyAssignments(user);
       return [...new Set(assignments.map(a => a.subjectId))];
     }
 
@@ -78,15 +82,15 @@ const AuthorizationService = {
   /**
    * Get Authorized Class / Section IDs for User
    */
-  getAuthorizedClassIds(user) {
+  async getAuthorizedClassIds(user) {
     if (!user) return [];
     if (user.role === 'ADMIN') {
-      const classes = typeof DataStore !== 'undefined' ? DataStore.get('CLASSES') || [] : [];
+      const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
       return classes.map(c => c.id);
     }
 
     if (this.isAcademicStaff(user)) {
-      const assignments = this.getFacultyAssignments(user);
+      const assignments = await this.getFacultyAssignments(user);
       return [...new Set(assignments.map(a => a.classId))];
     }
 
@@ -96,9 +100,9 @@ const AuthorizationService = {
   /**
    * Get Authorized Student IDs for User
    */
-  getAuthorizedStudentIds(user) {
+  async getAuthorizedStudentIds(user) {
     if (!user) return [];
-    const students = typeof DataStore !== 'undefined' ? DataStore.get('STUDENTS') || [] : [];
+    const students = typeof studentService !== 'undefined' ? studentService.getStudents() : [];
 
     if (user.role === 'STUDENT') {
       const student = students.find(s => s.id === user.id || s.email === user.email || s.userId === user.uid);
@@ -106,7 +110,7 @@ const AuthorizationService = {
     }
 
     if (this.isAcademicStaff(user)) {
-      const authorizedClassIds = this.getAuthorizedClassIds(user);
+      const authorizedClassIds = await this.getAuthorizedClassIds(user);
       const authorizedStudents = students.filter(s => authorizedClassIds.includes(s.classId) || authorizedClassIds.includes(s.section));
       return authorizedStudents.map(s => s.id);
     }
@@ -121,23 +125,23 @@ const AuthorizationService = {
   /**
    * Validate Access to a Student Record
    */
-  canAccessStudent(user, studentId) {
+  async canAccessStudent(user, studentId) {
     if (!user || !studentId) return false;
     if (user.role === 'ADMIN') return true;
 
-    const authorizedStudentIds = this.getAuthorizedStudentIds(user);
+    const authorizedStudentIds = await this.getAuthorizedStudentIds(user);
     return authorizedStudentIds.includes(studentId);
   },
 
   /**
    * Validate Access to a Subject
    */
-  canAccessSubject(user, subjectId) {
+  async canAccessSubject(user, subjectId) {
     if (!user || !subjectId) return false;
     if (user.role === 'ADMIN') return true;
 
     if (this.isAcademicStaff(user)) {
-      const authorizedSubjectIds = this.getAuthorizedSubjectIds(user);
+      const authorizedSubjectIds = await this.getAuthorizedSubjectIds(user);
       return authorizedSubjectIds.includes(subjectId);
     }
 
@@ -147,12 +151,12 @@ const AuthorizationService = {
   /**
    * Validate Access to a Class / Section
    */
-  canAccessClass(user, classId) {
+  async canAccessClass(user, classId) {
     if (!user || !classId) return false;
     if (user.role === 'ADMIN') return true;
 
     if (this.isAcademicStaff(user)) {
-      const authorizedClassIds = this.getAuthorizedClassIds(user);
+      const authorizedClassIds = await this.getAuthorizedClassIds(user);
       return authorizedClassIds.includes(classId);
     }
 
@@ -162,16 +166,18 @@ const AuthorizationService = {
   /**
    * Can View Exam Result
    */
-  canViewResult(user, studentId, subjectId) {
+  async canViewResult(user, studentId, subjectId) {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
     if (user.role === 'STUDENT') {
-      return this.canAccessStudent(user, studentId);
+      return await this.canAccessStudent(user, studentId);
     }
 
     if (this.isAcademicStaff(user)) {
-      return this.canAccessStudent(user, studentId) && this.canAccessSubject(user, subjectId);
+      const canStudent = await this.canAccessStudent(user, studentId);
+      const canSubject = await this.canAccessSubject(user, subjectId);
+      return canStudent && canSubject;
     }
 
     return false;
@@ -180,12 +186,14 @@ const AuthorizationService = {
   /**
    * Can Edit Exam Result
    */
-  canEditResult(user, subjectId, classId) {
+  async canEditResult(user, subjectId, classId) {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
     if (this.isAcademicStaff(user)) {
-      return this.canAccessSubject(user, subjectId) && (classId ? this.canAccessClass(user, classId) : true);
+      const canSubject = await this.canAccessSubject(user, subjectId);
+      const canClass = classId ? await this.canAccessClass(user, classId) : true;
+      return canSubject && canClass;
     }
 
     return false;
@@ -194,18 +202,18 @@ const AuthorizationService = {
   /**
    * Can View Attendance
    */
-  canViewAttendance(user, studentId, subjectId, classId) {
+  async canViewAttendance(user, studentId, subjectId, classId) {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
     if (user.role === 'STUDENT') {
-      return this.canAccessStudent(user, studentId);
+      return await this.canAccessStudent(user, studentId);
     }
 
     if (this.isAcademicStaff(user)) {
-      if (subjectId) return this.canAccessSubject(user, subjectId);
-      if (classId) return this.canAccessClass(user, classId);
-      if (studentId) return this.canAccessStudent(user, studentId);
+      if (subjectId) return await this.canAccessSubject(user, subjectId);
+      if (classId) return await this.canAccessClass(user, classId);
+      if (studentId) return await this.canAccessStudent(user, studentId);
       return true;
     }
 
@@ -215,12 +223,14 @@ const AuthorizationService = {
   /**
    * Can Mark or Correct Attendance
    */
-  canEditAttendance(user, subjectId, classId) {
+  async canEditAttendance(user, subjectId, classId) {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
     if (this.isAcademicStaff(user)) {
-      return this.canAccessSubject(user, subjectId) && (classId ? this.canAccessClass(user, classId) : true);
+      const canSubject = await this.canAccessSubject(user, subjectId);
+      const canClass = classId ? await this.canAccessClass(user, classId) : true;
+      return canSubject && canClass;
     }
 
     return false;
@@ -229,17 +239,17 @@ const AuthorizationService = {
   /**
    * Can View Mid-Term Marks
    */
-  canViewMidterm(user, studentId, subjectId) {
+  async canViewMidterm(user, studentId, subjectId) {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
     if (user.role === 'STUDENT') {
-      return this.canAccessStudent(user, studentId);
+      return await this.canAccessStudent(user, studentId);
     }
 
     if (this.isAcademicStaff(user)) {
-      if (subjectId) return this.canAccessSubject(user, subjectId);
-      if (studentId) return this.canAccessStudent(user, studentId);
+      if (subjectId) return await this.canAccessSubject(user, subjectId);
+      if (studentId) return await this.canAccessStudent(user, studentId);
       return true;
     }
 
@@ -249,12 +259,14 @@ const AuthorizationService = {
   /**
    * Can Edit Mid-Term Marks
    */
-  canEditMidterm(user, subjectId, classId) {
+  async canEditMidterm(user, subjectId, classId) {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
 
     if (this.isAcademicStaff(user)) {
-      return this.canAccessSubject(user, subjectId) && (classId ? this.canAccessClass(user, classId) : true);
+      const canSubject = await this.canAccessSubject(user, subjectId);
+      const canClass = classId ? await this.canAccessClass(user, classId) : true;
+      return canSubject && canClass;
     }
 
     return false;
@@ -264,14 +276,14 @@ const AuthorizationService = {
    * PRIVACY CORE: Filter Student Exam Results for Role
    * Faculty must NOT see: complete student result, other subjects' marks, overall CGPA, or overall result.
    */
-  filterStudentResultForRole(user, studentResultList) {
+  async filterStudentResultForRole(user, studentResultList) {
     if (!user || !Array.isArray(studentResultList)) return [];
     if (user.role === 'ADMIN' || user.role === 'STUDENT') {
       return studentResultList;
     }
 
     if (this.isAcademicStaff(user)) {
-      const authorizedSubjectIds = this.getAuthorizedSubjectIds(user);
+      const authorizedSubjectIds = await this.getAuthorizedSubjectIds(user);
       // Filter list to include ONLY assigned subject results
       return studentResultList.filter(res => authorizedSubjectIds.includes(res.subjectId));
     }

@@ -4,7 +4,10 @@
    ========================================================================== */
 
 const StudentsView = {
-  _cachedStudents: [], // Holds latest snapshot for client-side search/filter
+  _cachedStudents: [],
+  _lastDoc: null,
+  _hasMore: false,
+  _isLoading: false,
 
   render() {
     const departments = departmentService.getDepartments();
@@ -54,24 +57,91 @@ const StudentsView = {
             <tr><td colspan="6" style="text-align:center; padding:2rem;"><i data-lucide="loader" class="spin"></i> Loading Students...</td></tr>
           </tbody>
         </table>
+        <div id="student-load-more-container" style="text-align:center; padding:1rem; display:none;">
+          <button id="student-load-more-btn" class="btn-secondary" onclick="StudentsView.loadStudents(true)">Load More</button>
+        </div>
       </div>
     `;
   },
 
   afterRender() {
-    // Start real-time listener
-    studentService.listenToStudents((err, students) => {
-      const tbody = document.getElementById('students-table-body');
-      if (!tbody) return; // View navigated away
+    this.loadStudents(false);
+  },
 
-      if (err) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--color-danger);">${err.message}</td></tr>`;
-        return;
+  async loadStudents(isLoadMore = false) {
+    if (this._isLoading) return;
+    this._isLoading = true;
+
+    const tbody = document.getElementById('students-table-body');
+    const loadMoreBtn = document.getElementById('student-load-more-btn');
+    const loadMoreContainer = document.getElementById('student-load-more-container');
+
+    if (!isLoadMore) {
+      this._lastDoc = null;
+      this._cachedStudents = [];
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; padding:2.5rem;">
+              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem;">
+                <i data-lucide="loader" class="spin" style="width:28px; height:28px; color:var(--color-primary);"></i>
+                <span style="color:var(--color-text-muted); font-weight:600;">Loading Students...</span>
+              </div>
+            </td>
+          </tr>
+        `;
+        if (window.lucide) window.lucide.createIcons();
+      }
+      if (loadMoreContainer) loadMoreContainer.style.display = 'none';
+    } else {
+      if (loadMoreBtn) loadMoreBtn.innerHTML = `<i data-lucide="loader" class="spin" style="width:16px; height:16px;"></i> Loading...`;
+    }
+
+    try {
+      const result = await studentService.loadStudents(this._lastDoc, 50);
+      this._lastDoc = result.lastDoc;
+      this._hasMore = result.hasMore;
+
+      if (!isLoadMore) {
+        this._cachedStudents = result.students || [];
+      } else {
+        this._cachedStudents = [...this._cachedStudents, ...(result.students || [])];
       }
 
-      this._cachedStudents = students;
-      this._renderTableRows(students);
-    });
+      this._renderTableRows(this._cachedStudents);
+
+      if (loadMoreContainer) {
+        loadMoreContainer.style.display = this._hasMore ? 'block' : 'none';
+      }
+      if (loadMoreBtn) {
+        loadMoreBtn.innerHTML = `Load More`;
+      }
+    } catch (err) {
+      if (!isLoadMore && tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; padding:2.5rem; color:var(--color-danger);">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
+                <i data-lucide="alert-circle" style="width:32px; height:32px;"></i>
+                <div>
+                  <strong>Unable to load student records</strong>
+                  <div style="font-size:0.85rem; color:var(--color-text-muted); margin-top:0.25rem;">${err.message || "Please check your network connection."}</div>
+                </div>
+                <button class="btn-primary" onclick="StudentsView.loadStudents(false)" style="margin-top:0.5rem; padding:0.4rem 1rem; font-size:0.85rem;">
+                  <i data-lucide="refresh-cw"></i> Retry
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+        if (window.lucide) window.lucide.createIcons();
+      } else {
+        UIService.showToast(err.message, "danger");
+        if (loadMoreBtn) loadMoreBtn.innerHTML = `Load More`;
+      }
+    } finally {
+      this._isLoading = false;
+    }
   },
 
   _renderTableRows(students) {
@@ -243,7 +313,7 @@ const StudentsView = {
       await studentService.addStudent(studentData);
       UIService.closeModal();
       UIService.showToast("Student added successfully.", "success");
-      // Real-time listener will auto-update the table
+      this.loadStudents(false); // Refresh list
     } catch (err) {
       UIService.showToast(err.message, "danger");
     }
@@ -333,7 +403,7 @@ const StudentsView = {
           });
           UIService.closeModal();
           UIService.showToast("Student updated successfully.", "success");
-          // Real-time listener will auto-update the table
+          this.loadStudents(false); // Refresh list
         } catch (e) {
           UIService.showToast(e.message, "danger");
         }
@@ -356,7 +426,7 @@ const StudentsView = {
       try {
         await studentService.deleteStudent(docId);
         UIService.showToast("Student deleted successfully.", "success");
-        // Real-time listener will auto-update the table
+        this.loadStudents(false); // Refresh list
       } catch (err) {
         UIService.showToast(err.message, "danger");
       }

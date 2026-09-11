@@ -3,44 +3,67 @@
    ========================================================================== */
 
 const assignmentService = {
-  getAssignments() {
-    return DataStore.get('ASSIGNMENTS') || [...MOCK_DATA.assignments];
+  _getDb() {
+    if (window.FirebaseService && window.FirebaseService.db) {
+      return window.FirebaseService.db;
+    }
+    throw new Error("Firestore database is not initialized.");
   },
 
-  addAssignment(facultyId, subjectId, classId, academicYear = "2026-27") {
+  async getAssignments() {
+    try {
+      const db = this._getDb();
+      const snapshot = await db.collection('assignments').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (err) {
+      console.error("Failed to fetch assignments:", err);
+      throw new Error("Failed to load assignments from the database.");
+    }
+  },
+
+  async addAssignment(facultyId, subjectId, classId, academicYear = "2026-27") {
     if (!facultyId || !subjectId || !classId) {
       throw new Error("Faculty, Subject, and Class must be selected.");
     }
 
-    // Check duplicate assignment
-    const existing = MOCK_DATA.assignments.find(a => 
-      a.facultyId === facultyId && 
-      a.subjectId === subjectId && 
-      a.classId === classId &&
-      a.academicYear === academicYear
-    );
+    const db = this._getDb();
 
-    if (existing) {
+    // Check duplicate assignment
+    const existingQuery = await db.collection('assignments')
+      .where('facultyId', '==', facultyId)
+      .where('subjectId', '==', subjectId)
+      .where('classId', '==', classId)
+      .where('academicYear', '==', academicYear)
+      .get();
+
+    if (!existingQuery.empty) {
       throw new Error("This faculty member is already assigned to teach this subject for the selected class.");
     }
 
+    const newAssignmentRef = db.collection('assignments').doc();
     const newAssignment = {
-      id: "ASG" + String(MOCK_DATA.assignments.length + 1).padStart(3, '0'),
       facultyId,
       subjectId,
       classId,
       academicYear,
-      status: "ACTIVE"
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    MOCK_DATA.assignments.unshift(newAssignment);
-    return newAssignment;
+    await newAssignmentRef.set(newAssignment);
+    return { id: newAssignmentRef.id, ...newAssignment };
   },
 
-  deleteAssignment(id) {
-    const index = MOCK_DATA.assignments.findIndex(a => a.id === id);
-    if (index === -1) throw new Error("Assignment record not found.");
-    return MOCK_DATA.assignments.splice(index, 1)[0];
+  async deleteAssignment(id) {
+    if (!id) throw new Error("Assignment ID is required.");
+    const db = this._getDb();
+    const docRef = db.collection('assignments').doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) throw new Error("Assignment record not found.");
+    
+    await docRef.delete();
+    return { id, ...doc.data() };
   }
 };
 

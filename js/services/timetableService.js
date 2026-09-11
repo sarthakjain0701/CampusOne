@@ -3,59 +3,96 @@
    ========================================================================== */
 
 const TimetableService = {
-  getAllTimetables() {
-    const list = DataStore.get('TIMETABLES') || [];
-    const dayToDateMap = {
-      'Sunday': '2026-08-16',
-      'Monday': '2026-08-17',
-      'Tuesday': '2026-08-18',
-      'Wednesday': '2026-08-19',
-      'Thursday': '2026-08-20',
-      'Friday': '2026-08-21',
-      'Saturday': '2026-08-22'
-    };
+  async getAllTimetables() {
+    try {
+      if (!window.FirebaseService || !window.FirebaseService.db) return [];
+      const db = window.FirebaseService.db;
+      const { collection, getDocs } = window.FirebaseService.firestore;
+      
+      const timetablesRef = collection(db, 'timetables');
+      const snapshot = await getDocs(timetablesRef);
+      
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
 
-    return list.map(t => {
-      if (!t.date && t.day && dayToDateMap[t.day]) {
-        t.date = dayToDateMap[t.day];
-      } else if (!t.date) {
-        t.date = '2026-08-18';
-      }
-      if (t.date && typeof AcademicCalendarService !== 'undefined') {
-        const calculatedDay = AcademicCalendarService.getDayName(t.date);
-        if (calculatedDay) {
-          t.day = calculatedDay;
+      const dayToDateMap = {
+        'Sunday': '2026-08-16',
+        'Monday': '2026-08-17',
+        'Tuesday': '2026-08-18',
+        'Wednesday': '2026-08-19',
+        'Thursday': '2026-08-20',
+        'Friday': '2026-08-21',
+        'Saturday': '2026-08-22'
+      };
+
+      return list.map(t => {
+        if (!t.date && t.day && dayToDateMap[t.day]) {
+          t.date = dayToDateMap[t.day];
+        } else if (!t.date) {
+          t.date = '2026-08-18';
         }
+        if (t.date && typeof AcademicCalendarService !== 'undefined') {
+          const calculatedDay = AcademicCalendarService.getDayName(t.date);
+          if (calculatedDay) {
+            t.day = calculatedDay;
+          }
+        }
+        return t;
+      });
+    } catch (e) {
+      console.error("Error in getAllTimetables:", e);
+      return [];
+    }
+  },
+
+  async getTimetableById(id) {
+    try {
+      if (!window.FirebaseService || !window.FirebaseService.db) return null;
+      const db = window.FirebaseService.db;
+      const { doc, getDoc } = window.FirebaseService.firestore;
+      
+      const docRef = doc(db, 'timetables', id);
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        const t = { id: snapshot.id, ...snapshot.data() };
+        if (t.date && typeof AcademicCalendarService !== 'undefined') {
+          const calculatedDay = AcademicCalendarService.getDayName(t.date);
+          if (calculatedDay) {
+            t.day = calculatedDay;
+          }
+        }
+        return t;
       }
-      return t;
-    });
+      return null;
+    } catch (e) {
+      console.error("Error in getTimetableById:", e);
+      return null;
+    }
   },
 
-  getTimetableById(id) {
-    return this.getAllTimetables().find(t => t.id === id) || null;
-  },
-
-  getStudentTimetable(studentId) {
-    const students = DataStore.get('STUDENTS') || [];
+  async getStudentTimetable(studentId) {
+    const students = typeof studentService !== 'undefined' ? studentService.getStudents() : DataStore.get('STUDENTS') || [];
     const student = students.find(s => s.id === studentId || s.userId === studentId);
     const classId = student ? (student.classId || "CLS001") : "CLS001";
     return this.getClassTimetable(classId);
   },
 
-  getFacultyTimetable(facultyId) {
-    const list = this.getAllTimetables();
+  async getFacultyTimetable(facultyId) {
+    const list = await this.getAllTimetables();
     return list.filter(t => t.facultyId === facultyId && t.status === 'ACTIVE');
   },
 
-  getClassTimetable(sectionId) {
-    const list = this.getAllTimetables();
+  async getClassTimetable(sectionId) {
+    const list = await this.getAllTimetables();
     return list.filter(t => (t.sectionId === sectionId || t.classId === sectionId) && t.status === 'ACTIVE');
   },
 
   /**
    * Comprehensive Conflict & Validation Engine
    */
-  validateTimeOverlap(entry, excludeId = null) {
+  async validateTimeOverlap(entry, excludeId = null) {
     if (!entry.date) {
       throw new Error("Date is required for scheduled slot.");
     }
@@ -74,7 +111,8 @@ const TimetableService = {
       : entry.day;
     entry.day = calculatedDay || entry.day;
 
-    const list = this.getAllTimetables().filter(t => t.id !== excludeId && t.status === 'ACTIVE');
+    const allTimetables = await this.getAllTimetables();
+    const list = allTimetables.filter(t => t.id !== excludeId && t.status === 'ACTIVE');
 
     // Helper: Check time overlap between two slots
     const isOverlapping = (s1, e1, s2, e2) => {
@@ -149,15 +187,14 @@ const TimetableService = {
     }
   },
 
-  createTimetableEntry(data) {
-    this.validateTimeOverlap(data);
+  async createTimetableEntry(data) {
+    await this.validateTimeOverlap(data);
 
     const calculatedDay = typeof AcademicCalendarService !== 'undefined'
       ? AcademicCalendarService.getDayName(data.date)
       : data.day;
 
     const newEntry = {
-      id: "TT" + String(Date.now()).slice(-6),
       academicYear: data.academicYear || "2026-27",
       semester: Number(data.semester) || 2,
       date: data.date,
@@ -174,12 +211,22 @@ const TimetableService = {
       updatedAt: new Date().toISOString().split('T')[0]
     };
 
-    DataStore.addItem('TIMETABLES', newEntry);
-    return newEntry;
+    try {
+      if (!window.FirebaseService || !window.FirebaseService.db) throw new Error("Firebase is not initialized");
+      const db = window.FirebaseService.db;
+      const { collection, addDoc } = window.FirebaseService.firestore;
+      
+      const docRef = await addDoc(collection(db, 'timetables'), newEntry);
+      newEntry.id = docRef.id;
+      return newEntry;
+    } catch (e) {
+      console.error("Error creating timetable entry:", e);
+      throw new Error("Failed to create scheduled slot.");
+    }
   },
 
-  updateTimetableEntry(id, data) {
-    const existing = this.getTimetableById(id);
+  async updateTimetableEntry(id, data) {
+    const existing = await this.getTimetableById(id);
     if (!existing) throw new Error("Scheduled slot not found.");
 
     const merged = { ...existing, ...data };
@@ -190,21 +237,48 @@ const TimetableService = {
       data.day = merged.day;
     }
 
-    this.validateTimeOverlap(merged, id);
+    await this.validateTimeOverlap(merged, id);
 
     data.updatedAt = new Date().toISOString().split('T')[0];
-    return DataStore.updateItem('TIMETABLES', id, data);
+    
+    try {
+      if (!window.FirebaseService || !window.FirebaseService.db) throw new Error("Firebase is not initialized");
+      const db = window.FirebaseService.db;
+      const { doc, updateDoc } = window.FirebaseService.firestore;
+      
+      const docRef = doc(db, 'timetables', id);
+      
+      // Filter out 'id' from data if it exists
+      const updatePayload = { ...data };
+      delete updatePayload.id;
+
+      await updateDoc(docRef, updatePayload);
+      return { id, ...merged };
+    } catch (e) {
+      console.error("Error updating timetable entry:", e);
+      throw new Error("Failed to update scheduled slot.");
+    }
   },
 
-  deleteTimetableEntry(id) {
-    DataStore.deleteItem('TIMETABLES', id);
+  async deleteTimetableEntry(id) {
+    try {
+      if (!window.FirebaseService || !window.FirebaseService.db) throw new Error("Firebase is not initialized");
+      const db = window.FirebaseService.db;
+      const { doc, deleteDoc } = window.FirebaseService.firestore;
+      
+      const docRef = doc(db, 'timetables', id);
+      await deleteDoc(docRef);
+    } catch (e) {
+      console.error("Error deleting timetable entry:", e);
+      throw new Error("Failed to delete scheduled slot.");
+    }
   },
 
   /**
    * Advanced Query, Multi-Filter, Search, Sort & Paginate Engine
    */
-  getScheduledSlots(options = {}) {
-    let list = this.getAllTimetables();
+  async getScheduledSlots(options = {}) {
+    let list = await this.getAllTimetables();
 
     const {
       search = '',
@@ -397,8 +471,8 @@ const TimetableService = {
   /**
    * Lightweight Summary KPI Cards Metrics
    */
-  getSummaryStats() {
-    const list = this.getAllTimetables();
+  async getSummaryStats() {
+    const list = await this.getAllTimetables();
     const todayStr = new Date().toISOString().split('T')[0];
 
     // This week calculate

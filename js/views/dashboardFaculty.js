@@ -3,15 +3,68 @@
    ========================================================================== */
 
 const DashboardFaculty = {
+  assignments: [],
+  loading: true,
+
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      const user = authService.getCurrentUser();
+      const facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
+      const myFaculty = facultyList.find(f => f.email === user.email) || facultyList[0];
+      
+      this.assignments = await assignmentService.getAssignments();
+      if (typeof AttendanceAssignmentService !== 'undefined' && myFaculty) {
+        this.attendanceAssignments = await AttendanceAssignmentService.getFacultyAssignments(myFaculty.id);
+      } else {
+        this.attendanceAssignments = [];
+      }
+
+      this.timetablesMap = {};
+      if (typeof TimetableService !== 'undefined') {
+        const allTts = await TimetableService.getAllTimetables();
+        for (const tt of allTts) {
+          this.timetablesMap[tt.id] = tt;
+        }
+      }
+
+      this.loading = false;
+      App.renderCurrentView();
+    } catch (err) {
+      this.loading = false;
+      console.error("Failed to load assignments for dashboard:", err);
+      App.renderCurrentView();
+    }
+  },
+
   render() {
     const user = authService.getCurrentUser();
-    const facultyList = facultyService.getFaculty();
+    const facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
     const myFaculty = facultyList.find(f => f.email === user.email) || facultyList[0];
-    const assignments = assignmentService.getAssignments().filter(a => a.facultyId === myFaculty.id);
+
+    if (this.loading) {
+      return `
+        <div class="page-header">
+          <h1>Welcome, ${myFaculty ? myFaculty.name : 'Faculty'}! 👋</h1>
+          <p>${user.role === 'LAB_ASSISTANT' ? 'Lab Assistant' : 'Faculty'} Portal — Manage your assigned classes, lectures, and student attendance.</p>
+        </div>
+        <div class="card" style="padding: 3rem; text-align: center;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading dashboard data...</p>
+        </div>
+      `;
+    }
+
+    const assignments = this.assignments.filter(a => myFaculty && a.facultyId === myFaculty.id);
 
     return `
       <div class="page-header">
-        <h1>Welcome, ${myFaculty.name}! 👋</h1>
+        <h1>Welcome, ${myFaculty ? myFaculty.name : 'Faculty'}! 👋</h1>
         <p>${user.role === 'LAB_ASSISTANT' ? 'Lab Assistant' : 'Faculty'} Portal — Manage your assigned classes, lectures, and student attendance.</p>
       </div>
 
@@ -71,13 +124,13 @@ const DashboardFaculty = {
             const todayStr = new Date().toISOString().split('T')[0];
             const todayName = typeof AcademicCalendarService !== 'undefined' ? AcademicCalendarService.getDayName(todayStr) : new Date().toLocaleDateString('en-US', { weekday: 'long' });
             
-            const allMyAssignments = AttendanceAssignmentService.getFacultyAssignments(myFaculty.id);
+            const allMyAssignments = this.attendanceAssignments || [];
             const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
             const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
             const students = typeof studentService !== 'undefined' ? studentService.getStudents() : [];
             
             for (const assign of allMyAssignments) {
-              const tt = TimetableService.getTimetableById(assign.timetableId);
+              const tt = this.timetablesMap ? this.timetablesMap[assign.timetableId] : null;
               if (tt && tt.day === todayName) {
                 todayAssignments.push({ assign, tt });
               }
@@ -132,6 +185,7 @@ const DashboardFaculty = {
   },
 
   initCharts() {
+    if (this.loading) return; // Wait until loaded
     const ctx = document.getElementById('facultyAttendanceChart');
     if (!ctx) return;
 

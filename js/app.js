@@ -7,33 +7,104 @@ const App = {
   currentView: 'dashboard',
   viewParams: {},
   mobileSidebarOpen: false,
+  _isNavigatingFromHash: false,
 
-  init() {
-    console.log("Initializing Poornima Attendance System...");
-    // Eagerly initialize Firebase so Firestore is ready for all views
+  async init() {
+    console.log("Initializing Poornima Attendance System with Centralized Auth State...");
+    
+    // Eagerly initialize Firebase so Auth & Firestore are ready
     if (window.FirebaseService && window.FirebaseService.init) {
       window.FirebaseService.init().catch(err => console.warn("Firebase early init:", err));
     }
+
+    // Subscribe to centralized auth state changes
+    if (window.FirebaseService && window.FirebaseService.subscribeAuthState) {
+      window.FirebaseService.subscribeAuthState((user) => {
+        if (!user && this.currentView !== 'login') {
+          // If signed out, redirect to login
+          if (authService.getCurrentUser() === null) {
+            this.renderLogin();
+          }
+        }
+      });
+    }
+
+    // Listen to hash changes for browser Back/Forward & direct URL entry
+    window.addEventListener('hashchange', () => this.handleHashChange());
+
     const currentUser = authService.getCurrentUser();
     if (!currentUser) {
       this.renderLogin();
     } else {
+      // Route restoration on page refresh
+      const requestedRoute = this.getRouteFromHash();
+      if (requestedRoute && this.isRouteAllowed(requestedRoute, currentUser.role)) {
+        this.currentView = requestedRoute;
+      } else {
+        this.currentView = currentUser.role === 'LIBRARIAN' ? 'library-dashboard' : 'dashboard';
+      }
       this.renderMainLayout();
+      this.setHashRoute(this.currentView);
     }
   },
 
+  getRouteFromHash() {
+    const raw = window.location.hash || '';
+    return raw.replace(/^#\/?/, '').trim();
+  },
+
+  setHashRoute(viewId) {
+    if (viewId && window.location.hash !== `#/${viewId}`) {
+      this._isNavigatingFromHash = true;
+      window.location.hash = `#/${viewId}`;
+      setTimeout(() => { this._isNavigatingFromHash = false; }, 50);
+    }
+  },
+
+  handleHashChange() {
+    if (this._isNavigatingFromHash) return;
+    const targetRoute = this.getRouteFromHash();
+    const user = authService.getCurrentUser();
+    if (!user) {
+      this.renderLogin();
+      return;
+    }
+
+    if (targetRoute && targetRoute !== this.currentView) {
+      if (this.isRouteAllowed(targetRoute, user.role)) {
+        this.currentView = targetRoute;
+        this.renderMainLayout();
+      } else {
+        this.navigateTo(user.role === 'LIBRARIAN' ? 'library-dashboard' : 'dashboard');
+      }
+    }
+  },
+
+  isRouteAllowed(viewId, role) {
+    if (!role) return false;
+    if (viewId === 'change-password') return true;
+    if (viewId === 'mark-attendance' && role === 'STUDENT') return true;
+    const allowed = this.getNavigationForRole(role);
+    return allowed.some(item => item.id === viewId);
+  },
+
   onLoginSuccess(user) {
+    const requestedRoute = this.getRouteFromHash();
     if (user.mustChangePassword) {
       this.currentView = 'change-password';
+    } else if (requestedRoute && this.isRouteAllowed(requestedRoute, user.role)) {
+      this.currentView = requestedRoute;
     } else {
-      this.currentView = 'dashboard';
+      this.currentView = user.role === 'LIBRARIAN' ? 'library-dashboard' : 'dashboard';
     }
     this.renderMainLayout();
+    this.setHashRoute(this.currentView);
   },
 
   logout() {
     UIService.showConfirm("Confirm Logout", "Are you sure you want to log out of Poornima Attendance System?", async () => {
       await authService.logout();
+      window.location.hash = '';
       UIService.showToast("Logged out successfully.", "info");
       this.renderLogin();
     });
@@ -88,7 +159,7 @@ const App = {
           <div class="sidebar-menu">
             <div class="menu-category">Main Menu</div>
             ${sidebarMenu.map(item => `
-              <a href="#" class="nav-item ${this.currentView === item.id ? 'active' : ''}" onclick="App.navigateTo('${item.id}'); return false;">
+              <a href="#/${item.id}" class="nav-item ${this.currentView === item.id ? 'active' : ''}" onclick="App.navigateTo('${item.id}'); return false;">
                 <i data-lucide="${item.icon}"></i>
                 <span>${item.label}</span>
               </a>
@@ -147,9 +218,9 @@ const App = {
               </div>
 
               <div class="user-profile-menu" onclick="App.navigateTo('profile')">
-                <div class="avatar">${user.name.charAt(0)}</div>
+                <div class="avatar">${user.name ? user.name.charAt(0) : 'U'}</div>
                 <div class="user-info-text">
-                  <div class="name">${user.name}</div>
+                  <div class="name">${user.name || 'User'}</div>
                   <div class="role">${roleDisplayName}</div>
                 </div>
                 <i data-lucide="chevron-down" style="font-size: 14px; color: var(--color-text-muted);"></i>
@@ -194,19 +265,13 @@ const App = {
     // Role Protection Check
     const allowedNavigation = this.getNavigationForRole(user.role);
     let isAllowed = viewId === 'change-password' || allowedNavigation.some(item => item.id === viewId);
-    
-    // Hidden route: Students can access mark-attendance for VIEW mode only
-    if (viewId === 'mark-attendance' && user.role === 'STUDENT') {
-      isAllowed = true;
-    }
 
     if (!isAllowed) {
-      // For settings specifically, show the access denied view rather than a toast
       if (viewId === 'settings') {
         this.currentView = '__access_denied_settings__';
       } else {
         UIService.showToast("Access Denied: You are not authorized to access this page.", "danger");
-        this.currentView = 'dashboard';
+        this.currentView = user.role === 'LIBRARIAN' ? 'library-dashboard' : 'dashboard';
       }
     } else {
       this.currentView = viewId;
@@ -217,6 +282,7 @@ const App = {
     const overlay = document.getElementById('sidebar-overlay');
     if (overlay) overlay.classList.remove('active');
     
+    this.setHashRoute(this.currentView);
     this.renderMainLayout();
   },
 
@@ -241,7 +307,9 @@ const App = {
         { id: 'library-reports', label: 'Reports', icon: 'bar-chart', roles: ['LIBRARIAN'] },
         { id: 'library-settings', label: 'Settings', icon: 'settings', roles: ['LIBRARIAN'] },
         { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['LIBRARIAN'] },
-        { id: 'profile', label: 'User Profile', icon: 'user', roles: ['LIBRARIAN'] }
+        { id: 'profile', label: 'User Profile', icon: 'user', roles: ['LIBRARIAN'] },
+        { id: 'digital-id', label: 'Digital ID Card', icon: 'id-card', roles: ['LIBRARIAN'] },
+        { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['LIBRARIAN'] }
       ];
     }
 
@@ -266,7 +334,7 @@ const App = {
       { id: 'departments', label: 'Departments', icon: 'building-2', roles: ['ADMIN'] },
       { id: 'subjects', label: 'Subjects', icon: 'book-text', roles: ['ADMIN'] },
       { id: 'classes', label: 'Classes', icon: 'layers', roles: ['ADMIN'] },
-      { id: 'reports', label: 'Reports & Analytics', icon: 'file-text', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT'] },
+      { id: 'reports', label: 'Reports & Analytics', icon: 'file-text', roles: ['ADMIN'] },
       { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'settings', label: 'System Settings', icon: 'settings', roles: ['ADMIN'] }
@@ -414,19 +482,41 @@ const App = {
     if (this.currentView !== 'admin-management' && window.adminService && window.adminService.stopListening) {
       window.adminService.stopListening();
     }
+    if (!this.currentView.startsWith('library') && window.LibraryService && window.LibraryService.stopListening) {
+      window.LibraryService.stopListening();
+    }
 
     const user = authService.getCurrentUser();
     if (this.currentView === 'dashboard') {
-      if (user.role === 'ADMIN' && window.DashboardAdmin.initCharts) window.DashboardAdmin.initCharts();
-      if ((user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT') && window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
+      if (user && user.role === 'ADMIN' && window.DashboardAdmin.initCharts) window.DashboardAdmin.initCharts();
+      if (user && (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT')) {
+        if (window.DashboardFaculty.afterRender) window.DashboardFaculty.afterRender();
+        if (window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
+      }
     } else if (this.currentView === 'reports') {
-      if (window.ReportsView.postInit) window.ReportsView.postInit();
-    } else if (this.currentView === 'students' && window.StudentsView.afterRender) {
+      if (window.ReportsView && window.ReportsView.postInit) window.ReportsView.postInit();
+    } else if (this.currentView === 'students' && window.StudentsView && window.StudentsView.afterRender) {
       window.StudentsView.afterRender();
-    } else if (this.currentView === 'faculty' && window.FacultyView.afterRender) {
+    } else if (this.currentView === 'faculty' && window.FacultyView && window.FacultyView.afterRender) {
       window.FacultyView.afterRender();
-    } else if (this.currentView === 'admin-management' && window.AdminManagementView.afterRender) {
+    } else if (this.currentView === 'admin-management' && window.AdminManagementView && window.AdminManagementView.afterRender) {
       window.AdminManagementView.afterRender();
+    } else if (this.currentView === 'library' && window.LibraryView && window.LibraryView.afterRender) {
+      window.LibraryView.afterRender();
+    } else if (this.currentView === 'library-books' && window.LibraryBooksView && window.LibraryBooksView.afterRender) {
+      window.LibraryBooksView.afterRender();
+    } else if (this.currentView === 'library-circulation' && window.LibraryCirculationView && window.LibraryCirculationView.afterRender) {
+      window.LibraryCirculationView.afterRender();
+    } else if (this.currentView === 'library-members' && window.LibraryMembersView && window.LibraryMembersView.afterRender) {
+      window.LibraryMembersView.afterRender();
+    } else if (this.currentView === 'library-reservations' && window.LibraryReservationsView && window.LibraryReservationsView.afterRender) {
+      window.LibraryReservationsView.afterRender();
+    } else if (this.currentView === 'library-fines' && window.LibraryFinesView && window.LibraryFinesView.afterRender) {
+      window.LibraryFinesView.afterRender();
+    } else if (this.currentView === 'library-reports' && window.LibraryReportsView && window.LibraryReportsView.afterRender) {
+      window.LibraryReportsView.afterRender();
+    } else if (this.currentView === 'library-settings' && window.LibrarySettingsView && window.LibrarySettingsView.afterRender) {
+      window.LibrarySettingsView.afterRender();
     }
   },
 

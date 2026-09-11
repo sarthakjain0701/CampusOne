@@ -85,41 +85,38 @@ const studentService = {
     }
   },
 
-  // --------------------------------------------------------------------------
-  // REAL-TIME LISTENER
-  // --------------------------------------------------------------------------
-  listenToStudents(callback) {
-    // Clean up previous listener
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
+  async loadStudents(lastDoc = null, pageSize = 50) {
+    const db = await this._ensureDb();
+    try {
+      let query = db.collection(this._collection())
+        .orderBy('name', 'asc')
+        .limit(pageSize);
 
-    // We need db synchronously for onSnapshot, so we init first
-    const setup = async () => {
-      const db = await this._ensureDb();
-      this._unsubscribe = db.collection(this._collection()).onSnapshot(
-        (snapshot) => {
-          const students = [];
-          snapshot.forEach(doc => {
-            students.push({ id: doc.id, email: doc.id, ...doc.data() });
-          });
-          callback(null, students);
-        },
-        (err) => {
-          console.error("Student listener error", err);
-          callback(new Error("Unable to load student records. Real-time sync failed."), []);
-        }
-      );
-    };
-    setup().catch(err => callback(err, []));
+      if (lastDoc) {
+        query = query.startAfter(lastDoc);
+      }
+
+      const snapshot = await query.get();
+      const students = [];
+      snapshot.forEach(doc => {
+        students.push({ id: doc.id, email: doc.id, ...doc.data() });
+      });
+      
+      const newLastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+      
+      return {
+        students,
+        lastDoc: newLastDoc,
+        hasMore: snapshot.docs.length === pageSize
+      };
+    } catch (err) {
+      console.error("Failed to load students", err);
+      throw new Error("Unable to load student records. Please try again.");
+    }
   },
 
   stopListening() {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
+    // Deprecated. No longer needed with one-shot reads.
   },
 
   // --------------------------------------------------------------------------
@@ -170,11 +167,11 @@ const studentService = {
 
     // Provision Firebase Auth + Firestore document using Client-Side Fallback
     try {
-      if (!window.BackendSimulationService) {
+      if (!window.CloudFunctionsService) {
         throw new Error("Client Provisioning Service is not loaded.");
       }
       
-      await window.BackendSimulationService.provisionUser(payload, 'STUDENT');
+      await window.CloudFunctionsService.provisionUser(payload, 'STUDENT');
       
       return payload;
     } catch (err) {
@@ -184,43 +181,41 @@ const studentService = {
   },
 
   // --------------------------------------------------------------------------
+  // UPDATE — Writes directly to Firestore document
+  // --------------------------------------------------------------------------
   async updateStudent(docId, updatedFields) {
+    const db = await this._ensureDb();
+
+    // Normalize roll number if being updated
     if (updatedFields.rollNumber) {
       updatedFields.rollNumber = updatedFields.rollNumber.trim().toUpperCase();
       updatedFields.rollNo = updatedFields.rollNumber;
     }
 
+    // Add timestamp
+    updatedFields.updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
+
     try {
-      if (!window.BackendSimulationService) {
-        throw new Error("Client Provisioning Service is not loaded.");
-      }
-      const payload = {
-        email: docId,
-        ...updatedFields
-      };
-      await window.BackendSimulationService.updateUser(payload, 'STUDENT');
+      await db.collection(this._collection()).doc(docId).update(updatedFields);
     } catch (err) {
-      console.error("Failed to update student via backend", err);
-      throw new Error(err.message || "Unable to save student information.");
+      console.error("Failed to update student in Firestore", err);
+      if (err.code === 'not-found') throw new Error("Student record not found in the database.");
+      if (err.code === 'permission-denied') throw new Error("You do not have permission to update this record.");
+      throw new Error("Unable to save student information. Please try again.");
     }
   },
 
   // --------------------------------------------------------------------------
-  // DELETE — Removes document from Firestore and disables Auth account
+  // DELETE — Removes document from Firestore
   // --------------------------------------------------------------------------
   async deleteStudent(docId) {
+    const db = await this._ensureDb();
     try {
-      if (!window.BackendSimulationService) {
-        throw new Error("Client Provisioning Service is not loaded.");
-      }
-      // Deactivate Auth account first
-      await window.BackendSimulationService.updateUser({ email: docId, status: 'INACTIVE' }, 'STUDENT');
-      
-      const db = await this._ensureDb();
       await db.collection(this._collection()).doc(docId).delete();
     } catch (err) {
       console.error("Failed to delete student from Firestore", err);
-      throw new Error(err.message || "Unable to delete student record. Please try again.");
+      if (err.code === 'permission-denied') throw new Error("You do not have permission to delete this record.");
+      throw new Error("Unable to delete student record. Please try again.");
     }
   },
 

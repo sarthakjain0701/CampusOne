@@ -62,39 +62,38 @@ const facultyService = {
     }
   },
 
-  // --------------------------------------------------------------------------
-  // REAL-TIME LISTENER
-  // --------------------------------------------------------------------------
-  listenToFaculty(callback) {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
+  async loadFaculty(lastDoc = null, pageSize = 50) {
+    const db = await this._ensureDb();
+    try {
+      let query = db.collection(this._collection())
+        .orderBy('name', 'asc')
+        .limit(pageSize);
 
-    const setup = async () => {
-      const db = await this._ensureDb();
-      this._unsubscribe = db.collection(this._collection()).onSnapshot(
-        (snapshot) => {
-          const facultyList = [];
-          snapshot.forEach(doc => {
-            facultyList.push({ id: doc.id, email: doc.id, ...doc.data() });
-          });
-          callback(null, facultyList);
-        },
-        (err) => {
-          console.error("Faculty listener error", err);
-          callback(new Error("Unable to load faculty records. Real-time sync failed."), []);
-        }
-      );
-    };
-    setup().catch(err => callback(err, []));
+      if (lastDoc) {
+        query = query.startAfter(lastDoc);
+      }
+
+      const snapshot = await query.get();
+      const facultyList = [];
+      snapshot.forEach(doc => {
+        facultyList.push({ id: doc.id, email: doc.id, ...doc.data() });
+      });
+      
+      const newLastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+      
+      return {
+        facultyList,
+        lastDoc: newLastDoc,
+        hasMore: snapshot.docs.length === pageSize
+      };
+    } catch (err) {
+      console.error("Failed to load faculty", err);
+      throw new Error("Unable to load faculty records. Please try again.");
+    }
   },
 
   stopListening() {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
+    // Deprecated.
   },
 
   // --------------------------------------------------------------------------
@@ -132,10 +131,10 @@ const facultyService = {
     };
 
     try {
-      if (!window.BackendSimulationService) {
+      if (!window.CloudFunctionsService) {
         throw new Error("Client Provisioning Service is not loaded.");
       }
-      await window.BackendSimulationService.provisionUser(payload, payload.role);
+      await window.CloudFunctionsService.provisionUser(payload, payload.role);
       return payload;
     } catch (err) {
       console.error("[PAMS PROVISIONING ERROR]", err);
@@ -147,39 +146,35 @@ const facultyService = {
     }
   },
 
+  // --------------------------------------------------------------------------
+  // UPDATE — Writes directly to Firestore
+  // --------------------------------------------------------------------------
   async updateFaculty(docId, updatedFields) {
+    const db = await this._ensureDb();
+
+    updatedFields.updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
+
     try {
-      if (!window.BackendSimulationService) {
-        throw new Error("Client Provisioning Service is not loaded.");
-      }
-      const role = updatedFields.role || 'FACULTY';
-      const payload = {
-        email: docId,
-        ...updatedFields
-      };
-      await window.BackendSimulationService.updateUser(payload, role);
+      await db.collection(this._collection()).doc(docId).update(updatedFields);
     } catch (err) {
-      console.error("Failed to update faculty via backend", err);
-      throw new Error(err.message || "Unable to save faculty information.");
+      console.error("Failed to update faculty in Firestore", err);
+      if (err.code === 'not-found') throw new Error("Faculty record not found in the database.");
+      if (err.code === 'permission-denied') throw new Error("You do not have permission to update this record.");
+      throw new Error("Unable to save faculty information. Please try again.");
     }
   },
 
   // --------------------------------------------------------------------------
-  // DELETE — Removes document from Firestore and disables Auth account
+  // DELETE — Removes document from Firestore
   // --------------------------------------------------------------------------
   async deleteFaculty(docId) {
+    const db = await this._ensureDb();
     try {
-      if (!window.BackendSimulationService) {
-        throw new Error("Client Provisioning Service is not loaded.");
-      }
-      // Deactivate Auth account first
-      await window.BackendSimulationService.updateUser({ email: docId, status: 'INACTIVE' }, 'FACULTY');
-      
-      const db = await this._ensureDb();
       await db.collection(this._collection()).doc(docId).delete();
     } catch (err) {
       console.error("Failed to delete faculty from Firestore", err);
-      throw new Error(err.message || "Unable to delete faculty record. Please try again.");
+      if (err.code === 'permission-denied') throw new Error("You do not have permission to delete this record.");
+      throw new Error("Unable to delete faculty record. Please try again.");
     }
   },
 

@@ -186,15 +186,35 @@ const DataStore = {
     localStorage.setItem(this.STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
   },
 
+  // In-Memory Reference Cache for high performance
+  _memCache: {},
+
   // Storage Getters
   get(key) {
+    const k = key.toUpperCase();
+    if (this._memCache[k]) {
+      return this._memCache[k];
+    }
     this.init();
-    return JSON.parse(localStorage.getItem(this.STORAGE_KEYS[key.toUpperCase()]) || '[]');
+    const data = JSON.parse(localStorage.getItem(this.STORAGE_KEYS[k]) || '[]');
+    this._memCache[k] = data;
+    return data;
   },
 
   // Storage Setters
   set(key, data) {
-    localStorage.setItem(this.STORAGE_KEYS[key.toUpperCase()], JSON.stringify(data));
+    const k = key.toUpperCase();
+    this._memCache[k] = data;
+    localStorage.setItem(this.STORAGE_KEYS[k], JSON.stringify(data));
+  },
+
+  // Clear specific or all memory caches
+  invalidateCache(key = null) {
+    if (key) {
+      delete this._memCache[key.toUpperCase()];
+    } else {
+      this._memCache = {};
+    }
   },
 
   // Current User Session

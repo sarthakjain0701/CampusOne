@@ -3,11 +3,51 @@
    ========================================================================== */
 
 const AssignmentsView = {
+  assignments: [],
+  faculty: [],
+  subjects: [],
+  classes: [],
+  loading: true,
+
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      this.faculty = typeof facultyService !== 'undefined' ? (facultyService.getFaculty ? facultyService.getFaculty() : []) : [];
+      this.subjects = typeof subjectService !== 'undefined' ? (subjectService.getSubjects ? subjectService.getSubjects() : []) : [];
+      this.classes = typeof classService !== 'undefined' ? (classService.getClasses ? classService.getClasses() : []) : [];
+      this.assignments = await assignmentService.getAssignments();
+      this.loading = false;
+      App.renderCurrentView();
+    } catch (err) {
+      this.loading = false;
+      UIService.showToast(err.message || "Failed to load assignments.", "danger");
+      App.renderCurrentView();
+    }
+  },
+
   render() {
-    const assignments = assignmentService.getAssignments();
-    const faculty = facultyService.getFaculty();
-    const subjects = subjectService.getSubjects();
-    const classes = classService.getClasses();
+    if (this.loading) {
+      return `
+        <div class="page-header">
+          <h1>Faculty Assignment</h1>
+          <p>Assign faculty members to teach subjects for specific classes and academic sessions.</p>
+        </div>
+        <div class="card" style="padding: 3rem; text-align: center;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading assignments...</p>
+        </div>
+      `;
+    }
+
+    const assignments = this.assignments;
+    const faculty = this.faculty;
+    const subjects = this.subjects;
+    const classes = this.classes;
 
     return `
       <div class="page-header">
@@ -103,7 +143,7 @@ const AssignmentsView = {
     `;
   },
 
-  handleAssign(e) {
+  async handleAssign(e) {
     e.preventDefault();
     const facultyId = document.getElementById('asgn-fac-id').value;
     const subjectId = document.getElementById('asgn-sub-id').value;
@@ -111,8 +151,9 @@ const AssignmentsView = {
     const academicYear = document.getElementById('asgn-ay').value;
 
     try {
-      assignmentService.addAssignment(facultyId, subjectId, classId, academicYear);
+      await assignmentService.addAssignment(facultyId, subjectId, classId, academicYear);
       UIService.showToast("Faculty assigned successfully.", "success");
+      this.loading = true; // refresh
       App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");
@@ -120,10 +161,11 @@ const AssignmentsView = {
   },
 
   deleteAssignment(id) {
-    UIService.showConfirm("Remove Assignment?", "Delete this faculty assignment?", () => {
+    UIService.showConfirm("Remove Assignment?", "Delete this faculty assignment?", async () => {
       try {
-        assignmentService.deleteAssignment(id);
+        await assignmentService.deleteAssignment(id);
         UIService.showToast("Faculty assignment removed.", "success");
+        this.loading = true; // refresh
         App.renderCurrentView();
       } catch (err) {
         UIService.showToast(err.message, "danger");

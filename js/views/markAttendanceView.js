@@ -9,25 +9,113 @@ const MarkAttendanceView = {
   studentState: {},
   originalStudentState: {},
   mode: null, // 'MARK', 'VIEW', 'EDIT'
+  loading: true,
+  hasAccess: false,
+  existingRecords: [],
+
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      const user = authService.getCurrentUser();
+      if (!user) {
+        this.loading = false;
+        App.renderCurrentView();
+        return;
+      }
+
+      let classes = classService.getClasses();
+      let subjects = subjectService.getSubjects();
+
+      if (!this.selectedClassId || !classes.some(c => c.id === this.selectedClassId)) {
+        this.selectedClassId = classes[0] ? classes[0].id : null;
+      }
+      if (!this.selectedSubjectId || !subjects.some(s => s.id === this.selectedSubjectId)) {
+        this.selectedSubjectId = subjects[0] ? subjects[0].id : null;
+      }
+
+      if (AuthorizationService.isAcademicStaff(user)) {
+        if (typeof AttendanceAssignmentService !== 'undefined') {
+          this.hasAccess = await AttendanceAssignmentService.canMarkAttendance(user.id, this.selectedClassId, this.selectedSubjectId, this.selectedDate);
+        } else {
+          this.hasAccess = true;
+        }
+      } else {
+        this.hasAccess = true;
+      }
+
+      if (this.selectedClassId && this.selectedSubjectId && this.selectedDate) {
+        this.existingRecords = await attendanceService.getSessionAttendance(this.selectedClassId, this.selectedSubjectId, this.selectedDate);
+      } else {
+        this.existingRecords = [];
+      }
+
+      // Initialize state based on existing records if not already initialized
+      if (!this.mode || (Object.keys(this.studentState).length === 0 && this.existingRecords.length > 0)) {
+        this.studentState = {};
+        if (this.existingRecords && this.existingRecords.length > 0) {
+          this.mode = 'VIEW';
+          this.existingRecords.forEach(record => {
+            this.studentState[record.studentId] = record.status;
+          });
+        } else {
+          this.mode = 'MARK';
+          const students = studentService.getStudents().filter(s => s.classId === this.selectedClassId || !s.classId);
+          students.forEach(s => {
+            this.studentState[s.id] = 'NOT_MARKED';
+          });
+        }
+      }
+
+      // Security Check: Force VIEW mode for students
+      if (user.role === 'STUDENT') {
+        this.mode = 'VIEW';
+      }
+
+      this.loading = false;
+      App.renderCurrentView();
+    } catch (err) {
+      this.loading = false;
+      console.error("Failed to load attendance session:", err);
+      App.renderCurrentView();
+    }
+  },
 
   render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
 
+    if (params.classId) this.selectedClassId = params.classId;
+    if (params.subjectId) this.selectedSubjectId = params.subjectId;
+    if (params.date) this.selectedDate = params.date;
+    if (params.mode) {
+      this.mode = params.mode;
+    }
+
+    // Since render is called synchronously, if loading, we show a spinner.
+    // The query params are already consumed.
+    if (this.loading) {
+      return `
+        <div class="page-header">
+          <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">Mark Attendance</h1>
+          <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">Loading attendance session...</p>
+        </div>
+        <div class="card" style="padding: 3rem; text-align: center;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
+        </div>
+      `;
+    }
+
     let classes = classService.getClasses();
     let subjects = subjectService.getSubjects();
-    
-    let filtersChanged = false;
-
-    if (params.classId && classes.some(c => c.id === params.classId)) { this.selectedClassId = params.classId; filtersChanged = true; }
-    if (params.subjectId && subjects.some(s => s.id === params.subjectId)) { this.selectedSubjectId = params.subjectId; filtersChanged = true; }
-    if (params.date) { this.selectedDate = params.date; filtersChanged = true; }
 
     if (AuthorizationService.isAcademicStaff(user)) {
       if (typeof AttendanceAssignmentService !== 'undefined') {
-        // Enforce strict attendance assignment for Faculty
-        const hasAccess = AttendanceAssignmentService.canMarkAttendance(user.id, this.selectedClassId, this.selectedSubjectId, this.selectedDate);
-        if (!hasAccess && this.selectedClassId && this.selectedSubjectId) {
+        if (!this.hasAccess && this.selectedClassId && this.selectedSubjectId) {
           return AuthorizationService.renderAccessDeniedBanner("You are not assigned to take attendance for this specific class, subject, and date.");
         } else if (!this.selectedClassId) {
           return AuthorizationService.renderAccessDeniedBanner("Please select a session from your Dashboard.");
@@ -45,49 +133,13 @@ const MarkAttendanceView = {
       }
     }
 
-    if (!this.selectedClassId || !classes.some(c => c.id === this.selectedClassId)) {
-      this.selectedClassId = classes[0] ? classes[0].id : null;
-    }
-    if (!this.selectedSubjectId || !subjects.some(s => s.id === this.selectedSubjectId)) {
-      this.selectedSubjectId = subjects[0] ? subjects[0].id : null;
-    }
-
-    if (params.mode) {
-      this.mode = params.mode;
-      filtersChanged = true;
-    } else if (filtersChanged || !this.mode) {
-      this.mode = null;
-    }
-
-    // Security Check: Force VIEW mode for students to prevent any UI edit state
-    if (user.role === 'STUDENT') {
-      this.mode = 'VIEW';
-    }
-
     const students = studentService.getStudents().filter(s => s.classId === this.selectedClassId || !s.classId);
 
-    // Determine mode and populate state
-    const existing = attendanceService.getSessionAttendance(this.selectedClassId, this.selectedSubjectId, this.selectedDate);
-    
-    if (!this.mode) {
-      if (existing && existing.length > 0) {
-        this.mode = 'VIEW';
-      } else {
-        this.mode = 'MARK';
-      }
-    }
-
-    if (filtersChanged || !this.studentState || Object.keys(this.studentState).length === 0) {
-      this.studentState = {};
-      if (existing && existing.length > 0) {
-        existing.forEach(record => {
-          this.studentState[record.studentId] = record.status;
-        });
-      } else {
+    // If state is completely empty but there are students, initialize to NOT_MARKED
+    if (Object.keys(this.studentState).length === 0 && students.length > 0 && this.mode === 'MARK') {
         students.forEach(s => {
           this.studentState[s.id] = 'NOT_MARKED';
         });
-      }
     }
 
     let actionsBarHtml = '';
@@ -254,8 +306,11 @@ const MarkAttendanceView = {
   onFilterChange() {
     this.selectedClassId = document.getElementById('sel-att-class').value;
     this.selectedSubjectId = document.getElementById('sel-att-subject').value;
-    this.selectedDate = document.getElementById('sel-att-date').value;
+    const dateEl = document.getElementById('sel-att-date');
+    if (dateEl) this.selectedDate = dateEl.value;
     this.mode = null;
+    this.studentState = {}; // clear state on filter change
+    this.loading = true;
     App.renderCurrentView();
   },
 
@@ -297,7 +352,7 @@ const MarkAttendanceView = {
     App.renderCurrentView();
   },
 
-  promptSave() {
+  async promptSave() {
     const students = studentService.getStudents().filter(s => s.classId === this.selectedClassId || !s.classId);
     if (students.length === 0) {
       UIService.showToast("No students to save attendance for.", "warning");
@@ -305,7 +360,7 @@ const MarkAttendanceView = {
     }
 
     if (this.mode === 'MARK') {
-      const isDuplicate = attendanceService.checkDuplicateAttendance(this.selectedClassId, this.selectedSubjectId, this.selectedDate);
+      const isDuplicate = await attendanceService.checkDuplicateAttendance(this.selectedClassId, this.selectedSubjectId, this.selectedDate);
       if (isDuplicate) {
         UIService.showToast("Attendance has already been recorded for this class and date.", "warning");
       }
@@ -358,7 +413,10 @@ const MarkAttendanceView = {
     try {
       await attendanceService.saveAttendance(this.selectedClassId, this.selectedSubjectId, this.selectedDate, currentUser ? currentUser.id : 'FAC001', records, currentUser);
       UIService.showToast("Attendance updated successfully.", "success");
-      this.mode = 'VIEW';
+      
+      // Reload the data from server
+      this.mode = null;
+      this.loading = true;
       App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");

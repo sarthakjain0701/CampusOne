@@ -29,6 +29,13 @@ service cloud.firestore {
              get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.status == 'ACTIVE';
     }
 
+    function isLabAssistant() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/faculties/$(getUserEmail())) &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.role == 'LAB_ASSISTANT' &&
+             get(/databases/$(database)/documents/faculties/$(getUserEmail())).data.status == 'ACTIVE';
+    }
+
     function isStudent() {
       return isAuthenticated() &&
              exists(/databases/$(database)/documents/authorizedUsers/$(getUserEmail())) &&
@@ -109,8 +116,26 @@ service cloud.firestore {
     // ============================================================
 
     match /users/{uid} {
-      allow read, write: if isAuthenticated() &&
-                         (uid == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() &&
+                  (uid == request.auth.uid || isAdmin());
+                  
+      allow create: if isAuthenticated() && 
+                    (uid == request.auth.uid || isAdmin());
+                    
+      allow update: if isAdmin() ||
+                    (isAuthenticated() &&
+                     uid == request.auth.uid &&
+                     !request.resource.data.diff(resource.data)
+                       .affectedKeys()
+                       .hasAny([
+                         'role',
+                         'status',
+                         'uid',
+                         'email',
+                         'mustChangePassword'
+                       ]));
+                       
+      allow delete: if isAdmin();
     }
 
     // ============================================================
@@ -119,7 +144,7 @@ service cloud.firestore {
 
     match /libraryBooks/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -128,7 +153,7 @@ service cloud.firestore {
 
     match /libraryBookCopies/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -137,7 +162,7 @@ service cloud.firestore {
 
     match /libraryCategories/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -146,7 +171,7 @@ service cloud.firestore {
 
     match /libraryAuthors/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -155,7 +180,7 @@ service cloud.firestore {
 
     match /libraryPublishers/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -164,7 +189,7 @@ service cloud.firestore {
 
     match /librarySettings/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -177,7 +202,7 @@ service cloud.firestore {
                   (isAuthenticated() &&
                    resource.data.memberEmail == getUserEmail());
 
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -190,7 +215,7 @@ service cloud.firestore {
                   (isAuthenticated() &&
                    resource.data.memberEmail == getUserEmail());
 
-      allow write: if isLibrarian();
+      allow write: if isAdmin() || isLibrarian();
     }
 
     // ============================================================
@@ -203,7 +228,7 @@ service cloud.firestore {
                   (isAuthenticated() &&
                    resource.data.memberEmail == getUserEmail());
 
-      allow write: if isLibrarian() ||
+      allow write: if isAdmin() || isLibrarian() ||
                    (isAuthenticated() &&
                     request.resource.data.memberEmail == getUserEmail());
     }

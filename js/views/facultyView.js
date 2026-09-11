@@ -5,6 +5,9 @@
 
 const FacultyView = {
   _cachedFaculty: [],
+  _lastDoc: null,
+  _hasMore: false,
+  _isLoading: false,
 
   render() {
     const departments = departmentService.getDepartments();
@@ -51,23 +54,91 @@ const FacultyView = {
             <tr><td colspan="8" style="text-align:center; padding:2rem;"><i data-lucide="loader" class="spin"></i> Loading Staff...</td></tr>
           </tbody>
         </table>
+        <div id="faculty-load-more-container" style="text-align:center; padding:1rem; display:none;">
+          <button id="faculty-load-more-btn" class="btn-secondary" onclick="FacultyView.loadFaculty(true)">Load More</button>
+        </div>
       </div>
     `;
   },
 
   afterRender() {
-    facultyService.listenToFaculty((err, faculty) => {
-      const tbody = document.getElementById('faculty-table-body');
-      if (!tbody) return;
+    this.loadFaculty(false);
+  },
 
-      if (err) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--color-danger);">${err.message}</td></tr>`;
-        return;
+  async loadFaculty(isLoadMore = false) {
+    if (this._isLoading) return;
+    this._isLoading = true;
+
+    const tbody = document.getElementById('faculty-table-body');
+    const loadMoreBtn = document.getElementById('faculty-load-more-btn');
+    const loadMoreContainer = document.getElementById('faculty-load-more-container');
+
+    if (!isLoadMore) {
+      this._lastDoc = null;
+      this._cachedFaculty = [];
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:2.5rem;">
+              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem;">
+                <i data-lucide="loader" class="spin" style="width:28px; height:28px; color:var(--color-primary);"></i>
+                <span style="color:var(--color-text-muted); font-weight:600;">Loading Staff...</span>
+              </div>
+            </td>
+          </tr>
+        `;
+        if (window.lucide) window.lucide.createIcons();
+      }
+      if (loadMoreContainer) loadMoreContainer.style.display = 'none';
+    } else {
+      if (loadMoreBtn) loadMoreBtn.innerHTML = `<i data-lucide="loader" class="spin" style="width:16px; height:16px;"></i> Loading...`;
+    }
+
+    try {
+      const result = await facultyService.loadFaculty(this._lastDoc, 50);
+      this._lastDoc = result.lastDoc;
+      this._hasMore = result.hasMore;
+
+      if (!isLoadMore) {
+        this._cachedFaculty = result.facultyList || [];
+      } else {
+        this._cachedFaculty = [...this._cachedFaculty, ...(result.facultyList || [])];
       }
 
-      this._cachedFaculty = faculty;
-      this._renderTableRows(faculty);
-    });
+      this._renderTableRows(this._cachedFaculty);
+
+      if (loadMoreContainer) {
+        loadMoreContainer.style.display = this._hasMore ? 'block' : 'none';
+      }
+      if (loadMoreBtn) {
+        loadMoreBtn.innerHTML = `Load More`;
+      }
+    } catch (err) {
+      if (!isLoadMore && tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:2.5rem; color:var(--color-danger);">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
+                <i data-lucide="alert-circle" style="width:32px; height:32px;"></i>
+                <div>
+                  <strong>Unable to load staff records</strong>
+                  <div style="font-size:0.85rem; color:var(--color-text-muted); margin-top:0.25rem;">${err.message || "Please check your network connection."}</div>
+                </div>
+                <button class="btn-primary" onclick="FacultyView.loadFaculty(false)" style="margin-top:0.5rem; padding:0.4rem 1rem; font-size:0.85rem;">
+                  <i data-lucide="refresh-cw"></i> Retry
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+        if (window.lucide) window.lucide.createIcons();
+      } else {
+        UIService.showToast(err.message, "danger");
+        if (loadMoreBtn) loadMoreBtn.innerHTML = `Load More`;
+      }
+    } finally {
+      this._isLoading = false;
+    }
   },
 
   _renderTableRows(faculty) {
@@ -275,7 +346,7 @@ const FacultyView = {
       qualification: document.getElementById('m-fac-qual').value,
       specialization: document.getElementById('m-fac-spec').value,
       status: document.getElementById('m-fac-status').value,
-      staffRole: selectedRole
+      role: selectedRole
     };
 
     if(!fname || !lname || !data.department || !data.designation || !data.employeeId) {
@@ -288,6 +359,7 @@ const FacultyView = {
       UIService.closeModal();
       const roleLabel = AuthorizationService.getRoleDisplayName(selectedRole);
       UIService.showToast(`${roleLabel} added successfully.`, "success");
+      this.loadFaculty(false);
     } catch (err) {
       UIService.showToast(err.message, "danger");
     }
@@ -386,6 +458,7 @@ const FacultyView = {
           });
           UIService.closeModal();
           UIService.showToast("Staff member updated successfully.", "success");
+          this.loadFaculty(false);
         } catch (e) {
           UIService.showToast(e.message, "danger");
         }
@@ -398,6 +471,7 @@ const FacultyView = {
       try {
         await facultyService.deleteFaculty(docId);
         UIService.showToast("Staff member deleted successfully.", "success");
+        this.loadFaculty(false);
       } catch (err) {
         UIService.showToast(err.message, "danger");
       }

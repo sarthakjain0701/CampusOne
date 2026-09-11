@@ -3,6 +3,14 @@
    ========================================================================== */
 
 const AttendanceAssignmentsView = {
+  assignments: [],
+  depts: [],
+  classes: [],
+  subjects: [],
+  faculty: [],
+  timetables: [],
+  loading: true,
+
   selectedYear: '2026-27',
   selectedDept: '',
   selectedSem: '',
@@ -11,13 +19,50 @@ const AttendanceAssignmentsView = {
   selectedFaculty: '',
   selectedTimetable: '',
 
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      this.depts = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
+      this.classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
+      this.subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+      this.faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
+      this.timetables = typeof TimetableService !== 'undefined' ? await TimetableService.getAllTimetables() : [];
+      
+      this.assignments = typeof AttendanceAssignmentService !== 'undefined' ? await AttendanceAssignmentService.getAssignments() : [];
+      this.loading = false;
+      App.renderCurrentView();
+    } catch (err) {
+      this.loading = false;
+      UIService.showToast(err.message || "Failed to load attendance assignments.", "danger");
+      App.renderCurrentView();
+    }
+  },
+
   render() {
-    const assignments = typeof AttendanceAssignmentService !== 'undefined' ? AttendanceAssignmentService.getAssignments() : [];
-    const depts = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
-    const faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
-    const timetables = typeof TimetableService !== 'undefined' ? TimetableService.getAllTimetables() : [];
+    if (this.loading) {
+      return `
+        <div class="page-header">
+          <h1>Faculty Attendance Assignments</h1>
+          <p>Assign faculty members to specific timetable sessions for marking attendance.</p>
+        </div>
+        <div class="card" style="padding: 3rem; text-align: center;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading attendance assignments...</p>
+        </div>
+      `;
+    }
+
+    const assignments = this.assignments;
+    const depts = this.depts;
+    const classes = this.classes;
+    const subjects = this.subjects;
+    const faculty = this.faculty;
+    const timetables = this.timetables;
 
     // Filter Logic
     const filteredClasses = classes.filter(c => 
@@ -191,10 +236,10 @@ const AttendanceAssignmentsView = {
     App.renderCurrentView();
   },
 
-  handleAssign(e) {
+  async handleAssign(e) {
     e.preventDefault();
     try {
-      AttendanceAssignmentService.createAssignment({
+      await AttendanceAssignmentService.createAssignment({
         academicYear: this.selectedYear,
         departmentId: this.selectedDept,
         semester: this.selectedSem,
@@ -208,16 +253,18 @@ const AttendanceAssignmentsView = {
       // Reset form but keep dept/sem/class for rapid assigning
       this.selectedSubject = '';
       this.selectedTimetable = '';
+      this.loading = true;
       App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");
     }
   },
 
-  toggleStatus(id, newStatus) {
+  async toggleStatus(id, newStatus) {
     try {
-      AttendanceAssignmentService.updateAssignmentStatus(id, newStatus);
+      await AttendanceAssignmentService.updateAssignmentStatus(id, newStatus);
       UIService.showToast(`Assignment marked as ${newStatus}`, "info");
+      this.loading = true;
       App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");

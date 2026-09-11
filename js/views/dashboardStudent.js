@@ -1,53 +1,58 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - STUDENT DASHBOARD (DYNAMIC SERVICE CALCULATED)
+   Instant Shell Rendering & Non-blocking Background Stats
    ========================================================================== */
 
 const DashboardStudent = {
-  loading: true,
+  loading: false,
   libraryStats: { issued: 0, overdue: 0, fine: 0 },
+  _hasFetchedLibrary: false,
 
-  async fetchData(userId) {
+  async fetchLibraryStats(user) {
+    if (!user || this._hasFetchedLibrary) return;
+    this._hasFetchedLibrary = true;
+
     try {
       if (window.LibraryService) {
         const db = LibraryService._getDb();
-        const transSnapshot = await db.collection('libraryTransactions').where('userId', '==', userId).get();
-        const transactions = transSnapshot.docs.map(d => d.data());
+        const userEmail = (user.email || '').toLowerCase().trim();
         
-        const fineSnapshot = await db.collection('libraryFines').where('userId', '==', userId).where('status', '==', 'PENDING').get();
+        // Fetch user's transactions and fines in parallel aligning with firestore.rules
+        const [transSnapshot, fineSnapshot] = await Promise.all([
+          db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get().catch(e => ({ docs: [] })),
+          db.collection('libraryFines').where('memberEmail', '==', userEmail).where('status', '==', 'PENDING').get().catch(e => ({ docs: [] }))
+        ]);
+
+        const transactions = transSnapshot.docs.map(d => d.data());
         const fines = fineSnapshot.docs.map(d => d.data());
 
         const issued = transactions.filter(r => r.status !== 'RETURNED').length;
         const overdue = transactions.filter(r => r.status === 'OVERDUE' || (r.status === 'ISSUED' && new Date(r.dueDate) < new Date())).length;
-        const fineTotal = fines.reduce((sum, r) => sum + r.amount, 0);
+        const fineTotal = fines.reduce((sum, r) => sum + (r.amount || 0), 0);
 
         this.libraryStats = { issued, overdue, fine: fineTotal };
+        
+        // Update DOM element values smoothly without full page re-render
+        const issuedEl = document.getElementById('stu-dash-lib-issued');
+        if (issuedEl) issuedEl.innerText = `${issued} Books`;
+        const overdueEl = document.getElementById('stu-dash-lib-overdue');
+        if (overdueEl) overdueEl.innerText = `${overdue} Overdue`;
+        const finesEl = document.getElementById('stu-dash-lib-fines');
+        if (finesEl) finesEl.innerText = `₹${fineTotal}`;
       }
     } catch (err) {
-      console.warn("Failed to fetch library stats for dashboard:", err);
-    } finally {
-      this.loading = false;
-      App.renderCurrentView();
+      console.warn("Failed to fetch library stats for student dashboard:", err);
     }
   },
 
   render() {
-    const user = authService.getCurrentUser();
+    const user = authService.getCurrentUser() || { name: 'Student', email: '', uid: 'STU001', role: 'STUDENT' };
     const studentList = studentService.getStudents();
     const myStudent = studentList.find(s => s.email === user.email) || studentList.find(s => s.id === "STU001") || studentList[0] || { id: user.uid, semester: 1, section: 'A' };
     const studentRoll = myStudent.rollNo || myStudent.rollNumber || 'N/A';
     
-    if (this.loading) {
-      this.fetchData(user.uid);
-      return `
-        <div class="page-header">
-          <h1>Welcome, ${user.name || myStudent.name}! 👋</h1>
-        </div>
-        <div class="card" style="padding: 3rem; text-align: center;">
-          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
-          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading your dashboard...</p>
-        </div>
-      `;
-    }
+    // Trigger background fetch if not already done
+    setTimeout(() => this.fetchLibraryStats(user), 0);
     
     // Dynamic attendance calculation from mock service
     const stats = attendanceService.getStudentAttendance(myStudent.id);
@@ -157,15 +162,15 @@ const DashboardStudent = {
           <div style="padding-top:0.75rem; display:grid; grid-template-columns: repeat(3, 1fr); gap:0.5rem; text-align:center; margin-bottom:1rem;">
             <div style="background:#F8FAFC; padding:0.5rem; border-radius:6px;">
               <span style="font-size:0.75rem; color:var(--color-text-muted);">Issued</span>
-              <div style="font-size:1.15rem; font-weight:700; color:var(--color-navy-dark);">${this.libraryStats.issued}</div>
+              <div id="stu-dash-lib-issued" style="font-size:1.15rem; font-weight:700; color:var(--color-navy-dark);">${this.libraryStats.issued}</div>
             </div>
             <div style="background:#FFF1F2; padding:0.5rem; border-radius:6px;">
               <span style="font-size:0.75rem; color:var(--color-danger);">Overdue</span>
-              <div style="font-size:1.15rem; font-weight:700; color:var(--color-danger);">${this.libraryStats.overdue}</div>
+              <div id="stu-dash-lib-overdue" style="font-size:1.15rem; font-weight:700; color:var(--color-danger);">${this.libraryStats.overdue}</div>
             </div>
             <div style="background:#FFFBEB; padding:0.5rem; border-radius:6px;">
               <span style="font-size:0.75rem; color:var(--color-warning);">Fine</span>
-              <div style="font-size:1.15rem; font-weight:700; color:var(--color-warning);">₹${this.libraryStats.fine}</div>
+              <div id="stu-dash-lib-fines" style="font-size:1.15rem; font-weight:700; color:var(--color-warning);">₹${this.libraryStats.fine}</div>
             </div>
           </div>
           <button class="btn-secondary" style="width:100%; justify-content:center; padding:0.45rem;" onclick="App.navigateTo('library')">

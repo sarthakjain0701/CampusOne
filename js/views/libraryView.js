@@ -1,12 +1,13 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LIBRARY VIEW (STUDENT/FACULTY)
-   Read-only portal for academic users
+   Read-only portal for academic users with parallelized Firestore queries
    ========================================================================== */
 
 const LibraryView = {
   loading: true,
   transactions: [],
   fines: [],
+  errorMessage: null,
 
   afterRender() {
     if (this.loading) {
@@ -18,23 +19,40 @@ const LibraryView = {
     const user = authService.getCurrentUser();
     if (!user) return;
 
+    this.errorMessage = null;
+
     try {
       const db = LibraryService._getDb();
-      // Fetch user's transactions
-      const transSnapshot = await db.collection('libraryTransactions').where('userId', '==', user.uid).get();
+      const userEmail = (user.email || '').toLowerCase().trim();
+
+      // Parallelize queries aligning with Firestore security rules
+      const [transSnapshot, fineSnapshot] = await Promise.all([
+        db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get().catch(e => {
+          console.warn("Transactions query warning:", e);
+          return { docs: [] };
+        }),
+        db.collection('libraryFines').where('memberEmail', '==', userEmail).get().catch(e => {
+          console.warn("Fines query warning:", e);
+          return { docs: [] };
+        })
+      ]);
+
       this.transactions = transSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      // Fetch user's fines
-      const fineSnapshot = await db.collection('libraryFines').where('userId', '==', user.uid).get();
       this.fines = fineSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
       this.loading = false;
       App.renderCurrentView();
     } catch (err) {
-      console.error(err);
-      UIService.showToast("Failed to load library records.", "danger");
+      console.error("LibraryView fetch error:", err);
+      this.errorMessage = err.message || "Failed to load library records.";
       this.loading = false;
+      App.renderCurrentView();
     }
+  },
+
+  retry() {
+    this.loading = true;
+    this.errorMessage = null;
+    App.renderCurrentView();
   },
 
   render(params = {}) {
@@ -47,6 +65,22 @@ const LibraryView = {
         <div class="card" style="padding: 3rem; text-align: center;">
           <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
           <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading your library records...</p>
+        </div>
+      `;
+    }
+
+    if (this.errorMessage) {
+      return `
+        <div class="page-header"><h1>Library Portal</h1></div>
+        <div class="card" style="padding: 3rem; text-align: center; border-color: #FECACA;">
+          <div style="width:48px; height:48px; border-radius:50%; background:#FEE2E2; color:#DC2626; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem auto;">
+            <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
+          </div>
+          <h3 style="color:#991B1B; font-weight:700; margin-bottom:0.5rem;">Unable to load library records</h3>
+          <p style="color:var(--color-text-muted); font-size:0.9rem; margin-bottom:1.25rem;">${this.errorMessage}</p>
+          <button class="btn-primary" onclick="LibraryView.retry()">
+            <i data-lucide="refresh-cw"></i> Retry
+          </button>
         </div>
       `;
     }

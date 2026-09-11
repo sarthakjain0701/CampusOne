@@ -1,11 +1,12 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LIBRARY BOOKS VIEW
-   Manage Books and Inventory
+   Manage Books and Inventory with robust error boundary & retry
    ========================================================================== */
 
 const LibraryBooksView = {
   books: [],
   loading: true,
+  errorMessage: null,
 
   afterRender() {
     if (this.loading) {
@@ -14,15 +15,23 @@ const LibraryBooksView = {
   },
 
   async fetchBooks() {
+    this.errorMessage = null;
     try {
       this.books = await LibraryService.getBooks();
       this.loading = false;
       App.renderCurrentView();
     } catch (error) {
-      console.error(error);
-      UIService.showToast("Failed to load books.", "danger");
+      console.error("LibraryBooksView fetch error:", error);
+      this.errorMessage = error.message || "Failed to load library books.";
       this.loading = false;
+      App.renderCurrentView();
     }
+  },
+
+  retry() {
+    this.loading = true;
+    this.errorMessage = null;
+    App.renderCurrentView();
   },
 
   render() {
@@ -34,6 +43,24 @@ const LibraryBooksView = {
         <div class="card" style="padding: 3rem; text-align: center;">
           <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
           <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading books from Firestore...</p>
+        </div>
+      `;
+    }
+
+    if (this.errorMessage) {
+      return `
+        <div class="page-header">
+          <div><h1>Books & Inventory</h1></div>
+        </div>
+        <div class="card" style="padding: 3rem; text-align: center; border-color: #FECACA;">
+          <div style="width:48px; height:48px; border-radius:50%; background:#FEE2E2; color:#DC2626; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem auto;">
+            <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
+          </div>
+          <h3 style="color:#991B1B; font-weight:700; margin-bottom:0.5rem;">Unable to load library catalog</h3>
+          <p style="color:var(--color-text-muted); font-size:0.9rem; margin-bottom:1.25rem;">${this.errorMessage}</p>
+          <button class="btn-primary" onclick="LibraryBooksView.retry()">
+            <i data-lucide="refresh-cw"></i> Retry
+          </button>
         </div>
       `;
     }

@@ -1,14 +1,29 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE MANAGEMENT SYSTEM (PAMS) - FIREBASE SERVICE
-   Firebase Web SDK v10 Auth & Cloud Firestore Adapter
+   POORNIMA ATTENDANCE MANAGEMENT SYSTEM (PAMS) - CENTRALIZED FIREBASE SERVICE
+   Firebase Web SDK v10 Auth & Cloud Firestore Adapter with Centralized Auth State
    ========================================================================== */
 
 const FirebaseService = {
   isInitialized: false,
   auth: null,
   db: null,
+  currentUser: null,
+  rawFirebaseUser: null,
+  isAuthReady: false,
+  _authReadyResolve: null,
+  _authReadyPromise: null,
+  _authListenerRegistered: false,
+  _authSubscribers: new Set(),
 
-  async init() {
+  init() {
+    if (this._authReadyPromise) {
+      return this._authReadyPromise;
+    }
+
+    this._authReadyPromise = new Promise((resolve) => {
+      this._authReadyResolve = resolve;
+    });
+
     try {
       if (!this.isInitialized) {
         if (window.firebase && window.firebase.apps && window.firebase.apps.length === 0) {
@@ -18,15 +33,120 @@ const FirebaseService = {
         if (window.firebase) {
           this.auth = window.firebase.auth();
           this.db = window.firebase.firestore();
-          // Optional: handle auth state persistence here if needed
-          await this.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+          
+          // Enable offline cache if available
+          try {
+            this.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Auth persistence:", e));
+          } catch (pErr) {
+            console.warn("Set persistence notice:", pErr);
+          }
+
+          // Register SINGLE centralized onAuthStateChanged listener
+          if (!this._authListenerRegistered && this.auth) {
+            this._authListenerRegistered = true;
+            this.auth.onAuthStateChanged(async (firebaseUser) => {
+              this.rawFirebaseUser = firebaseUser;
+              
+              if (firebaseUser) {
+                // If we don't have user in memory, try loading from local session or Firestore
+                if (!this.currentUser) {
+                  const stored = localStorage.getItem('pas_session_user');
+                  if (stored) {
+                    try {
+                      this.currentUser = JSON.parse(stored);
+                      if (window.DataStore) window.DataStore.setCurrentUser(this.currentUser);
+                    } catch (e) {
+                      console.warn("Error parsing stored session:", e);
+                    }
+                  }
+                  
+                  // Non-blocking background verification if needed
+                  this._verifyAndRefreshProfile(firebaseUser).catch(err => {
+                    console.warn("Background profile sync:", err);
+                  });
+                }
+              } else {
+                // Signed out
+                this.currentUser = null;
+                if (window.DataStore) window.DataStore.setCurrentUser(null);
+                localStorage.removeItem('pas_session_user');
+              }
+
+              this.isAuthReady = true;
+              if (this._authReadyResolve) {
+                this._authReadyResolve(this.currentUser);
+                this._authReadyResolve = null;
+              }
+              this._notifyAuthSubscribers(this.currentUser);
+            });
+          }
         }
         this.isInitialized = true;
       }
     } catch (err) {
       console.warn("Firebase Init notice: Using hybrid DataStore fallback mode.", err);
       this.isInitialized = true;
+      this.isAuthReady = true;
+      if (this._authReadyResolve) {
+        this._authReadyResolve(this.currentUser);
+        this._authReadyResolve = null;
+      }
     }
+
+    return this._authReadyPromise;
+  },
+
+  async waitForAuthReady() {
+    if (this.isAuthReady) return this.currentUser;
+    return this.init();
+  },
+
+  subscribeAuthState(callback) {
+    if (typeof callback === 'function') {
+      this._authSubscribers.add(callback);
+      if (this.isAuthReady) {
+        callback(this.currentUser);
+      }
+    }
+    return () => this._authSubscribers.delete(callback);
+  },
+
+  _notifyAuthSubscribers(user) {
+    this._authSubscribers.forEach(cb => {
+      try {
+        cb(user);
+      } catch (err) {
+        console.error("Auth subscriber error:", err);
+      }
+    });
+  },
+
+  async _verifyAndRefreshProfile(firebaseUser) {
+    if (!this.db || !firebaseUser) return null;
+    try {
+      const userDoc = await this.db.collection('users').doc(firebaseUser.uid).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const roleLower = (userData.role || '').toLowerCase();
+        const normalizedRole = (roleLower === 'administrator' || roleLower === 'admin') ? 'ADMIN' : roleLower.toUpperCase();
+        
+        this.currentUser = {
+          uid: firebaseUser.uid,
+          email: userData.email || firebaseUser.email,
+          role: normalizedRole,
+          name: userData.name || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User'),
+          active: (userData.status || 'ACTIVE').toUpperCase() === 'ACTIVE',
+          mustChangePassword: userData.mustChangePassword === true
+        };
+
+        localStorage.setItem('pas_session_user', JSON.stringify(this.currentUser));
+        if (window.DataStore) window.DataStore.setCurrentUser(this.currentUser);
+        return this.currentUser;
+      }
+    } catch (err) {
+      console.warn("Silent profile sync skipped:", err);
+    }
+    return this.currentUser;
   },
 
   async loginWithEmailAndPassword(email, password) {
@@ -64,33 +184,29 @@ const FirebaseService = {
     if (userDoc.exists) {
       userData = userDoc.data();
     } else {
-      // 2. Dynamic Migration Fallback: Query legacy collections
-      console.log(`Profile missing in centralized "users" collection for ${authenticatedEmail}. Searching legacy collections...`);
+      // 2. Dynamic Migration Fallback: Query legacy collections in PARALLEL
+      console.log(`Profile missing in centralized "users" collection for ${authenticatedEmail}. Searching legacy collections in parallel...`);
       
-      let legacyDoc;
+      let legacyDoc = null;
       let legacyRole = '';
       
-      // Try admins first
       try {
-        legacyDoc = await this.db.collection('admins').doc(authenticatedEmail).get();
-        if (legacyDoc.exists) {
-          legacyRole = 'administrator';
-        } else {
-          // Try faculties next
-          legacyDoc = await this.db.collection('faculties').doc(authenticatedEmail).get();
-          if (legacyDoc.exists) {
-            const data = legacyDoc.data();
-            legacyRole = (data.role || data.staffRole || 'faculty').toLowerCase();
-            if (legacyRole === 'librarian') legacyRole = 'librarian';
-            else if (legacyRole === 'faculty') legacyRole = 'faculty';
-            else if (legacyRole === 'lab_assistant') legacyRole = 'lab_assistant';
-          } else {
-            // Try authorizedUsers (students) last
-            legacyDoc = await this.db.collection('authorizedUsers').doc(authenticatedEmail).get();
-            if (legacyDoc.exists) {
-              legacyRole = 'student';
-            }
-          }
+        const [adminSnap, facultySnap, studentSnap] = await Promise.allSettled([
+          this.db.collection('admins').doc(authenticatedEmail).get(),
+          this.db.collection('faculties').doc(authenticatedEmail).get(),
+          this.db.collection('authorizedUsers').doc(authenticatedEmail).get()
+        ]);
+
+        if (adminSnap.status === 'fulfilled' && adminSnap.value.exists) {
+          legacyDoc = adminSnap.value;
+          legacyRole = 'ADMIN';
+        } else if (facultySnap.status === 'fulfilled' && facultySnap.value.exists) {
+          legacyDoc = facultySnap.value;
+          const data = legacyDoc.data();
+          legacyRole = (data.role || data.staffRole || 'FACULTY').toUpperCase();
+        } else if (studentSnap.status === 'fulfilled' && studentSnap.value.exists) {
+          legacyDoc = studentSnap.value;
+          legacyRole = 'STUDENT';
         }
       } catch (err) {
         console.error("Failed to fetch legacy documents during fallback check", err);
@@ -104,18 +220,16 @@ const FirebaseService = {
           uid: firebaseUser.uid,
           email: authenticatedEmail,
           role: legacyRole.toLowerCase(),
-          status: (legacyData.status || 'active').toLowerCase(),
+          status: (legacyData.status || 'ACTIVE').toLowerCase(),
           name: legacyData.name || authenticatedEmail.split('@')[0],
           updatedAt: new Date().toISOString(),
           createdAt: legacyData.createdAt || new Date().toISOString()
         };
 
-        try {
-          await this.db.collection('users').doc(firebaseUser.uid).set(userData);
-          console.log(`Successfully migrated user ${authenticatedEmail} to centralized users collection with role: ${userData.role}`);
-        } catch (err) {
+        // Write non-blocking
+        this.db.collection('users').doc(firebaseUser.uid).set(userData).catch(err => {
           console.error("Failed to write migrated user profile to Firestore", err);
-        }
+        });
       } else {
         await this.auth.signOut();
         throw new Error("User profile not found. Please contact the administrator.");
@@ -140,34 +254,55 @@ const FirebaseService = {
       throw new Error("Your account is inactive. Please contact the administrator.");
     }
 
-    // 4. Convert to PAMS internal user object structure for the session (normalise role to UPPERCASE for runtime backward-compatibility)
+    // 4. Convert to PAMS internal user object structure for the session
     const normalizedRole = (roleLower === 'administrator' || roleLower === 'admin') ? 'ADMIN' : roleLower.toUpperCase();
     const pamsUser = {
       uid: firebaseUser.uid,
-      email: userData.email,
+      email: userData.email || authenticatedEmail,
       role: normalizedRole,
-      name: userData.name,
+      name: userData.name || authenticatedEmail.split('@')[0],
       active: true,
       mustChangePassword: userData.mustChangePassword === true
     };
 
-    window.DataStore.setCurrentUser(pamsUser);
+    this.currentUser = pamsUser;
+    this.rawFirebaseUser = firebaseUser;
+    if (window.DataStore) window.DataStore.setCurrentUser(pamsUser);
     localStorage.setItem('pas_session_user', JSON.stringify(pamsUser));
+    this._notifyAuthSubscribers(pamsUser);
     
     return pamsUser;
   },
 
   async signOut() {
     if (this.auth) {
-      await this.auth.signOut();
+      try {
+        await this.auth.signOut();
+      } catch (err) {
+        console.warn("Sign out notice:", err);
+      }
     }
-    window.DataStore.setCurrentUser(null);
+    this.currentUser = null;
+    this.rawFirebaseUser = null;
+    if (window.DataStore) window.DataStore.setCurrentUser(null);
+    localStorage.removeItem('pas_session_user');
+    this._notifyAuthSubscribers(null);
     return true;
   },
 
-  async getCurrentUser() {
-    return window.DataStore.getCurrentUser();
+  getCurrentUser() {
+    if (this.currentUser) return this.currentUser;
+    const stored = localStorage.getItem('pas_session_user');
+    if (stored) {
+      try {
+        this.currentUser = JSON.parse(stored);
+      } catch (e) {
+        this.currentUser = null;
+      }
+    }
+    return this.currentUser;
   }
 };
 
 window.FirebaseService = FirebaseService;
+

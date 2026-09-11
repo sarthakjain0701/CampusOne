@@ -1,6 +1,6 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM (PAS) - AUTHENTICATION SERVICE (MOCK)
-   Pure client-side authentication without Firebase dependencies.
+   POORNIMA ATTENDANCE SYSTEM (PAS) - AUTHENTICATION SERVICE
+   Centralized Client-Side Auth State with Firebase Auth Synchronization
    ========================================================================== */
 
 const authService = {
@@ -21,13 +21,12 @@ const authService = {
       throw new Error("Firebase Service is not loaded.");
     }
 
-    // Call Firebase Service which handles Auth + Firestore Verification + Local Session
+    // Call Firebase Service which handles Auth + Firestore Verification + Centralized State
     return await window.FirebaseService.loginWithEmailAndPassword(safeEmail, password);
   },
 
   async logout() {
-    const user = this.getCurrentUser();
-    if (user && window.FirebaseService) {
+    if (window.FirebaseService) {
       try {
         await window.FirebaseService.signOut();
       } catch (err) {
@@ -35,12 +34,25 @@ const authService = {
       }
     }
     localStorage.removeItem(this.STORAGE_KEY);
+    if (window.DataStore) window.DataStore.setCurrentUser(null);
     return true;
   },
 
   getCurrentUser() {
+    if (window.FirebaseService && window.FirebaseService.currentUser) {
+      return window.FirebaseService.currentUser;
+    }
     const data = localStorage.getItem(this.STORAGE_KEY);
-    return data ? JSON.parse(data) : null;
+    if (data) {
+      try {
+        const parsed = JSON.parse(data);
+        if (window.FirebaseService) window.FirebaseService.currentUser = parsed;
+        return parsed;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   },
 
   getCurrentRole() {
@@ -63,3 +75,4 @@ const authService = {
 };
 
 window.authService = authService;
+
