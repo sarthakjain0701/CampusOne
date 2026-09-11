@@ -28,7 +28,7 @@ const AttendanceAssignmentsView = {
   async fetchData() {
     try {
       this.depts = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
-      this.classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
+      this.classes = typeof classService !== 'undefined' ? await classService.getClassesFromFirestore() : [];
       this.subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
       this.faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
       this.timetables = typeof TimetableService !== 'undefined' ? await TimetableService.getAllTimetables() : [];
