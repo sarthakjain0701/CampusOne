@@ -11,7 +11,6 @@ const ReferenceMigrationService = {
     }
 
     const db = window.FirebaseService.db;
-    const { doc, getDoc, setDoc } = window.FirebaseService.firestore;
     
     if (!window.MOCK_DATA) {
       console.error("MOCK_DATA not found.");
@@ -29,14 +28,14 @@ const ReferenceMigrationService = {
       for (const item of dataArray) {
         if (!item.id) continue;
         try {
-          const docRef = doc(db, collectionName, item.id);
-          const snap = await getDoc(docRef);
+          const docRef = db.collection(collectionName).doc(item.id);
+          const snap = await docRef.get();
           
-          if (!snap.exists()) {
+          if (!snap.exists) {
             // Write strictly the existing object
             const payload = { ...item };
             // Ensure ID is matched to document
-            await setDoc(docRef, payload);
+            await docRef.set(payload);
             report[reportKey].created++;
           } else {
             // Already exists, do not overwrite to prevent trashing production data
