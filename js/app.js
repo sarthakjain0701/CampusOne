@@ -500,7 +500,10 @@ const App = {
 
     const user = authService.getCurrentUser();
     if (this.currentView === 'dashboard') {
-      if (user && user.role === 'ADMIN' && window.DashboardAdmin.initCharts) window.DashboardAdmin.initCharts();
+      if (user && user.role === 'ADMIN') {
+        if (window.DashboardAdmin && window.DashboardAdmin.afterRender) window.DashboardAdmin.afterRender();
+        else if (window.DashboardAdmin && window.DashboardAdmin.initCharts) window.DashboardAdmin.initCharts();
+      }
       if (user && (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT')) {
         if (window.DashboardFaculty.afterRender) window.DashboardFaculty.afterRender();
         if (window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
