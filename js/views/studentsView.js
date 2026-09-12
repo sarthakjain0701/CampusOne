@@ -5,6 +5,8 @@
 
 const StudentsView = {
   _cachedStudents: [],
+  _depts: [],
+  _classes: [],
   _lastDoc: null,
   _hasMore: false,
   _isLoading: false,
@@ -42,7 +44,7 @@ const StudentsView = {
       </div>
 
       <div class="table-container">
-        <table class="custom-table" id="students-table">
+        <table class="data-table" id="students-table">
           <thead>
             <tr>
               <th>Roll No.</th>
@@ -50,15 +52,30 @@ const StudentsView = {
               <th>Department</th>
               <th>Class/Section</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style="width: 50px;"></th>
             </tr>
           </thead>
           <tbody id="students-table-body">
-            <tr><td colspan="6" style="text-align:center; padding:2rem;"><i data-lucide="loader" class="spin"></i> Loading Students...</td></tr>
+            <tr><td colspan="6" style="text-align:center;"><div class="skeleton" style="height:36px; margin: 10px;"></div></td></tr>
           </tbody>
         </table>
         <div id="student-load-more-container" style="text-align:center; padding:1rem; display:none;">
           <button id="student-load-more-btn" class="btn-secondary" onclick="StudentsView.loadStudents(true)">Load More</button>
+        </div>
+      </div>
+
+      <!-- VIEW DETAILS DRAWER -->
+      <div class="drawer-overlay" id="student-details-drawer" onclick="if(event.target===this) StudentsView.closeDetailsDrawer()">
+        <div class="drawer-panel">
+          <div class="drawer-header">
+            <h3 class="drawer-title">Student Profile</h3>
+            <button class="btn-close" onclick="StudentsView.closeDetailsDrawer()"><i data-lucide="x"></i></button>
+          </div>
+          <div class="drawer-body" id="student-details-content">
+          </div>
+          <div class="drawer-footer">
+            <button class="btn-secondary" onclick="StudentsView.closeDetailsDrawer()">Close</button>
+          </div>
         </div>
       </div>
     `;
@@ -82,7 +99,7 @@ const StudentsView = {
       if (tbody) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align:center; padding:2.5rem;">
+            <td colspan="6" style="text-align:center;">
               <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem;">
                 <i data-lucide="loader" class="spin" style="width:28px; height:28px; color:var(--color-primary);"></i>
                 <span style="color:var(--color-text-muted); font-weight:600;">Loading Students...</span>
@@ -120,14 +137,14 @@ const StudentsView = {
       if (!isLoadMore && tbody) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align:center; padding:2.5rem; color:var(--color-danger);">
+            <td colspan="6" style="text-align:center;">
               <div style="display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
                 <i data-lucide="alert-circle" style="width:32px; height:32px;"></i>
                 <div>
                   <strong>Unable to load student records</strong>
                   <div style="font-size:0.85rem; color:var(--color-text-muted); margin-top:0.25rem;">${err.message || "Please check your network connection."}</div>
                 </div>
-                <button class="btn-primary" onclick="StudentsView.loadStudents(false)" style="margin-top:0.5rem; padding:0.4rem 1rem; font-size:0.85rem;">
+                <button class="btn-primary" onclick="StudentsView.loadStudents(false)" style="margin-top:0.5rem;">
                   <i data-lucide="refresh-cw"></i> Retry
                 </button>
               </div>
@@ -149,7 +166,7 @@ const StudentsView = {
     if (!tbody) return;
 
     if (students.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--color-text-muted);">No student records found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No student records found.</td></tr>';
     } else {
       tbody.innerHTML = students.map(s => `
         <tr>
@@ -162,9 +179,21 @@ const StudentsView = {
           <td>Sem ${s.semester || '-'} - Sec ${s.section || '-'}</td>
           <td><span class="status-badge ${s.status === 'ACTIVE' ? 'present' : 'absent'}">${s.status || 'N/A'}</span></td>
           <td>
-            <div class="action-btns">
-              <button class="btn-icon-sm" onclick="StudentsView.openEditModal('${s.id}')" title="Edit"><i data-lucide="edit-2"></i></button>
-              <button class="btn-icon-sm danger" onclick="StudentsView.deleteStudent('${s.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
+            <div class="action-menu-container">
+              <button class="btn-icon" onclick="StudentsView.toggleActionMenu('${s.id}', event)">
+                <i data-lucide="more-vertical"></i>
+              </button>
+              <div class="action-menu-dropdown" id="action-menu-${s.id}">
+                <button class="action-menu-item" onclick="StudentsView.openDetailsDrawer('${s.id}')">
+                  <i data-lucide="eye" style="width:16px;"></i> View Details
+                </button>
+                <button class="action-menu-item" onclick="StudentsView.openEditModal('${s.id}')">
+                  <i data-lucide="edit-2" style="width:16px;"></i> Edit Student
+                </button>
+                <button class="action-menu-item danger" onclick="StudentsView.deleteStudent('${s.id}')">
+                  <i data-lucide="trash-2" style="width:16px;"></i> Delete Student
+                </button>
+              </div>
             </div>
           </td>
         </tr>
@@ -451,8 +480,60 @@ const StudentsView = {
         UIService.showToast(err.message, "danger");
       }
     });
+  },
+
+  toggleActionMenu(id, e) {
+    e.stopPropagation();
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+    const menu = document.getElementById(`action-menu-${id}`);
+    if (menu) menu.classList.toggle('active');
+  },
+
+  openDetailsDrawer(id) {
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+    const s = this._cachedStudents.find(x => x.id === id);
+    if (!s) return;
+
+    document.getElementById('student-details-content').innerHTML = `
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--color-primary); color: #FFF; font-size: 2rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          ${(s.name || 'U').charAt(0).toUpperCase()}
+        </div>
+        <h4 style="font-size: 1.25rem; font-weight: 700; color: var(--color-navy-dark); margin: 0;">${s.name || 'N/A'}</h4>
+        <div style="font-size: 0.85rem; color: var(--color-text-muted);">${s.email || 'N/A'}</div>
+      </div>
+
+      <div style="margin-bottom: 2rem;">
+        <h4 style="margin-bottom: 1rem; color: var(--color-primary); border-bottom: 1px solid #E2E8F0; padding-bottom: 0.5rem;">Academic Profile</h4>
+        <div class="detail-group"><div class="detail-label">Roll Number</div><div class="detail-value">${s.rollNumber || s.rollNo || 'N/A'}</div></div>
+        <div class="detail-group"><div class="detail-label">Registration Number</div><div class="detail-value">${s.registrationNumber || 'N/A'}</div></div>
+        <div class="detail-group"><div class="detail-label">Department</div><div class="detail-value">${s.department || 'N/A'}</div></div>
+        <div class="detail-group"><div class="detail-label">Class</div><div class="detail-value">Semester ${s.semester || '-'} • Section ${s.section || '-'}</div></div>
+        <div class="detail-group"><div class="detail-label">Enrollment Year</div><div class="detail-value">${s.enrollmentYear || 'N/A'}</div></div>
+      </div>
+
+      <div>
+        <h4 style="margin-bottom: 1rem; color: var(--color-primary); border-bottom: 1px solid #E2E8F0; padding-bottom: 0.5rem;">System Information</h4>
+        <div class="detail-group">
+          <div class="detail-label">Account Status</div>
+          <div class="detail-value"><span class="status-badge ${s.status === 'ACTIVE' ? 'present' : 'absent'}">${s.status || 'N/A'}</span></div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('student-details-drawer').classList.add('active');
+  },
+  
+  closeDetailsDrawer() {
+    document.getElementById('student-details-drawer').classList.remove('active');
   }
 };
+
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.action-menu-container')) {
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+  }
+});
 
 window.StudentsView = StudentsView;
 

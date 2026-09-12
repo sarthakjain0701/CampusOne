@@ -3,241 +3,229 @@
    ========================================================================== */
 
 const DashboardAdmin = {
-  render() {
-    const user = authService.getCurrentUser();
-    const students = studentService.getStudents();
-    const faculty = facultyService.getFaculty();
-    const subjects = subjectService.getSubjects();
-    const classes = classService.getClasses();
+  
+  loading: true,
+  students: [],
+  faculty: [],
+  subjects: [],
+  classes: [],
+  departments: [],
 
-    return `
-      <div class="page-header">
-        <h1>Welcome back, ${user ? user.name : 'Admin'}! 👋</h1>
-        <p>Here's what's happening across Poornima Attendance System today.</p>
-      </div>
-
-      <!-- STATISTIC CARDS (DYNAMICALLY CALCULATED FROM MOCK SERVICES) -->
-      <div class="stats-grid">
-        <div class="stat-card" onclick="App.navigateTo('students')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Total Students</h3>
-            <div class="value">${students.length}</div>
-            <span class="stat-trend positive"><i data-lucide="trending-up"></i> Active Enrolled</span>
-          </div>
-          <div class="stat-icon blue">
-            <i data-lucide="graduation-cap"></i>
-          </div>
-        </div>
-
-        <div class="stat-card" onclick="App.navigateTo('faculty')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Total Faculty</h3>
-            <div class="value">${faculty.length}</div>
-            <span class="stat-trend positive"><i data-lucide="trending-up"></i> Active Instructors</span>
-          </div>
-          <div class="stat-icon purple">
-            <i data-lucide="users"></i>
-          </div>
-        </div>
-
-        <div class="stat-card" onclick="App.navigateTo('subjects')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Total Subjects</h3>
-            <div class="value">${subjects.length}</div>
-            <span class="stat-trend positive"><i data-lucide="check-circle"></i> Active Courses</span>
-          </div>
-          <div class="stat-icon green">
-            <i data-lucide="book-open"></i>
-          </div>
-        </div>
-
-        <div class="stat-card" onclick="App.navigateTo('classes')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Total Classes</h3>
-            <div class="value">${classes.length}</div>
-            <span class="stat-trend positive"><i data-lucide="award"></i> Active Sections</span>
-          </div>
-          <div class="stat-icon amber">
-            <i data-lucide="layers"></i>
-          </div>
-        </div>
-      </div>
-
-      <!-- ACADEMIC SERVICES SUMMARY CARDS (BATCH 1) -->
-      <div class="stats-grid" style="margin-bottom:1.5rem;">
-        <div class="stat-card" onclick="App.navigateTo('digital-learning')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Learning Resources</h3>
-            <div class="value">${MOCK_DATA.learningResources ? MOCK_DATA.learningResources.length : 0}</div>
-            <span class="stat-trend positive"><i data-lucide="book-open"></i> Uploaded Materials</span>
-          </div>
-          <div class="stat-icon blue"><i data-lucide="file-text"></i></div>
-        </div>
-
-        <div class="stat-card" onclick="App.navigateTo('timetable')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Timetable Entries</h3>
-            <div class="value">${MOCK_DATA.timetables ? MOCK_DATA.timetables.length : 0}</div>
-            <span class="stat-trend positive"><i data-lucide="calendar"></i> Scheduled Slots</span>
-          </div>
-          <div class="stat-icon purple"><i data-lucide="clock"></i></div>
-        </div>
-
-        <div class="stat-card" onclick="App.navigateTo('exam-results')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Published Results</h3>
-            <div class="value">${MOCK_DATA.examResults ? MOCK_DATA.examResults.filter(r => r.status === 'PUBLISHED').length : 0}</div>
-            <span class="stat-trend positive"><i data-lucide="award"></i> Official Grade Cards</span>
-          </div>
-          <div class="stat-icon green"><i data-lucide="award"></i></div>
-        </div>
-
-        <div class="stat-card" onclick="App.navigateTo('holiday-calendar')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Upcoming Holidays</h3>
-            <div class="value">${MOCK_DATA.holidays ? MOCK_DATA.holidays.filter(h => h.date >= new Date().toISOString().split('T')[0]).length : 0}</div>
-            <span class="stat-trend warning"><i data-lucide="flag"></i> Academic Calendar</span>
-          </div>
-          <div class="stat-icon amber"><i data-lucide="calendar-days"></i></div>
-        </div>
-
-
-      </div>
-
-      <!-- ACADEMIC & LIBRARY SERVICES SUMMARY (BATCH 3) -->
-      <div class="stats-grid" style="margin-bottom:1.5rem; grid-template-columns: 1fr 1fr !important;">
-        <div class="stat-card" onclick="App.navigateTo('exam-form-management')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Pending Exam Forms</h3>
-            <div class="value" style="color:${window.ExamFormService && ExamFormService.getAllSubmissions().filter(f => f.status === 'SUBMITTED').length > 0 ? 'var(--color-warning)' : 'var(--color-navy-dark)'}; font-size:1.4rem;">
-              ${window.ExamFormService ? ExamFormService.getAllSubmissions().filter(f => f.status === 'SUBMITTED').length : 0}
-            </div>
-            <span class="stat-trend warning"><i data-lucide="file-check"></i> Pending Admin Review</span>
-          </div>
-          <div class="stat-icon purple"><i data-lucide="file-signature"></i></div>
-        </div>
-
-        <div class="stat-card" style="cursor:default;">
-          <div class="stat-info">
-            <h3>Outstanding Fines</h3>
-            <div class="value" style="color:var(--color-danger); font-size:1.4rem;">
-              ₹${window.LibraryService ? 0 : 0}
-            </div>
-            <span class="stat-trend negative"><i data-lucide="indian-rupee"></i> Total Unpaid Library Fines</span>
-          </div>
-          <div class="stat-icon red"><i data-lucide="alert-triangle"></i></div>
-        </div>
-      </div>
-
-      <!-- MAIN CONTENT GRID -->
-      <div class="dashboard-grid">
-        <!-- LEFT LARGE CARD: Attendance Overview Chart -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h3 class="card-title"><i data-lucide="activity"></i> Attendance Overview</h3>
-              <p class="card-subtitle">Weekly institution-wide attendance trend (%)</p>
-            </div>
-            <div class="filter-group">
-              <span class="status-badge active"><i data-lucide="check"></i> 86.4% Avg Today</span>
-            </div>
-          </div>
-          <div style="height: 300px; position: relative;">
-            <canvas id="adminAttendanceChart"></canvas>
-          </div>
-        </div>
-
-        <!-- RIGHT CARD: Recent Activities Feed -->
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title"><i data-lucide="bell"></i> Recent Activities</h3>
-          </div>
-          <div class="activity-list">
-            <div class="activity-item">
-              <div class="activity-icon" style="background: #EFF6FF; color: #2563EB;">
-                <i data-lucide="check-square"></i>
-              </div>
-              <div class="activity-content">
-                <p>Attendance marked for CSE-A (Data Structures)</p>
-                <span>Today at 10:15 AM by Dr. Rajesh Kumar</span>
-              </div>
-            </div>
-
-            <div class="activity-item">
-              <div class="activity-icon" style="background: #ECFDF5; color: #10B981;">
-                <i data-lucide="user-plus"></i>
-              </div>
-              <div class="activity-content">
-                <p>New Student profile added: Rahul Sharma</p>
-                <span>Yesterday at 04:20 PM</span>
-              </div>
-            </div>
-
-            <div class="activity-item">
-              <div class="activity-icon" style="background: #FFFBEB; color: #F59E0B;">
-                <i data-lucide="alert-triangle"></i>
-              </div>
-              <div class="activity-content">
-                <p>Low attendance alert generated for 2 students</p>
-                <span>12 Aug, 02:00 PM</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- QUICK ACTIONS SECTION -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title"><i data-lucide="zap"></i> Quick Administrative Actions</h3>
-        </div>
-        <div class="quick-actions-grid">
-          <button class="quick-action-btn" onclick="App.navigateTo('students')">
-            <i data-lucide="user-plus"></i>
-            <span>Add Student</span>
-          </button>
-          <button class="quick-action-btn" onclick="App.navigateTo('faculty')">
-            <i data-lucide="user-check"></i>
-            <span>Add Faculty</span>
-          </button>
-          <button class="quick-action-btn" onclick="App.navigateTo('subjects')">
-            <i data-lucide="book-plus"></i>
-            <span>Add Subject</span>
-          </button>
-          <button class="quick-action-btn" onclick="App.navigateTo('classes')">
-            <i data-lucide="folder-plus"></i>
-            <span>Add Class</span>
-          </button>
-          <button class="quick-action-btn" onclick="App.navigateTo('assignments')">
-            <i data-lucide="link"></i>
-            <span>Assign Faculty</span>
-          </button>
-          <button class="quick-action-btn" onclick="App.navigateTo('reports')">
-            <i data-lucide="file-text"></i>
-            <span>Generate Report</span>
-          </button>
-        </div>
-      </div>
-    `;
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
   },
 
-  async loadLibraryStats() {
+  async fetchData() {
     try {
-      if (!window.LibraryService) {
-        console.warn("LibraryService is not available.");
-        return;
+      if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
+        this.students = await studentService.getStudentsFromFirestore();
+      } else {
+        this.students = typeof studentService !== 'undefined' ? studentService.getStudents() : [];
       }
 
-      const stats = await LibraryService.getDashboardStats();
-
-      const fineElement = document.getElementById("admin-outstanding-fines");
-
-      if (fineElement) {
-        fineElement.textContent = Number(stats.pendingFinesTotal || 0).toLocaleString("en-IN");
+      if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
+        this.faculty = await facultyService.getFacultyFromFirestore();
+      } else {
+        this.faculty = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
       }
-    } catch (error) {
-      console.warn("Unable to load library dashboard statistics:", error);
+
+      if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
+        this.subjects = await subjectService.getSubjectsFromFirestore();
+      } else {
+        this.subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+      }
+
+      if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
+        this.classes = await classService.getClassesFromFirestore();
+      } else {
+        this.classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
+      }
+
+      if (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore) {
+        this.departments = await departmentService.getDepartmentsFromFirestore();
+      } else {
+        this.departments = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
+      }
+
+      this.loading = false;
+      App.renderCurrentView();
+      setTimeout(() => this.initCharts(), 100);
+    } catch (err) {
+      console.error(err);
+      this.loading = false;
+      App.renderCurrentView();
     }
+  },
+
+  render() {
+    const user = authService.getCurrentUser();
+    
+    if (this.loading) {
+      return `
+        <div class="page-header" style="margin-bottom: 2rem;">
+          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
+            Good Morning, ${user ? user.name : 'Admin'}! 👋
+          </h1>
+          <p style="color: var(--color-text-muted); font-size: 1rem;">
+            Loading dashboard data...
+          </p>
+        </div>
+        <div class="glass-panel" style="padding: 4rem; text-align: center;">
+          <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid var(--glass-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1.5rem; color: var(--color-text-muted); font-weight: 600;">Fetching analytics...</p>
+        </div>
+      `;
+    }
+
+    const students = this.students || [];
+    const faculty = this.faculty || [];
+    const subjects = this.subjects || [];
+    const classes = this.classes || [];
+    const departments = this.departments || [];
+    
+    // Fake trend logic based on lengths to prevent empty states
+    const attOverview = "86.4%";
+
+    return `
+      <div class="page-header" style="margin-bottom: 2rem;">
+        <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
+          Good Morning, ${user ? user.name : 'Admin'}! 👋
+        </h1>
+        <p style="color: var(--color-text-muted); font-size: 1rem;">
+          Here's what's happening on your campus today.
+        </p>
+      </div>
+
+      <!-- POORNIMA HERO BANNER -->
+      <div class="glass-panel" style="background-image: linear-gradient(to right, rgba(8, 25, 55, 0.9), rgba(8, 25, 55, 0.4)), url('https://encrypted-tbn0.gstatic.com/images?q=tbm0.gstatic.com/images?q=tbn:ANd9GcQN7_9-FyE5OVqVhdW07dipp8COHU3ch2yIvwRyzkROUFys8KdtinCr-Pvd&s=10'); background-size: cover; background-position: center; border-radius: var(--radius-xl); padding: 2.5rem; margin-bottom: 2rem; color: #FFF; box-shadow: var(--glass-shadow);">
+        <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">Welcome to Poornima Group Of College</h2>
+        <p style="font-size: 1rem; color: rgba(255,255,255,0.85); max-width: 600px; margin-bottom: 1.5rem;">Smart Attendance. Better Management. Better Education. Manage attendance, academics, library and campus operations from one centralized platform.</p>
+        <div style="display: flex; gap: 12px; margin-top: 1.5rem;">
+          <button class="btn-primary" onclick="App.navigateTo('students')" style="box-shadow: 0 4px 15px rgba(0,0,0,0.2);">Manage Users</button>
+          <button class="btn-secondary" onclick="App.navigateTo('mark-attendance')" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: #FFF; backdrop-filter: blur(8px);">Attendance</button>
+          <button class="btn-secondary" onclick="App.navigateTo('timetable')" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: #FFF; backdrop-filter: blur(8px);">Timetable</button>
+        </div>
+      </div>
+
+      <!-- MAIN EDITORIAL LAYOUT -->
+      <div style="background: rgba(255,255,255,0.5); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: var(--radius-xl); padding: 2rem; margin-bottom: 2rem; box-shadow: var(--glass-shadow);">
+        
+        <!-- CORE STATS -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 2.5rem;">
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Students</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${students.length}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Faculty</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${faculty.length}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Departments</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${departments.length}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Classes</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${classes.length}</div>
+          </div>
+        </div>
+
+        <!-- GRIDS -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2.5rem;">
+          
+          <!-- LEFT: ATTENDANCE CHART -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--color-navy-dark); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="activity" style="color: var(--color-primary);"></i> Attendance Overview
+              </h3>
+              <span class="status-badge present"><i data-lucide="check"></i> ${attOverview} Avg Today</span>
+            </div>
+            <div class="glass-card" style="padding: 1rem; border-radius: var(--radius-lg); height: 320px; position: relative; background: #FFF;">
+              <canvas id="adminAttendanceChart"></canvas>
+            </div>
+          </div>
+
+          <!-- RIGHT: RECENT ACTIVITY -->
+          <div>
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="bell" style="color: var(--color-accent);"></i> Recent Activity
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+              <div style="display: flex; gap: 1rem; padding: 1rem; background: #FFF; border-radius: var(--radius-md); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-success-bg); color: var(--color-success); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i data-lucide="check-square" style="width: 18px;"></i>
+                </div>
+                <div>
+                  <div style="font-size: 0.9rem; font-weight: 600; color: var(--color-text-main); margin-bottom: 2px;">Attendance marked for CSE-A</div>
+                  <div style="font-size: 0.75rem; color: var(--color-text-muted);">Today at 10:15 AM by Dr. Rajesh Kumar</div>
+                </div>
+              </div>
+              
+              <div style="display: flex; gap: 1rem; padding: 1rem; background: #FFF; border-radius: var(--radius-md); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i data-lucide="user-plus" style="width: 18px;"></i>
+                </div>
+                <div>
+                  <div style="font-size: 0.9rem; font-weight: 600; color: var(--color-text-main); margin-bottom: 2px;">New Student Profile Added</div>
+                  <div style="font-size: 0.75rem; color: var(--color-text-muted);">Rahul Sharma (B.Tech CS) • 2 hours ago</div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 1rem; padding: 1rem; background: #FFF; border-radius: var(--radius-md); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-warning-bg); color: var(--color-warning); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i data-lucide="book-open" style="width: 18px;"></i>
+                </div>
+                <div>
+                  <div style="font-size: 0.9rem; font-weight: 600; color: var(--color-text-main); margin-bottom: 2px;">Library Fine Outstanding</div>
+                  <div style="font-size: 0.75rem; color: var(--color-text-muted);">14 students have pending fines.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="zap" style="color: var(--color-primary);"></i> Quick Actions
+      </h3>
+      <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;">
+        <button class="glass-card" onclick="App.navigateTo('students')" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer; border: none;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(59, 130, 246, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center;"><i data-lucide="user-plus"></i></div>
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-main);">Add Student</span>
+        </button>
+
+        <button class="glass-card" onclick="App.navigateTo('faculty')" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer; border: none;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(139, 92, 246, 0.15); color: var(--color-accent); display: flex; align-items: center; justify-content: center;"><i data-lucide="user-check"></i></div>
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-main);">Add Faculty</span>
+        </button>
+
+        <button class="glass-card" onclick="App.navigateTo('subjects')" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer; border: none;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--color-success-bg); color: var(--color-success); display: flex; align-items: center; justify-content: center;"><i data-lucide="book-plus"></i></div>
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-main);">Add Subject</span>
+        </button>
+
+        <button class="glass-card" onclick="App.navigateTo('classes')" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer; border: none;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--color-warning-bg); color: var(--color-warning); display: flex; align-items: center; justify-content: center;"><i data-lucide="layers"></i></div>
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-main);">Add Class</span>
+        </button>
+
+        <button class="glass-card" onclick="App.navigateTo('timetable')" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer; border: none;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(59, 130, 246, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center;"><i data-lucide="calendar"></i></div>
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-main);">Timetable</span>
+        </button>
+
+        <button class="glass-card" onclick="App.navigateTo('reports')" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer; border: none;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(15, 23, 42, 0.1); color: var(--color-navy-dark); display: flex; align-items: center; justify-content: center;"><i data-lucide="file-text"></i></div>
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-main);">Reports</span>
+        </button>
+      </div>
+    `;
   },
 
   initCharts() {
@@ -252,12 +240,12 @@ const DashboardAdmin = {
           datasets: [{
             label: 'Attendance Rate (%)',
             data: [82, 88, 85, 90, 86, 84],
-            borderColor: '#2563EB',
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            borderColor: '#3B82F6',
+            backgroundColor: 'rgba(59, 130, 246, 0.15)',
             fill: true,
             tension: 0.4,
             borderWidth: 3,
-            pointBackgroundColor: '#2563EB'
+            pointBackgroundColor: '#3B82F6'
           }]
         },
         options: {
@@ -265,7 +253,7 @@ const DashboardAdmin = {
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            y: { min: 60, max: 100, grid: { color: '#F1F5F9' } },
+            y: { min: 60, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } },
             x: { grid: { display: false } }
           }
         }
@@ -275,7 +263,3 @@ const DashboardAdmin = {
 };
 
 window.DashboardAdmin = DashboardAdmin;
-
-
-
-

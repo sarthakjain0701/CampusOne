@@ -85,7 +85,7 @@ const LibraryCirculationView = {
 
   renderTableRows() {
     if (this.transactions.length === 0) {
-      return `<tr><td colspan="7" style="text-align:center; color:var(--color-text-muted); padding:2rem;">No active transactions.</td></tr>`;
+      return `<tr><td colspan="7" style="text-align:center;">No active transactions.</td></tr>`;
     }
 
     const todayStr = new Date().toISOString();
@@ -130,7 +130,7 @@ const LibraryCirculationView = {
               <i data-lucide="book-up" style="color:#60A5FA;"></i>
               <h3 style="margin:0; font-size:1.15rem; font-weight:800;">ISSUE BOOK</h3>
             </div>
-            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer; font-size:1.2rem;">✕</button>
+            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer;">✕</button>
           </div>
 
           <div style="padding:1.5rem;">
@@ -247,7 +247,7 @@ const LibraryCirculationView = {
               <i data-lucide="book-down" style="color:#60A5FA;"></i>
               <h3 style="margin:0; font-size:1.15rem; font-weight:800;">RETURN BOOK</h3>
             </div>
-            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer; font-size:1.2rem;">✕</button>
+            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer;">✕</button>
           </div>
 
           <div style="padding:1.5rem;">

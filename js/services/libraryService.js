@@ -268,11 +268,12 @@ const LibraryService = {
     try {
       // Parallelize independent collection queries
       const [booksSnap, finesSnap, overdueSnap] = await Promise.all([
-        db.collection('libraryBooks').get(),
-        db.collection('libraryFines').where('status', '==', 'PENDING').get(),
+        db.collection('libraryBooks').limit(200).get(),
+        db.collection('libraryFines').where('status', '==', 'PENDING').limit(100).get(),
         db.collection('libraryTransactions')
           .where('status', 'in', ['ISSUED', 'OVERDUE'])
           .where('dueDate', '<', todayStr)
+          .limit(100)
           .get()
       ]);
 
@@ -331,11 +332,26 @@ const LibraryService = {
   },
 
   
-  getStudentLibraryHistory(studentId) {
-    if (window.MOCK_DATA && window.MOCK_DATA.libraryRecords) {
-      return window.MOCK_DATA.libraryRecords.filter(r => r.studentId === studentId || r.userId === studentId);
+  async getStudentLibraryHistory(studentId) {
+    try {
+      const db = this._getDb();
+      if (!studentId) return [];
+      const snapshot = await db.collection('libraryTransactions')
+        .where('userId', '==', studentId)
+        .get();
+      
+      let records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (records.length === 0) {
+        const altSnapshot = await db.collection('libraryTransactions')
+          .where('studentId', '==', studentId)
+          .get();
+        records = altSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+      return records;
+    } catch (err) {
+      console.error("Failed to fetch student library history from Firestore:", err);
+      return [];
     }
-    return [];
   },
   stopListening() {
     if (this.listeners && this.listeners.length > 0) {

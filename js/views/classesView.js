@@ -1,10 +1,14 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM - CLASS MANAGEMENT (SERVICE CONNECTED)
+   POORNIMA ATTENDANCE SYSTEM - CLASS MANAGEMENT (FIRESTORE CONNECTED)
    ========================================================================== */
 
 const ClassesView = {
+  _classes: [],
+  _depts: [],
+  _isLoading: false,
+
   render() {
-    const classes = classService.getClasses();
+    const classes = this._classes || [];
 
     return `
       <div class="page-header">
@@ -22,7 +26,7 @@ const ClassesView = {
       </div>
 
       <div class="table-container">
-        <table class="custom-table">
+        <table class="data-table">
           <thead>
             <tr>
               <th>Class Name</th>
@@ -35,6 +39,8 @@ const ClassesView = {
             </tr>
           </thead>
           <tbody>
+            ${this._isLoading ? '<tr><td colspan="7" style="text-align:center;"><i data-lucide="loader" class="spin"></i> Loading...</td></tr>' : ''}
+            ${(!this._isLoading && classes.length === 0) ? '<tr><td colspan="7" style="text-align:center;">No classes found.</td></tr>' : ''}
             ${classes.map(c => `
               <tr>
                 <td><strong>${c.name}</strong></td>
@@ -44,7 +50,7 @@ const ClassesView = {
                 <td>${c.academicYear}</td>
                 <td><span class="status-badge ${c.status === 'ACTIVE' ? 'present' : 'absent'}">${c.status}</span></td>
                 <td>
-                  <button class="btn-icon-sm danger" onclick="ClassesView.deleteClass('${c.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
+                  <button class="btn-icon danger" onclick="ClassesView.deleteClass('${c.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
                 </td>
               </tr>
             `).join('')}
@@ -54,8 +60,23 @@ const ClassesView = {
     `;
   },
 
+  async afterRender() {
+    if (this._isLoading) return;
+    this._isLoading = true;
+    try {
+      this._depts = await departmentService.getDepartmentsFromFirestore();
+      this._classes = await classService.getClassesFromFirestore();
+    } catch (e) {
+      UIService.showToast("Failed to load classes.", "danger");
+    } finally {
+      this._isLoading = false;
+      App.renderCurrentView();
+    }
+    if (window.lucide) window.lucide.createIcons();
+  },
+
   openAddModal() {
-    const depts = departmentService.getDepartments();
+    const depts = this._depts || [];
     const html = `
       <form id="add-cls-form" onsubmit="return false;">
         <div class="form-grid-2">
@@ -103,20 +124,24 @@ const ClassesView = {
       { text: "Cancel", className: "btn-secondary", onClick: () => UIService.closeModal() },
       { text: "Add Class", className: "btn-primary", onClick: () => this.saveClass() }
     ]);
+    if (window.lucide) window.lucide.createIcons();
   },
 
-  saveClass() {
+  async saveClass() {
     const data = {
       name: document.getElementById('m-cls-name').value,
       department: document.getElementById('m-cls-dept').value,
       semester: document.getElementById('m-cls-sem').value,
-      section: document.getElementById('m-cls-sec').value
+      section: document.getElementById('m-cls-sec').value,
+      academicYear: document.getElementById('m-cls-year').value
     };
 
     try {
-      classService.addClass(data);
+      await classService.addClass(data);
       UIService.closeModal();
       UIService.showToast("Class section added successfully.", "success");
+      
+      this._isLoading = true;
       App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");
@@ -124,10 +149,11 @@ const ClassesView = {
   },
 
   deleteClass(id) {
-    UIService.showConfirm("Delete Class?", "Remove this class record?", () => {
+    UIService.showConfirm("Delete Class?", "Remove this class record?", async () => {
       try {
-        classService.deleteClass(id);
+        await classService.deleteClass(id);
         UIService.showToast("Class deleted.", "success");
+        this._isLoading = true;
         App.renderCurrentView();
       } catch (err) {
         UIService.showToast(err.message, "danger");
@@ -137,4 +163,3 @@ const ClassesView = {
 };
 
 window.ClassesView = ClassesView;
-

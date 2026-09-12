@@ -13,7 +13,7 @@ const AttendanceAssignmentService = {
   async getAssignments() {
     try {
       const db = this._getDb();
-      const snapshot = await db.collection('attendanceAssignments').get();
+      const snapshot = await db.collection('attendanceAssignments').limit(100).get();
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
       console.error("Failed to fetch attendance assignments:", err);
@@ -42,7 +42,7 @@ const AttendanceAssignmentService = {
       throw new Error("Missing required fields for attendance assignment.");
     }
 
-    const targetClass = typeof classService !== 'undefined' ? classService.getClassById(classId) : null;
+    const targetClass = typeof classService !== 'undefined' ? await classService.getClassById(classId) : null;
     if (!targetClass) {
       throw new Error("The selected Section / Class does not exist.");
     }
@@ -55,7 +55,7 @@ const AttendanceAssignmentService = {
       throw new Error("Validation Error: Section / Class does not belong to the selected Semester.");
     }
 
-    const targetSubject = typeof subjectService !== 'undefined' ? subjectService.getSubjectById(subjectId) : null;
+    const targetSubject = typeof subjectService !== 'undefined' ? await subjectService.getSubjectById(subjectId) : null;
     if (!targetSubject) {
       throw new Error("The selected Subject does not exist.");
     }

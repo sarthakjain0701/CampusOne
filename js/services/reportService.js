@@ -11,24 +11,24 @@ const ReportService = {
      FILTER OPTIONS — scalar metadata only, no student/attendance records
   ----------------------------------------------------------------------- */
 
-  getAcademicYears(user) {
+  async getAcademicYears(user) {
     if (!user) return [];
     const students = DataStore.get('STUDENTS') || MOCK_DATA.students || [];
     let scoped = students;
     if (AuthorizationService.isAcademicStaff(user)) {
-      const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
+      const authorizedClassIds = await AuthorizationService.getAuthorizedClassIds(user);
       scoped = students.filter(s => authorizedClassIds.includes(s.classId));
     }
     const years = [...new Set(scoped.map(s => s.academicYear || s.academicSession).filter(Boolean))];
     return years.sort().reverse();
   },
 
-  getDepartments(user) {
+  async getDepartments(user) {
     if (!user) return [];
     const allDepts = DataStore.get('DEPARTMENTS') || MOCK_DATA.departments || [];
     if (user.role === 'ADMIN') return allDepts;
     if (AuthorizationService.isAcademicStaff(user)) {
-      const assignments = AuthorizationService.getFacultyAssignments(user);
+      const assignments = await AuthorizationService.getFacultyAssignments(user);
       const subjects = DataStore.get('SUBJECTS') || MOCK_DATA.subjects || [];
       const assignedSubjectIds = [...new Set(assignments.map(a => a.subjectId))];
       const deptNames = [...new Set(
@@ -42,38 +42,38 @@ const ReportService = {
     return [];
   },
 
-  getSemesters(user, department) {
+  async getSemesters(user, department) {
     if (!user || !department) return [];
     const classes = DataStore.get('CLASSES') || MOCK_DATA.classes || [];
     let scoped = classes.filter(c => c.department === department);
     if (AuthorizationService.isAcademicStaff(user)) {
-      const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
+      const authorizedClassIds = await AuthorizationService.getAuthorizedClassIds(user);
       scoped = scoped.filter(c => authorizedClassIds.includes(c.id));
     }
     const semesters = [...new Set(scoped.map(c => c.semester).filter(Boolean))];
     return semesters.sort((a, b) => a - b);
   },
 
-  getSections(user, department, semester) {
+  async getSections(user, department, semester) {
     if (!user || !department || !semester) return [];
     const classes = DataStore.get('CLASSES') || MOCK_DATA.classes || [];
     let scoped = classes.filter(c =>
       c.department === department && Number(c.semester) === Number(semester)
     );
     if (AuthorizationService.isAcademicStaff(user)) {
-      const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
+      const authorizedClassIds = await AuthorizationService.getAuthorizedClassIds(user);
       scoped = scoped.filter(c => authorizedClassIds.includes(c.id));
     }
     return scoped.map(c => ({ id: c.id, section: c.section, name: c.name }));
   },
 
-  getSubjectsForClass(user, classId) {
+  async getSubjectsForClass(user, classId) {
     if (!user || !classId) return [];
     const assignments = DataStore.get('ASSIGNMENTS') || MOCK_DATA.assignments || [];
     const subjects = DataStore.get('SUBJECTS') || MOCK_DATA.subjects || [];
     let relevantAssignments = assignments.filter(a => a.classId === classId && a.status !== 'INACTIVE');
     if (AuthorizationService.isAcademicStaff(user)) {
-      const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
+      const authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
       relevantAssignments = relevantAssignments.filter(a => authorizedSubjectIds.includes(a.subjectId));
     }
     const subjectIds = [...new Set(relevantAssignments.map(a => a.subjectId))];
@@ -84,7 +84,7 @@ const ReportService = {
      REGISTRATION NUMBER SEARCH — loads exactly one student
   ----------------------------------------------------------------------- */
 
-  searchStudentByRegNo(regNo, user) {
+  async searchStudentByRegNo(regNo, user) {
     if (!user || !regNo) return { error: 'Invalid search.' };
     const students = DataStore.get('STUDENTS') || MOCK_DATA.students || [];
     const student = students.find(s =>
@@ -92,16 +92,16 @@ const ReportService = {
       (s.rollNumber || '').toLowerCase() === regNo.trim().toLowerCase()
     );
     if (!student) return { error: `No student found with registration number "${regNo.trim()}".` };
-    if (AuthorizationService.isAcademicStaff(user) && !AuthorizationService.canAccessStudent(user, student.id)) {
+    if (AuthorizationService.isAcademicStaff(user) && !(await AuthorizationService.canAccessStudent(user, student.id))) {
       return { error: 'Access Denied: This student is not in your assigned class/subject.' };
     }
     return { student };
   },
 
-  generateStudentReport(studentId, user) {
+  async generateStudentReport(studentId, user) {
     if (!user) return { error: 'Not authenticated.' };
     if (user.role === 'STUDENT') return { error: 'Access Denied: Students are not authorized to access Reports & Analytics.' };
-    if (!AuthorizationService.canAccessStudent(user, studentId)) return { error: 'Access Denied.' };
+    if (!(await AuthorizationService.canAccessStudent(user, studentId))) return { error: 'Access Denied.' };
 
     const students = DataStore.get('STUDENTS') || MOCK_DATA.students || [];
     const student = students.find(s => s.id === studentId);
@@ -113,7 +113,7 @@ const ReportService = {
 
     let relevantAssignments = assignments.filter(a => a.classId === student.classId);
     if (AuthorizationService.isAcademicStaff(user)) {
-      const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
+      const authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
       relevantAssignments = relevantAssignments.filter(a => authorizedSubjectIds.includes(a.subjectId));
     }
 
@@ -144,16 +144,16 @@ const ReportService = {
      FILTERED SECTION / SUBJECT ATTENDANCE REPORT
   ----------------------------------------------------------------------- */
 
-  generateAttendanceReport(filters, user) {
+  async generateAttendanceReport(filters, user) {
     if (!user) return { error: 'Not authenticated.' };
     if (user.role === 'STUDENT') return { error: 'Access Denied: Students are not authorized to access Reports & Analytics.' };
     const { academicYear, classId, subjectId, dateFrom, dateTo } = filters;
     if (!classId) return { error: 'Please select at least a Section to generate a report.' };
 
     if (AuthorizationService.isAcademicStaff(user)) {
-      if (classId && !AuthorizationService.canAccessClass(user, classId))
+      if (classId && !(await AuthorizationService.canAccessClass(user, classId)))
         return { error: 'Access Denied: You are not authorized to view this section.' };
-      if (subjectId && !AuthorizationService.canAccessSubject(user, subjectId))
+      if (subjectId && !(await AuthorizationService.canAccessSubject(user, subjectId)))
         return { error: 'Access Denied: You are not authorized to view this subject.' };
     }
 

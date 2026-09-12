@@ -105,7 +105,7 @@ const AssignmentsView = {
         </div>
 
         <div class="table-container">
-          <table class="custom-table">
+          <table class="data-table">
             <thead>
               <tr>
                 <th>Faculty Name</th>
@@ -113,25 +113,39 @@ const AssignmentsView = {
                 <th>Class</th>
                 <th>Academic Year</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th style="width:50px;"></th>
               </tr>
             </thead>
             <tbody>
               ${assignments.length === 0 ? `
-                <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--color-text-muted);">No assignments configured yet.</td></tr>
+                <tr><td colspan="6" style="text-align:center;">No assignments configured yet.</td></tr>
               ` : assignments.map(a => {
                 const fac = faculty.find(f => f.id === a.facultyId);
                 const sub = subjects.find(s => s.id === a.subjectId);
                 const cls = classes.find(c => c.id === a.classId);
                 return `
                   <tr>
-                    <td><strong>${fac ? fac.name : a.facultyId}</strong></td>
-                    <td>${sub ? sub.name : a.subjectId} (${sub ? sub.code : ''})</td>
+                    <td>
+                      <div style="font-weight:600; color:var(--color-navy-dark);">${fac ? fac.name : a.facultyId}</div>
+                    </td>
+                    <td>
+                      <div style="font-weight:600; color:var(--color-navy-dark);">${sub ? sub.name : a.subjectId}</div>
+                      <div style="font-size:0.75rem; color:var(--color-text-muted);">${sub ? sub.code : ''}</div>
+                    </td>
                     <td><span class="status-badge active">${cls ? cls.name : a.classId}</span></td>
                     <td>${a.academicYear}</td>
                     <td><span class="status-badge present">${a.status}</span></td>
                     <td>
-                      <button class="btn-icon-sm danger" onclick="AssignmentsView.deleteAssignment('${a.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
+                      <div class="action-menu-container">
+                        <button class="btn-icon" onclick="AssignmentsView.toggleActionMenu('${a.id}', event)">
+                          <i data-lucide="more-vertical"></i>
+                        </button>
+                        <div class="action-menu-dropdown" id="action-menu-${a.id}">
+                          <button class="action-menu-item danger" onclick="AssignmentsView.deleteAssignment('${a.id}')">
+                            <i data-lucide="trash-2" style="width:16px;"></i> Delete
+                          </button>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 `;
@@ -171,8 +185,21 @@ const AssignmentsView = {
         UIService.showToast(err.message, "danger");
       }
     });
+  },
+
+  toggleActionMenu(id, e) {
+    e.stopPropagation();
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+    const menu = document.getElementById(`action-menu-${id}`);
+    if (menu) menu.classList.toggle('active');
   }
 };
+
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.action-menu-container')) {
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+  }
+});
 
 window.AssignmentsView = AssignmentsView;
 

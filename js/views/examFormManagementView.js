@@ -59,7 +59,7 @@ const ExamFormManagementView = {
               </div>
               <div style="display:flex; gap:0.5rem; border-top:1px solid #E2E8F0; padding-top:0.75rem;">
                 ${p.status !== 'CLOSED' ? `
-                  <button class="btn-secondary" style="flex:1; padding:0.35rem; font-size:0.75rem; justify-content:center;" onclick="ExamFormManagementView.closePeriod('${p.id}')">
+                  <button class="btn-secondary" style="flex:1; justify-content:center;" onclick="ExamFormManagementView.closePeriod('${p.id}')">
                     Close Period
                   </button>
                 ` : `
@@ -156,18 +156,18 @@ const ExamFormManagementView = {
                       <td><span class="status-badge ${badgeClass}">${statusDisplay}</span></td>
                       <td style="display:flex; gap:0.5rem; align-items:center;">
                         ${s.status === 'MANUAL_REVIEW_REQUIRED' || s.status === 'SUBMITTED' ? `
-                          <button class="btn-primary" style="padding:0.3rem 0.65rem; font-size:0.75rem;" onclick="ExamFormManagementView.openReviewModal('${s.id}')">
+                          <button class="btn-primary"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
                             <i data-lucide="check-square" style="width:12px; height:12px; display:inline;"></i> Review
                           </button>
                         ` : (s.status === 'APPROVED' ? `
-                          <button class="btn-secondary" style="padding:0.3rem 0.65rem; font-size:0.75rem; color:var(--color-primary); border-color:var(--color-primary);" onclick="App.navigate('hall-ticket')">
+                          <button class="btn-secondary" style="color:var(--color-primary); border-color:var(--color-primary);" onclick="App.navigate('hall-ticket')">
                             <i data-lucide="file-text" style="width:12px; height:12px; display:inline;"></i> Hall Ticket
                           </button>
-                          <button class="btn-secondary" style="padding:0.3rem 0.65rem; font-size:0.75rem;" onclick="ExamFormManagementView.openReviewModal('${s.id}')">
+                          <button class="btn-secondary"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
                             <i data-lucide="eye" style="width:12px; height:12px; display:inline;"></i> View
                           </button>
                         ` : `
-                          <button class="btn-secondary" style="padding:0.3rem 0.65rem; font-size:0.75rem;" onclick="ExamFormManagementView.openReviewModal('${s.id}')">
+                          <button class="btn-secondary"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
                             <i data-lucide="eye" style="width:12px; height:12px; display:inline;"></i> View
                           </button>
                         `)}

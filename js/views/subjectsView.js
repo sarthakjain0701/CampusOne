@@ -1,16 +1,14 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM - SUBJECT MANAGEMENT (SERVICE CONNECTED)
+   POORNIMA ATTENDANCE SYSTEM - SUBJECT MANAGEMENT (FIRESTORE CONNECTED)
    ========================================================================== */
 
 const SubjectsView = {
-  async render() {
-    let subjects = [];
-    try {
-      subjects = await subjectService.getSubjectsFromFirestore();
-    } catch (e) {
-      console.warn('Failed to load subjects from Firestore, falling back to mock data.', e);
-      subjects = subjectService.getSubjects();
-    }
+  _subjects: [],
+  _depts: [],
+  _isLoading: false,
+
+  render() {
+    const subjects = this._subjects || [];
 
     return `
       <div class="page-header">
@@ -28,7 +26,7 @@ const SubjectsView = {
       </div>
 
       <div class="table-container">
-        <table class="custom-table">
+        <table class="data-table">
           <thead>
             <tr>
               <th>Subject Code</th>
@@ -41,6 +39,8 @@ const SubjectsView = {
             </tr>
           </thead>
           <tbody>
+            ${this._isLoading ? '<tr><td colspan="7" style="text-align:center;"><i data-lucide="loader" class="spin"></i> Loading...</td></tr>' : ''}
+            ${(!this._isLoading && subjects.length === 0) ? '<tr><td colspan="7" style="text-align:center;">No subjects found.</td></tr>' : ''}
             ${subjects.map(s => `
               <tr>
                 <td><strong>${s.code}</strong></td>
@@ -50,7 +50,7 @@ const SubjectsView = {
                 <td>${s.credits} Credits</td>
                 <td><span class="status-badge ${s.status === 'ACTIVE' ? 'present' : 'absent'}">${s.status}</span></td>
                 <td>
-                  <button class="btn-icon-sm danger" onclick="SubjectsView.deleteSub('${s.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
+                  <button class="btn-icon danger" onclick="SubjectsView.deleteSub('${s.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
                 </td>
               </tr>
             `).join('')}
@@ -60,8 +60,23 @@ const SubjectsView = {
     `;
   },
 
+  async afterRender() {
+    if (this._isLoading) return;
+    this._isLoading = true;
+    try {
+      this._depts = await departmentService.getDepartmentsFromFirestore();
+      this._subjects = await subjectService.getSubjectsFromFirestore();
+    } catch (e) {
+      UIService.showToast("Failed to load subjects.", "danger");
+    } finally {
+      this._isLoading = false;
+      App.renderCurrentView();
+    }
+    if (window.lucide) window.lucide.createIcons();
+  },
+
   openAddModal() {
-    const depts = departmentService.getDepartments();
+    const depts = this._depts || [];
     const html = `
       <form id="add-sub-form" onsubmit="return false;">
         <div class="form-grid-2">
@@ -118,6 +133,7 @@ const SubjectsView = {
       { text: "Cancel", className: "btn-secondary", onClick: () => UIService.closeModal() },
       { text: "Add Subject", className: "btn-primary", onClick: () => this.saveSub() }
     ]);
+    if (window.lucide) window.lucide.createIcons();
   },
 
   async saveSub() {
@@ -133,17 +149,20 @@ const SubjectsView = {
       await subjectService.addSubject(data);
       UIService.closeModal();
       UIService.showToast("Subject added successfully.", "success");
-      await App.renderCurrentView();
+      
+      this._isLoading = true;
+      App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");
     }
   },
 
   deleteSub(id) {
-    UIService.showConfirm("Delete Subject?", "Remove this subject record?", () => {
+    UIService.showConfirm("Delete Subject?", "Remove this subject record?", async () => {
       try {
-        subjectService.deleteSubject(id);
+        await subjectService.deleteSubject(id);
         UIService.showToast("Subject deleted.", "success");
+        this._isLoading = true;
         App.renderCurrentView();
       } catch (err) {
         UIService.showToast(err.message, "danger");
@@ -153,4 +172,3 @@ const SubjectsView = {
 };
 
 window.SubjectsView = SubjectsView;
-

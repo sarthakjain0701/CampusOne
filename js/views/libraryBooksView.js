@@ -182,7 +182,7 @@ const LibraryBooksView = {
               <i data-lucide="book-plus" style="color:#60A5FA;"></i>
               <h3 style="margin:0; font-size:1.15rem; font-weight:800;">ADD NEW BOOK</h3>
             </div>
-            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer; font-size:1.2rem;">✕</button>
+            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer;">✕</button>
           </div>
 
           <div style="padding:1.5rem; overflow-y:auto; flex-grow:1;">
@@ -272,7 +272,7 @@ const LibraryBooksView = {
               <i data-lucide="layers" style="color:#60A5FA;"></i>
               <h3 style="margin:0; font-size:1.15rem; font-weight:800;">ADD COPIES</h3>
             </div>
-            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer; font-size:1.2rem;">✕</button>
+            <button onclick="document.getElementById('${modalId}').remove()" style="background:none; border:none; color:white; cursor:pointer;">✕</button>
           </div>
 
           <div style="padding:1.5rem;">

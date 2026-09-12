@@ -32,10 +32,10 @@ const DigitalIdView = {
         <!-- ADMIN ROLE TOGGLE SWITCHER -->
         <div style="display:flex; justify-content:center; margin-bottom:1.5rem;">
           <div style="background:var(--color-bg-light); padding:0.25rem; border-radius:10px; display:inline-flex; border:1px solid var(--color-border);">
-            <button class="btn-sm ${isStudentView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('STUDENT')" style="border-radius:8px; border:none;">
+            <button class="btn-sm ${isStudentView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('STUDENT')" style="border:none;">
               <i data-lucide="graduation-cap"></i> Student Digital ID
             </button>
-            <button class="btn-sm ${isFacultyView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('FACULTY')" style="border-radius:8px; border:none; margin-left:0.25rem;">
+            <button class="btn-sm ${isFacultyView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('FACULTY')" style="border:none; margin-left:0.25rem;">
               <i data-lucide="users"></i> Faculty Digital ID
             </button>
           </div>

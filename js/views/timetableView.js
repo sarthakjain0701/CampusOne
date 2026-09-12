@@ -142,7 +142,7 @@ const TimetableView = {
             </p>
           </div>
         </div>
-        <div class="card" style="padding: 3rem; text-align: center;">
+        <div class="glass-panel" style="padding: 3rem; text-align: center;">
           <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
           <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading timetable data...</p>
         </div>
@@ -167,7 +167,7 @@ const TimetableView = {
             id="tab-btn-weekly"
             class="btn ${this.activeTab === 'weekly' ? 'btn-primary' : 'btn-secondary'}" 
             onclick="TimetableView.setActiveTab('weekly')"
-            style="font-size:0.85rem; font-weight:700; padding:0.5rem 1.1rem; border-radius:8px; display:flex; align-items:center; gap:0.4rem; ${this.activeTab === 'weekly' ? 'box-shadow:0 2px 4px rgba(0,0,0,0.1);' : 'background:transparent; color:#475569; border:none;'}"
+            style="display:flex; align-items:center; gap:0.4rem; ${this.activeTab === 'weekly' ? 'box-shadow:0 2px 4px rgba(0,0,0,0.1); ' : 'background:transparent; color:#475569; border:none; '};"
           >
             <i data-lucide="grid" style="width:16px; height:16px;"></i> Weekly Timetable
           </button>
@@ -176,7 +176,7 @@ const TimetableView = {
             id="tab-btn-scheduled"
             class="btn ${this.activeTab === 'scheduled' ? 'btn-primary' : 'btn-secondary'}" 
             onclick="TimetableView.setActiveTab('scheduled')"
-            style="font-size:0.85rem; font-weight:700; padding:0.5rem 1.1rem; border-radius:8px; display:flex; align-items:center; gap:0.4rem; ${this.activeTab === 'scheduled' ? 'box-shadow:0 2px 4px rgba(0,0,0,0.1);' : 'background:transparent; color:#475569; border:none;'}"
+            style="display:flex; align-items:center; gap:0.4rem; ${this.activeTab === 'scheduled' ? 'box-shadow:0 2px 4px rgba(0,0,0,0.1); ' : 'background:transparent; color:#475569; border:none; '};"
           >
             <i data-lucide="table" style="width:16px; height:16px;"></i> Scheduled Slots
           </button>
@@ -222,7 +222,7 @@ const TimetableView = {
 
     return `
       <!-- WEEKLY FILTER & MODE CONTROLS -->
-      <div class="card" style="margin-bottom:1.5rem; padding:1.25rem;">
+      <div class="glass-panel" style="margin-bottom:1.5rem; padding:1.25rem;">
         <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
           <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
             ${isAdmin ? `
@@ -262,7 +262,7 @@ const TimetableView = {
 
       <!-- TIMETABLE DISPLAY -->
       ${filtered.length === 0 ? `
-        <div class="card" style="padding:3.5rem; text-align:center; color:var(--color-text-muted);">
+        <div class="glass-panel" style="padding:3.5rem; text-align:center; color:var(--color-text-muted);">
           <i data-lucide="calendar-x" style="width:54px; height:54px; stroke-width:1.5; margin-bottom:1rem; color:#94A3B8;"></i>
           <h3 style="font-weight:700; color:var(--color-navy-dark);">No Timetable Slots Found</h3>
           <p style="font-size:0.9rem; max-width:400px; margin:0.5rem auto 0 auto;">There are no active scheduled classes for the selected criteria in the Weekly Timetable.</p>
@@ -284,31 +284,31 @@ const TimetableView = {
     const faculty = this.timetablesData.faculty || [];
 
     return `
-      <div class="card" style="padding:0; overflow:hidden; border:1px solid var(--color-border); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+      <div class="glass-panel" style="padding:0; overflow:hidden; border:1px solid var(--color-border); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
         <div class="table-responsive">
           <table class="data-table timetable-grid" style="border-collapse:collapse; width:100%; text-align:center;">
             <thead>
-              <tr style="background:#F1F5F9; border-bottom:2px solid #CBD5E1;">
-                <th style="width:150px; text-align:center; padding:1rem; font-weight:800; color:var(--color-navy-dark);">TIME / DAY</th>
-                ${days.map(d => `<th style="text-align:center; padding:1rem; font-weight:800; color:var(--color-navy-dark);">${d.toUpperCase()}</th>`).join('')}
+              <tr >
+                <th style="width:150px; text-align:center;">TIME / DAY</th>
+                ${days.map(d => `<th style="text-align:center;">${d.toUpperCase()}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
               ${timeSlots.map(slot => `
                 <tr>
-                  <td style="font-weight:700; font-size:0.8rem; background:#F8FAFC; color:var(--color-navy-dark); padding:0.85rem; border-right:1px solid #E2E8F0;">
+                  <td >
                     ${slot.label}
                   </td>
                   ${days.map(day => {
                     const entry = entries.find(e => e.day && e.day.toLowerCase() === day.toLowerCase() && e.startTime === slot.start);
                     if (!entry) {
-                      return `<td style="background:#FAFAFA; color:#CBD5E1; font-size:0.75rem; height:85px; vertical-align:middle; border:1px solid #F1F5F9;">— Free —</td>`;
+                      return `<td style="height:85px;">— Free —</td>`;
                     }
                     const sub = subjects.find(s => s.id === entry.subjectId);
                     const fac = faculty.find(f => f.id === entry.facultyId);
                     const formattedDate = entry.date && typeof AcademicCalendarService !== 'undefined' ? AcademicCalendarService.formatDate(entry.date) : '';
                     return `
-                      <td style="background:#EFF6FF; border:1px solid #BFDBFE; padding:0.75rem; text-align:left; vertical-align:top; border-radius:6px; transition:all 0.2s;">
+                      <td style="text-align:left; border-radius:6px; transition:all 0.2s;">
                         <div style="font-weight:800; font-size:0.85rem; color:#1E40AF;">${sub ? sub.name : entry.subjectId}</div>
                         <div style="font-size:0.75rem; font-weight:700; color:#3B82F6; margin-top:0.25rem;">${sub ? sub.code : ''}</div>
                         <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.4rem; display:flex; align-items:center; gap:0.25rem;">
@@ -341,7 +341,7 @@ const TimetableView = {
           const fac = faculty.find(f => f.id === t.facultyId);
           const dateStr = t.date && typeof AcademicCalendarService !== 'undefined' ? AcademicCalendarService.formatDate(t.date) : '';
           return `
-            <div class="card" style="border-left:4px solid #2563EB; transition:transform 0.2s; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <div class="glass-panel" style="border-left:4px solid #2563EB; transition:transform 0.2s; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
                 <span class="status-badge active" style="font-weight:700;">${t.day} ${dateStr ? '• ' + dateStr : ''}</span>
                 <span style="font-size:0.8rem; font-weight:700; color:#2563EB;"><i data-lucide="clock" style="width:12px; height:12px; display:inline;"></i> ${t.startTime} – ${t.endTime}</span>
@@ -396,22 +396,22 @@ const TimetableView = {
     return `
       <!-- SUMMARY KPI CARDS -->
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
-        <div class="card" style="padding:1.25rem; border-left:4px solid #2563EB; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
+        <div class="glass-panel" style="padding:1.25rem; border-left:4px solid #2563EB; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
           <div style="font-size:0.8rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Total Slots</div>
           <div style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin-top:0.25rem;">${stats.totalSlots}</div>
         </div>
 
-        <div class="card" style="padding:1.25rem; border-left:4px solid #10B981; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
+        <div class="glass-panel" style="padding:1.25rem; border-left:4px solid #10B981; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
           <div style="font-size:0.8rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Active Slots</div>
           <div style="font-size:1.75rem; font-weight:800; color:#047857; margin-top:0.25rem;">${stats.activeSlots}</div>
         </div>
 
-        <div class="card" style="padding:1.25rem; border-left:4px solid #F59E0B; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
+        <div class="glass-panel" style="padding:1.25rem; border-left:4px solid #F59E0B; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
           <div style="font-size:0.8rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Today's Slots</div>
           <div style="font-size:1.75rem; font-weight:800; color:#B45309; margin-top:0.25rem;">${stats.todaySlots}</div>
         </div>
 
-        <div class="card" style="padding:1.25rem; border-left:4px solid #8B5CF6; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
+        <div class="glass-panel" style="padding:1.25rem; border-left:4px solid #8B5CF6; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
           <div style="font-size:0.8rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.5px;">This Week</div>
           <div style="font-size:1.75rem; font-weight:800; color:#6D28D9; margin-top:0.25rem;">${stats.thisWeekSlots}</div>
         </div>
@@ -425,7 +425,7 @@ const TimetableView = {
         </div>
 
         ${isAdmin ? `
-          <button class="btn-primary" onclick="TimetableView.openAddModal()" style="padding:0.6rem 1.25rem; font-weight:700; box-shadow:0 4px 6px -1px rgba(37,99,235,0.25);">
+          <button class="btn-primary" onclick="TimetableView.openAddModal()" >
             <i data-lucide="plus-circle" style="width:18px; height:18px;"></i> + Add Scheduled Slot
           </button>
         ` : ''}
@@ -433,7 +433,7 @@ const TimetableView = {
 
       <!-- TODAY'S SCHEDULE BANNER (WHEN TODAY FILTER ACTIVE) -->
       ${isTodayFilterActive ? `
-        <div class="card" style="margin-bottom:1.5rem; background:linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border:1px solid #93C5FD; padding:1.25rem;">
+        <div class="glass-panel" style="margin-bottom:1.5rem; background:linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border:1px solid #93C5FD; padding:1.25rem;">
           <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
             <h3 style="font-size:1.05rem; font-weight:800; color:#1E40AF; margin:0; display:flex; align-items:center; gap:0.5rem;">
               <i data-lucide="sun" style="color:#F59E0B; width:20px; height:20px;"></i> Today's Scheduled Slots — ${AcademicCalendarService.formatDate(todayStr, 'full')} (${AcademicCalendarService.getDayName(todayStr)})
@@ -444,7 +444,7 @@ const TimetableView = {
       ` : ''}
 
       <!-- FILTER & SEARCH BAR CONTAINER -->
-      <div class="card" style="margin-bottom:1.5rem; padding:1.25rem; background:#FFFFFF;">
+      <div class="glass-panel" style="margin-bottom:1.5rem; padding:1.25rem; background:#FFFFFF;">
         <!-- SEARCH & PRIMARY FILTER CONTROLS -->
         <div style="display:grid; grid-template-columns: 2fr repeat(auto-fit, minmax(130px, 1fr)); gap:0.75rem; align-items:center;">
           <!-- SEARCH BOX -->
@@ -456,7 +456,7 @@ const TimetableView = {
               placeholder="🔍 Search scheduled slots..." 
               value="${this.searchQuery}"
               onkeyup="TimetableView.handleSearch(this.value)"
-              style="padding-left:2.3rem; font-size:0.88rem;"
+              
             >
           </div>
 
@@ -534,22 +534,22 @@ const TimetableView = {
             ${this.dateFilter === 'SPECIFIC' ? `
               <div style="display:flex; align-items:center; gap:0.5rem;">
                 <label style="font-size:0.8rem; font-weight:700; color:var(--color-navy-dark);">Pick Date:</label>
-                <input type="date" class="form-control" style="width:auto; font-size:0.85rem;" value="${this.specificDate}" onchange="TimetableView.handleSpecificDateChange(this.value)">
+                <input type="date" class="form-control" style="width:auto;" value="${this.specificDate}" onchange="TimetableView.handleSpecificDateChange(this.value)">
               </div>
             ` : ''}
 
             ${this.dateFilter === 'RANGE' ? `
               <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                 <label style="font-size:0.8rem; font-weight:700; color:var(--color-navy-dark);">From:</label>
-                <input type="date" class="form-control" style="width:auto; font-size:0.85rem;" value="${this.startDate}" onchange="TimetableView.handleRangeChange('startDate', this.value)">
+                <input type="date" class="form-control" style="width:auto;" value="${this.startDate}" onchange="TimetableView.handleRangeChange('startDate', this.value)">
                 <label style="font-size:0.8rem; font-weight:700; color:var(--color-navy-dark);">To:</label>
-                <input type="date" class="form-control" style="width:auto; font-size:0.85rem;" value="${this.endDate}" onchange="TimetableView.handleRangeChange('endDate', this.value)">
+                <input type="date" class="form-control" style="width:auto;" value="${this.endDate}" onchange="TimetableView.handleRangeChange('endDate', this.value)">
               </div>
             ` : ''}
           </div>
 
           <div style="margin-left:auto;">
-            <button class="btn-secondary btn-sm" onclick="TimetableView.clearFilters()" style="font-weight:700; color:var(--color-danger); border-color:#FECDD3; display:flex; align-items:center; gap:0.3rem;">
+            <button class="btn-secondary btn-sm" onclick="TimetableView.clearFilters()" style="color:var(--color-danger); border-color:#FECDD3; display:flex; align-items:center; gap:0.3rem;">
               <i data-lucide="x-circle" style="width:14px; height:14px;"></i> Clear Filters
             </button>
           </div>
@@ -557,7 +557,7 @@ const TimetableView = {
       </div>
 
       <!-- SCHEDULED SLOTS DATA TABLE CARD -->
-      <div class="card" style="padding:0; overflow:hidden; border:1px solid var(--color-border); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+      <div class="glass-panel" style="padding:0; overflow:hidden; border:1px solid var(--color-border); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
         <!-- SKELETON / LOADING STATE -->
         ${this.isLoading ? `
           <div style="padding:3rem; text-align:center;">
@@ -573,11 +573,11 @@ const TimetableView = {
               ${this.hasActiveFilters() ? 'No timetable slots match your selected search criteria or filters.' : 'No scheduled slots are currently available in the system.'}
             </p>
             ${this.hasActiveFilters() ? `
-              <button class="btn-secondary btn-sm" onclick="TimetableView.clearFilters()" style="font-weight:700;">
+              <button class="btn-secondary btn-sm" onclick="TimetableView.clearFilters()" >
                 <i data-lucide="rotate-ccw" style="width:14px; height:14px; display:inline;"></i> Clear Filters
               </button>
             ` : isAdmin ? `
-              <button class="btn-primary btn-sm" onclick="TimetableView.openAddModal()" style="font-weight:700;">
+              <button class="btn-primary btn-sm" onclick="TimetableView.openAddModal()" >
                 <i data-lucide="plus-circle" style="width:14px; height:14px; display:inline;"></i> + Add Scheduled Slot
               </button>
             ` : ''}
@@ -587,7 +587,7 @@ const TimetableView = {
           <div class="table-responsive">
             <table class="data-table" style="width:100%; border-collapse:collapse;">
               <thead>
-                <tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0;">
+                <tr >
                   <th style="cursor:pointer;" onclick="TimetableView.handleSort('date')" title="Click to sort by Date">
                     Date ${this.getSortIcon('date')}
                   </th>
@@ -629,12 +629,12 @@ const TimetableView = {
                   const calculatedDay = AcademicCalendarService.getDayName(t.date) || t.day;
 
                   return `
-                    <tr style="border-bottom:1px solid #F1F5F9; transition:background 0.15s;">
-                      <td style="font-weight:700; color:var(--color-navy-dark); font-size:0.88rem; white-space:nowrap;">
+                    <tr style="transition:background 0.15s;">
+                      <td style="white-space:nowrap;">
                         <i data-lucide="calendar" style="width:14px; height:14px; color:#2563EB; display:inline; margin-right:4px;"></i>
                         ${formattedDate || t.date}
                       </td>
-                      <td style="font-size:0.85rem; font-weight:600; color:#475569;">
+                      <td >
                         ${calculatedDay}
                       </td>
                       <td style="white-space:nowrap;">
@@ -642,20 +642,20 @@ const TimetableView = {
                           <i data-lucide="clock" style="width:11px; height:11px; display:inline;"></i> ${t.startTime} – ${t.endTime}
                         </span>
                       </td>
-                      <td style="font-weight:700; color:var(--color-navy-dark); font-size:0.88rem;">
+                      <td >
                         ${sub ? sub.name : t.subjectId}
                         <div style="font-size:0.75rem; color:var(--color-text-muted); font-weight:500;">${sub ? sub.code : ''}</div>
                       </td>
-                      <td style="font-size:0.85rem; font-weight:600; color:#334155;">
+                      <td >
                         ${fac ? fac.name : t.facultyId}
                       </td>
-                      <td style="font-size:0.82rem; font-weight:600; color:#475569;">
+                      <td >
                         ${dept ? dept.code : (t.departmentId || 'CSE')}
                       </td>
-                      <td style="font-size:0.85rem; font-weight:700; color:#1E293B;">
+                      <td >
                         ${cls ? cls.name : (t.sectionId || 'CSE-A')}
                       </td>
-                      <td style="font-size:0.85rem; font-family:monospace; font-weight:700; color:#0F172A;">
+                      <td style="font-family:monospace;">
                         ${t.room || '301'}
                       </td>
                       <td style="white-space:nowrap;">
@@ -702,7 +702,7 @@ const TimetableView = {
                   class="btn-secondary btn-sm" 
                   ${data.currentPage <= 1 ? 'disabled' : ''} 
                   onclick="TimetableView.goToPage(${data.currentPage - 1})"
-                  style="padding:0.3rem 0.6rem; font-size:0.8rem;"
+                  
                 >
                   ← Previous
                 </button>
@@ -713,7 +713,7 @@ const TimetableView = {
                     <button 
                       class="btn-sm ${pNum === data.currentPage ? 'btn-primary' : 'btn-secondary'}" 
                       onclick="TimetableView.goToPage(${pNum})"
-                      style="padding:0.3rem 0.6rem; font-size:0.8rem; font-weight:700;"
+                      
                     >
                       ${pNum}
                     </button>

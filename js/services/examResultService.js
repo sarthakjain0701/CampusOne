@@ -8,35 +8,35 @@ const ExamResultService = {
   // This allows swapping between Local Database and Firebase without changing business logic
   repository: window.examResultRepository,
 
-  getAllResults() {
-    return this.repository.getAll();
+  async getAllResults() {
+    return await this.repository.getAll();
   },
 
-  getResultById(id) {
-    return this.repository.getById(id);
+  async getResultById(id) {
+    return await this.repository.getById(id);
   },
 
-  getStudentResults(studentId, semester = null, actorUser = null) {
+  async getStudentResults(studentId, semester = null, actorUser = null) {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
     
     // Abstracted data fetch via repository
-    let list = this.repository.getByStudent(studentId, semester);
+    let list = await this.repository.getByStudent(studentId, semester);
 
     if (user && typeof AuthorizationService !== 'undefined') {
-      list = AuthorizationService.filterStudentResultForRole(user, list);
+      list = await AuthorizationService.filterStudentResultForRole(user, list);
     }
 
     return list;
   },
 
-  getPublishedResults(studentId, semester = null, actorUser = null) {
-    const list = this.getStudentResults(studentId, semester, actorUser);
+  async getPublishedResults(studentId, semester = null, actorUser = null) {
+    const list = await this.getStudentResults(studentId, semester, actorUser);
     return list.filter(r => r.status === 'PUBLISHED');
   },
 
-  calculateStudentSummary(studentId, semester = null, actorUser = null) {
+  async calculateStudentSummary(studentId, semester = null, actorUser = null) {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
-    const results = this.getPublishedResults(studentId, semester, user);
+    const results = await this.getPublishedResults(studentId, semester, user);
 
     if (results.length === 0 || (user && AuthorizationService.isAcademicStaff(user))) {
       // Faculty is NOT allowed to view overall student CGPA or overall PASS/FAIL across all subjects!
@@ -79,11 +79,11 @@ const ExamResultService = {
     };
   },
 
-  createResult(data, actorUser = null) {
+  async createResult(data, actorUser = null) {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
     
     if (user && typeof AuthorizationService !== 'undefined') {
-      if (!AuthorizationService.canEditResult(user, data.subjectId, data.sectionId)) {
+      if (!(await AuthorizationService.canEditResult(user, data.subjectId, data.sectionId))) {
         throw new Error("Access Denied: You are not authorized to create result records for this subject.");
       }
     }
@@ -196,7 +196,7 @@ const ExamResultService = {
     });
   },
 
-  deleteResult(id, actorUser = null) {
+  async deleteResult(id, actorUser = null) {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
     const existing = this.getResultById(id);
     if (!existing) throw new Error("Result record not found.");
@@ -215,7 +215,7 @@ const ExamResultService = {
     let list = this.getAllResults();
 
     if (user && typeof AuthorizationService !== 'undefined') {
-      list = AuthorizationService.filterStudentResultForRole(user, list);
+      list = await AuthorizationService.filterStudentResultForRole(user, list);
     }
 
     if (studentId && studentId !== 'ALL') {

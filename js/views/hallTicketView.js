@@ -3,17 +3,62 @@
    ========================================================================== */
 
 const HallTicketView = {
+  loading: true,
+  ticket: null,
+  studentInfo: null,
+  examForm: null,
+  examPeriod: null,
+  allSubjects: [],
+  departments: [],
+  
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      const user = authService.getCurrentUser();
+      if (!user || user.role !== 'STUDENT') {
+        this.loading = false;
+        App.renderCurrentView();
+        return;
+      }
+
+      this.ticket = typeof hallTicketService !== 'undefined' ? await hallTicketService.getHallTicket(user.id) : null;
+      
+      const students = typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : (typeof studentService !== 'undefined' ? studentService.getStudents() : []);
+      this.studentInfo = students.find(s => s.id === user.id) || null;
+
+      this.departments = typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore ? await departmentService.getDepartmentsFromFirestore() : (typeof departmentService !== 'undefined' ? departmentService.getDepartments() : []);
+      
+      this.allSubjects = typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (typeof subjectService !== 'undefined' ? subjectService.getSubjects() : []);
+      
+      if (this.ticket && typeof ExamFormService !== 'undefined') {
+        this.examForm = await ExamFormService.getExamFormById(this.ticket.examFormId);
+        const periods = await ExamFormService.getExamPeriods();
+        this.examPeriod = periods.find(p => p.id === this.ticket.examId);
+      }
+      
+      this.loading = false;
+      App.renderCurrentView();
+    } catch(e) {
+      console.error(e);
+      this.loading = false;
+      App.renderCurrentView();
+    }
+  },
+
   render() {
     const user = authService.getCurrentUser();
     
-    // We only support student view for Hall Ticket downloading based on requirements, 
-    // although Admin could publish it, we'll keep the view focused on Student.
-    
+    // We only support student view for Hall Ticket downloading based on requirements
     if (user.role !== 'STUDENT') {
       return `
         <div class="page-header">
           <h1>Hall Ticket Management</h1>
-          <p>Admin features for publishing hall tickets would go here.</p>
+          <p>Admin features for publishing hall tickets are located in Exam Form Management.</p>
         </div>
       `;
     }
@@ -27,7 +72,7 @@ const HallTicketView = {
           <h1>Hall Ticket</h1>
           <p>Download your examination hall ticket.</p>
         </div>
-        <div style="text-align:center; padding:4rem 2rem; background:white; border-radius:12px; border:1px solid var(--color-border);">
+        <div class="card" style="text-align:center; padding:4rem 2rem;">
           <div style="font-size:3rem; color:var(--color-text-light); margin-bottom:1rem;">📄</div>
           <h2 style="font-size:1.5rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">Hall ticket is not available yet.</h2>
           <p style="color:var(--color-text-muted);">Please check back later or wait for a notification from the administration.</p>
@@ -35,7 +80,40 @@ const HallTicketView = {
       `;
     }
 
-    const deptName = DataStore.get('DEPARTMENTS').find(d => studentInfo && d.name === studentInfo.department)?.name || studentInfo?.department || "N/A";
+    // Resolve relational data dynamically as requested
+    const examForm = this.examForm;
+    const examPeriod = this.examPeriod;
+    const allSubjects = this.allSubjects || [];
+    
+    const deptName = this.departments.find(d => studentInfo && (d.name === studentInfo.department || d.id === studentInfo.departmentId))?.name || studentInfo?.department || "N/A";
+    const examName = examPeriod?.name || "Examination";
+    const academicYear = examPeriod?.academicYear || "2026-27";
+    const semester = examPeriod?.semester || examForm?.semester || studentInfo?.semester || "N/A";
+
+    // Build the list of subjects from the exam form
+    let subjectsHtml = '';
+    if (examForm && examForm.selectedSubjectIds) {
+      const selectedSubjects = allSubjects.filter(s => examForm.selectedSubjectIds.includes(s.id));
+      if (selectedSubjects.length > 0) {
+        subjectsHtml = selectedSubjects.map(s => {
+          // Defaulting to empty string for missing schedule data to not "invent" data
+          const date = examPeriod?.startDate ? new Date(examPeriod.startDate).toLocaleDateString() : '';
+          const time = '';
+          return `
+            <tr>
+              <td style="border:1px solid #333; padding:8px;"><strong>${s.code}</strong></td>
+              <td style="border:1px solid #333; padding:8px;">${s.name}</td>
+              <td style="border:1px solid #333; padding:8px;">${date}</td>
+              <td style="border:1px solid #333; padding:8px;">${time}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        subjectsHtml = `<tr><td colspan="4" style="border:1px solid #333; padding:8px; text-align:center;">No subjects found for this registration.</td></tr>`;
+      }
+    } else {
+      subjectsHtml = `<tr><td colspan="4" style="border:1px solid #333; padding:8px; text-align:center;">No subjects found for this registration.</td></tr>`;
+    }
 
     // Build the hall ticket DOM string
     return `
@@ -46,106 +124,97 @@ const HallTicketView = {
             <p>Your hall ticket is available.</p>
           </div>
           <button class="btn-primary" onclick="window.print()">
-            <i data-lucide="download"></i> Download Hall Ticket
+            <i data-lucide="printer"></i> Print Hall Ticket
           </button>
         </div>
       </div>
 
       <!-- Printable Hall Ticket Area -->
-      <div class="hall-ticket-container printable-area" style="background:white; padding:2rem; border-radius:12px; border:1px solid var(--color-border); max-width:800px; margin:0 auto; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+      <div class="hall-ticket-container printable-area" style="background:white; padding:40px; border-radius:12px; border:1px solid var(--color-border); max-width:800px; margin:0 auto; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); color: #000; font-family: 'Times New Roman', serif;">
         
         <!-- Header -->
-        <div style="text-align:center; border-bottom:2px solid var(--color-navy-dark); padding-bottom:1.5rem; margin-bottom:1.5rem;">
-          <h2 style="font-size:1.5rem; font-weight:800; color:var(--color-navy-dark); text-transform:uppercase; margin:0;">Poornima Group of Education</h2>
-          <h3 style="font-size:1.1rem; font-weight:600; color:var(--color-text-main); margin:0.5rem 0;">EXAMINATION HALL TICKET</h3>
-          <p style="font-weight:600; color:var(--color-text-muted); margin:0;">${ticket.examName} (${ticket.academicYear})</p>
+        <div style="display:flex; align-items:center; border-bottom:2px solid #000; padding-bottom:20px; margin-bottom:20px;">
+          <img src="https://images.shiksha.com/mediadata/images/1684410058phpjSEJOU.jpeg" alt="Logo" style="height:80px; margin-right:20px;">
+          <div style="flex:1; text-align:center;">
+            <h2 style="font-size:24px; font-weight:bold; text-transform:uppercase; margin:0;">Poornima Group of College</h2>
+            <h3 style="font-size:18px; font-weight:bold; margin:8px 0;">EXAMINATION HALL TICKET</h3>
+            <p style="font-weight:bold; margin:0;">${examName} - Academic Year: ${academicYear}</p>
+          </div>
         </div>
 
         <!-- Student Info -->
-        <div style="display:grid; grid-template-columns: 1fr 150px; gap: 2rem; margin-bottom: 2rem;">
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem 2rem; font-size:0.9rem;">
-            <div>
-              <strong style="color:var(--color-text-muted); font-size:0.8rem; display:block;">Student Name</strong>
-              <span style="font-weight:600; color:var(--color-navy-dark);">${studentInfo?.name || user.name}</span>
-            </div>
-            <div>
-              <strong style="color:var(--color-text-muted); font-size:0.8rem; display:block;">Roll Number</strong>
-              <span style="font-weight:600; color:var(--color-navy-dark);">${studentInfo?.rollNumber || studentInfo?.rollNo || 'N/A'}</span>
-            </div>
-            <div>
-              <strong style="color:var(--color-text-muted); font-size:0.8rem; display:block;">Registration Number</strong>
-              <span style="font-weight:600; color:var(--color-navy-dark);">${studentInfo?.registrationNumber || 'N/A'}</span>
-            </div>
-            <div>
-              <strong style="color:var(--color-text-muted); font-size:0.8rem; display:block;">Department</strong>
-              <span style="font-weight:600; color:var(--color-navy-dark);">${deptName}</span>
-            </div>
-            <div>
-              <strong style="color:var(--color-text-muted); font-size:0.8rem; display:block;">Semester</strong>
-              <span style="font-weight:600; color:var(--color-navy-dark);">${ticket.semester}</span>
-            </div>
-            <div>
-              <strong style="color:var(--color-text-muted); font-size:0.8rem; display:block;">Section</strong>
-              <span style="font-weight:600; color:var(--color-navy-dark);">${studentInfo?.section || 'A'}</span>
-            </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
+          <div style="flex:1;">
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+              <tr>
+                <td style="padding:4px 0; width:150px;"><strong>Name:</strong></td>
+                <td style="padding:4px 0;">${studentInfo?.name || user.name}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;"><strong>Roll Number:</strong></td>
+                <td style="padding:4px 0;">${studentInfo?.rollNumber || studentInfo?.rollNo || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;"><strong>Registration Number:</strong></td>
+                <td style="padding:4px 0;">${studentInfo?.registrationNumber || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;"><strong>Department:</strong></td>
+                <td style="padding:4px 0;">${deptName}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;"><strong>Semester:</strong></td>
+                <td style="padding:4px 0;">${semester}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;"><strong>Section:</strong></td>
+                <td style="padding:4px 0;">${studentInfo?.section || 'A'}</td>
+              </tr>
+            </table>
           </div>
           
           <!-- Photo Placeholder -->
-          <div style="width:120px; height:150px; border:2px dashed var(--color-border); display:flex; align-items:center; justify-content:center; background:var(--color-bg-light); border-radius:8px;">
-            <i data-lucide="user" style="width:48px; height:48px; color:var(--color-text-light);"></i>
+          <div style="width:120px; height:150px; border:1px solid #000; display:flex; align-items:center; justify-content:center; margin-left:20px;">
+            <span style="color:#666; font-size:12px;">Affix Photo Here</span>
           </div>
         </div>
 
         <!-- Subjects Table -->
-        <div style="margin-bottom: 2rem;">
-          <h4 style="font-size:1rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:1rem; border-bottom:1px solid var(--color-border); padding-bottom:0.5rem;">Subject Details</h4>
-          <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+        <div style="margin-bottom: 30px;">
+          <h4 style="font-size:16px; font-weight:bold; margin-bottom:10px; border-bottom:1px solid #000; padding-bottom:5px;">Examination Schedule</h4>
+          <table style="width:100%; border-collapse:collapse; font-size:14px;">
             <thead>
-              <tr style="background:var(--color-bg-light); border-bottom:2px solid var(--color-border);">
-                <th style="padding:0.75rem; text-align:left; font-weight:600;">Code</th>
-                <th style="padding:0.75rem; text-align:left; font-weight:600;">Subject Name</th>
-                <th style="padding:0.75rem; text-align:left; font-weight:600;">Exam Date</th>
-                <th style="padding:0.75rem; text-align:left; font-weight:600;">Exam Time</th>
+              <tr>
+                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Subject Code</th>
+                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Subject Name</th>
+                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Exam Date</th>
+                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Exam Time</th>
               </tr>
             </thead>
             <tbody>
-              ${ticket.subjects.map(s => `
-                <tr style="border-bottom:1px solid var(--color-border);">
-                  <td style="padding:0.75rem;"><strong>${s.code}</strong></td>
-                  <td style="padding:0.75rem;">${s.name}</td>
-                  <td style="padding:0.75rem;">${s.date}</td>
-                  <td style="padding:0.75rem;">${s.time}</td>
-                </tr>
-              `).join('')}
+              ${subjectsHtml}
             </tbody>
           </table>
         </div>
 
         <!-- Exam Center & Instructions -->
-        <div style="display:grid; grid-template-columns: 1fr; gap: 1.5rem; background:#F8FAFC; padding:1.5rem; border-radius:8px; border:1px solid #E2E8F0;">
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div>
-              <strong style="color:var(--color-navy-dark); font-size:0.85rem; display:block; text-transform:uppercase;">Examination Center</strong>
-              <span style="font-weight:600; color:var(--color-text-main);">${ticket.examCenter}</span>
-            </div>
-            <div>
-              <strong style="color:var(--color-navy-dark); font-size:0.85rem; display:block; text-transform:uppercase;">Room Number</strong>
-              <span style="font-weight:600; color:var(--color-text-main);">${ticket.roomNumber}</span>
-            </div>
-          </div>
-          <div>
-            <strong style="color:var(--color-navy-dark); font-size:0.85rem; display:block; text-transform:uppercase; margin-bottom:0.5rem;">Important Instructions</strong>
-            <pre style="margin:0; white-space:pre-wrap; font-family:inherit; font-size:0.85rem; color:var(--color-text-muted); line-height:1.5;">${ticket.instructions}</pre>
-          </div>
+        <div style="margin-bottom: 40px;">
+          <h4 style="font-size:14px; font-weight:bold; margin-bottom:5px; text-transform:uppercase;">Important Instructions</h4>
+          <ol style="margin:0; padding-left:20px; font-size:12px; line-height:1.5;">
+            <li>The candidate must carry this Hall Ticket and a valid College ID Card to the examination hall.</li>
+            <li>Electronic devices including mobile phones and smartwatches are strictly prohibited.</li>
+            <li>Candidates must report to the examination hall 30 minutes before the commencement of the exam.</li>
+            <li>No candidate will be allowed to enter the examination hall after 30 minutes from the start time.</li>
+          </ol>
         </div>
 
         <!-- Signatures -->
-        <div style="display:flex; justify-content:space-between; margin-top:4rem; padding-top:1rem;">
-          <div style="text-align:center; width:200px; border-top:1px solid var(--color-text-main); padding-top:0.5rem;">
-            <span style="font-size:0.85rem; font-weight:600; color:var(--color-text-main);">Student Signature</span>
+        <div style="display:flex; justify-content:space-between; margin-top:60px;">
+          <div style="text-align:center; width:200px; border-top:1px solid #000; padding-top:10px;">
+            <span style="font-size:14px; font-weight:bold;">Candidate Signature</span>
           </div>
-          <div style="text-align:center; width:200px; border-top:1px solid var(--color-text-main); padding-top:0.5rem;">
-            <span style="font-size:0.85rem; font-weight:600; color:var(--color-text-main);">Controller of Examinations</span>
+          <div style="text-align:center; width:200px; border-top:1px solid #000; padding-top:10px;">
+            <span style="font-size:14px; font-weight:bold;">Controller of Examinations</span>
           </div>
         </div>
       </div>

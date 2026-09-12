@@ -23,7 +23,7 @@ const SettingsView = {
             System Settings are restricted to <strong>Admin</strong> users only.
             Your current role — <strong>${user ? user.role : 'Unknown'}</strong> — does not have permission to view or modify system configuration.
           </p>
-          <button class="btn-primary" onclick="App.navigateTo('dashboard')" style="font-weight:700;">
+          <button class="btn-primary" onclick="App.navigateTo('dashboard')" >
             <i data-lucide="arrow-left"></i> Return to Dashboard
           </button>
         </div>

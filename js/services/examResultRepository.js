@@ -1,63 +1,92 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM (PAS) - EXAM RESULT REPOSITORY
-   Data Access Layer abstraction. 
-   Currently points to the local database, but architected to seamlessly 
-   allow Firebase integration later by just switching the implementation.
+   POORNIMA ATTENDANCE SYSTEM (PAS) - EXAM RESULT REPOSITORY (FIRESTORE)
+   Data Access Layer abstraction.
    ========================================================================== */
 
-/**
- * Interface definition for Exam Result Data Access.
- * Any underlying storage (Local JSON, Firebase, SQL) must implement these methods.
- */
 class ExamResultRepository {
-  getAll() { throw new Error("Not implemented"); }
-  getById(id) { throw new Error("Not implemented"); }
-  getByStudent(studentId, semester = null) { throw new Error("Not implemented"); }
-  create(data) { throw new Error("Not implemented"); }
-  update(id, data) { throw new Error("Not implemented"); }
-  delete(id) { throw new Error("Not implemented"); }
+  async getAll() { throw new Error("Not implemented"); }
+  async getById(id) { throw new Error("Not implemented"); }
+  async getByStudent(studentId, semester = null) { throw new Error("Not implemented"); }
+  async create(data) { throw new Error("Not implemented"); }
+  async update(id, data) { throw new Error("Not implemented"); }
+  async delete(id) { throw new Error("Not implemented"); }
 }
 
-/**
- * Implementation for the existing local DataStore.
- */
-class LocalExamResultRepository extends ExamResultRepository {
-  getAll() {
-    return DataStore.get('EXAM_RESULTS') || [];
+class FirebaseExamResultRepository extends ExamResultRepository {
+  get db() {
+    return window.FirebaseService ? window.FirebaseService.db : null;
   }
 
-  getById(id) {
-    const results = this.getAll();
-    return results.find(r => r.id === id) || null;
-  }
-
-  getByStudent(studentId, semester = null) {
-    // Note: maintaining the original mock STU001 fallback for the prototype
-    let list = this.getAll().filter(r => r.studentId === studentId || r.studentId === "STU001");
-    if (semester && semester !== 'ALL') {
-      list = list.filter(r => Number(r.semester) === Number(semester));
+  async getAll() {
+    if (!this.db) return [];
+    try {
+      const snap = await this.db.collection('examResults').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+      console.error(e);
+      return [];
     }
-    return list;
   }
 
-  create(data) {
-    const id = data.id || "RES_" + String(Date.now()).slice(-6);
-    const newRecord = { ...data, id };
-    DataStore.addItem('EXAM_RESULTS', newRecord);
-    return newRecord;
+  async getById(id) {
+    if (!this.db) return null;
+    try {
+      const doc = await this.db.collection('examResults').doc(id).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   }
 
-  update(id, data) {
-    return DataStore.updateItem('EXAM_RESULTS', id, data);
+  async getByStudent(studentId, semester = null) {
+    if (!this.db) return [];
+    try {
+      let query = this.db.collection('examResults').where('studentId', 'in', [studentId, 'STU001']);
+      if (semester && semester !== 'ALL') {
+        query = query.where('semester', '==', Number(semester));
+      }
+      const snap = await query.get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   }
 
-  delete(id) {
-    DataStore.deleteItem('EXAM_RESULTS', id);
-    return true;
+  async create(data) {
+    if (!this.db) return null;
+    try {
+      const docRef = await this.db.collection('examResults').add(data);
+      return { id: docRef.id, ...data };
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  async update(id, data) {
+    if (!this.db) return null;
+    try {
+      await this.db.collection('examResults').doc(id).update(data);
+      return { id, ...data };
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  async delete(id) {
+    if (!this.db) return false;
+    try {
+      await this.db.collection('examResults').doc(id).delete();
+      return true;
+    } catch(e) {
+      console.error(e);
+      return false;
+    }
   }
 }
 
 // Export the singleton instance
-// When migrating to Firebase later, this export can be changed to:
-// window.examResultRepository = new FirebaseExamResultRepository();
-window.examResultRepository = new LocalExamResultRepository();
+window.examResultRepository = new FirebaseExamResultRepository();

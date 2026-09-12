@@ -3,6 +3,30 @@
    ========================================================================== */
 
 const ProfileView = {
+    loading: true,
+  students: [],
+  facultyList: [],
+
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      this.students = typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : (typeof studentService !== 'undefined' ? studentService.getStudents() : []);
+      this.facultyList = typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore ? await facultyService.getFacultyFromFirestore() : (typeof facultyService !== 'undefined' ? facultyService.getFaculty() : []);
+      
+      this.loading = false;
+      App.renderCurrentView();
+    } catch(e) {
+      console.error(e);
+      this.loading = false;
+      App.renderCurrentView();
+    }
+  },
+
   render() {
     const user = authService.getCurrentUser() || { name: 'User Profile', email: 'user@poornima.edu.in', role: 'ADMIN', phone: '+91 98290 11223' };
 
@@ -36,7 +60,7 @@ const ProfileView = {
         `;
       }
     } else if (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT') {
-      const facultyList = facultyService.getFaculty();
+      const facultyList = this.facultyList;
       const myFaculty = facultyList.find(f => f.email === user.email) || facultyList[0];
       if (myFaculty) {
         const roleLabel = user.role === 'LAB_ASSISTANT' ? 'Lab Assistant' : 'Faculty';

@@ -7,7 +7,7 @@ const TimetableService = {
   async getAllTimetables() {
     if (!window.FirebaseService || !window.FirebaseService.db) return [];
     const db = window.FirebaseService.db;
-    const snapshot = await db.collection('timetables').get();
+    const snapshot = await db.collection('timetables').limit(100).get();
     const list = [];
     snapshot.forEach(doc => {
       list.push({ id: doc.id, ...doc.data() });

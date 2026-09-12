@@ -1,46 +1,97 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM (PAS) - LEARNING RESOURCE SERVICE
+   POORNIMA ATTENDANCE SYSTEM (PAS) - LEARNING RESOURCE SERVICE (FIRESTORE)
    ========================================================================== */
 
 const LearningResourceService = {
-  getAllResources() {
-    return DataStore.get('LEARNING_RESOURCES');
+  get db() {
+    return window.FirebaseService ? window.FirebaseService.db : null;
   },
 
-  getResourceById(id) {
-    return this.getAllResources().find(r => r.id === id) || null;
+  async getAllResources() {
+    if (!this.db) return [];
+    try {
+      const snap = await this.db.collection('learningResources').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+      console.error(e);
+      return [];
+    }
   },
 
-  getSubjectsForStudent(studentId) {
-    const subjects = DataStore.get('SUBJECTS');
-    const student = DataStore.get('STUDENTS').find(s => s.id === studentId || s.userId === studentId);
+  async getResourceById(id) {
+    if (!this.db) return null;
+    try {
+      const doc = await this.db.collection('learningResources').doc(id).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  async getSubjectsForStudent(studentId) {
+    if (typeof subjectService === 'undefined') return [];
+    
+    let subjects = [];
+    if (subjectService.getSubjectsFromFirestore) {
+      subjects = await subjectService.getSubjectsFromFirestore();
+    } else {
+      subjects = subjectService.getSubjects();
+    }
+    
+    let student = null;
+    if (this.db) {
+      try {
+        const doc = await this.db.collection('students').doc(studentId).get();
+        if (doc.exists) student = { id: doc.id, ...doc.data() };
+      } catch(e) {}
+    }
+
     if (student) {
       return subjects.filter(sub => sub.semester === Number(student.semester) || sub.department === student.department || sub.departmentId === student.departmentId);
     }
     return subjects;
   },
 
-  getResourcesBySubject(subjectId) {
-    return this.getAllResources().filter(r => r.subjectId === subjectId && r.status === 'ACTIVE');
+  async getResourcesBySubject(subjectId) {
+    if (!this.db) return [];
+    try {
+      const snap = await this.db.collection('learningResources')
+        .where('subjectId', '==', subjectId)
+        .where('status', '==', 'ACTIVE')
+        .get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+      console.error(e);
+      return [];
+    }
   },
 
-  getResourcesByType(subjectId, type) {
-    const list = subjectId ? this.getResourcesBySubject(subjectId) : this.getAllResources();
+  async getResourcesByType(subjectId, type) {
+    const list = subjectId ? await this.getResourcesBySubject(subjectId) : await this.getAllResources();
     if (!type || type === 'ALL') return list;
     return list.filter(r => r.resourceType === type);
   },
 
-  getFacultyResources(facultyId) {
-    return this.getAllResources().filter(r => r.facultyId === facultyId);
+  async getFacultyResources(facultyId) {
+    if (!this.db) return [];
+    try {
+      const snap = await this.db.collection('learningResources').where('facultyId', '==', facultyId).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   },
 
-  createResource(resourceData) {
+  async createResource(resourceData) {
     if (!Validation.isRequired(resourceData.title)) throw new Error("Title is required.");
     if (!Validation.isRequired(resourceData.subjectId)) throw new Error("Subject selection is required.");
     if (!Validation.isRequired(resourceData.resourceType)) throw new Error("Resource type is required.");
 
+    if (!this.db) return null;
+
     const newResource = {
-      id: "RES" + String(Date.now()).slice(-6),
       title: resourceData.title.trim(),
       description: resourceData.description ? resourceData.description.trim() : "",
       subjectId: resourceData.subjectId,
@@ -55,12 +106,17 @@ const LearningResourceService = {
       updatedAt: new Date().toISOString().split('T')[0]
     };
 
-    DataStore.addItem('LEARNING_RESOURCES', newResource);
-    return newResource;
+    try {
+      const docRef = await this.db.collection('learningResources').add(newResource);
+      return { id: docRef.id, ...newResource };
+    } catch(e) {
+      console.error(e);
+      return null;
+    }
   },
 
-  updateResource(id, updatedFields) {
-    const existing = this.getResourceById(id);
+  async updateResource(id, updatedFields) {
+    const existing = await this.getResourceById(id);
     if (!existing) throw new Error("Learning resource not found.");
 
     if (updatedFields.status && updatedFields.status !== existing.status) {
@@ -70,28 +126,39 @@ const LearningResourceService = {
       }
     }
 
-    return DataStore.updateItem('LEARNING_RESOURCES', id, updatedFields);
+    if (!this.db) return null;
+    try {
+      await this.db.collection('learningResources').doc(id).update(updatedFields);
+      return { id, ...existing, ...updatedFields };
+    } catch(e) {
+      console.error(e);
+      return null;
+    }
   },
 
-  deleteResource(id) {
-    DataStore.deleteItem('LEARNING_RESOURCES', id);
+  async deleteResource(id) {
+    if (!this.db) return false;
+    try {
+      await this.db.collection('learningResources').doc(id).delete();
+      return true;
+    } catch(e) {
+      console.error(e);
+      return false;
+    }
   },
 
-  searchResources({ query, subjectId, resourceType, semester }) {
-    let list = this.getAllResources();
+  async searchResources({ query, subjectId, resourceType, semester }) {
+    let list = await this.getAllResources();
 
     if (subjectId && subjectId !== 'ALL') {
       list = list.filter(r => r.subjectId === subjectId);
     }
-
     if (resourceType && resourceType !== 'ALL') {
       list = list.filter(r => r.resourceType === resourceType);
     }
-
     if (semester && semester !== 'ALL') {
       list = list.filter(r => Number(r.semester) === Number(semester));
     }
-
     if (query && query.trim() !== '') {
       const q = query.toLowerCase().trim();
       list = list.filter(r => 
@@ -100,7 +167,6 @@ const LearningResourceService = {
         r.fileName.toLowerCase().includes(q)
       );
     }
-
     return list;
   }
 };

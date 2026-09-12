@@ -81,7 +81,7 @@ const ReportsView = {
             <label style="font-size:0.75rem;font-weight:600;color:var(--color-text-muted);display:block;margin-bottom:0.3rem;">Academic Year</label>
             <select id="rpt-year" class="form-input" onchange="ReportsView.onFilterChange('year')">
               <option value="">— Select Year —</option>
-              ${this._getYearOptions(user)}
+              
             </select>
           </div>
 
@@ -90,7 +90,7 @@ const ReportsView = {
             <select id="rpt-dept" class="form-input" onchange="ReportsView.onFilterChange('dept')"
               ${isFaculty ? 'style="pointer-events:none;opacity:0.8;" disabled' : ''}>
               <option value="">— Select Department —</option>
-              ${this._getDeptOptions(user)}
+              
             </select>
           </div>
 
@@ -129,19 +129,19 @@ const ReportsView = {
             <input id="rpt-date-to" type="date" class="form-input" style="min-width:150px;" />
           </div>
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap;padding-bottom:1px;">
-            <button class="btn-secondary" style="font-size:0.75rem;padding:0.4rem 0.7rem;" onclick="ReportsView.setQuickDate('week')">This Week</button>
-            <button class="btn-secondary" style="font-size:0.75rem;padding:0.4rem 0.7rem;" onclick="ReportsView.setQuickDate('month')">This Month</button>
-            <button class="btn-secondary" style="font-size:0.75rem;padding:0.4rem 0.7rem;" onclick="ReportsView.setQuickDate('clear')">Clear Dates</button>
+            <button class="btn-secondary"  onclick="ReportsView.setQuickDate('week')">This Week</button>
+            <button class="btn-secondary"  onclick="ReportsView.setQuickDate('month')">This Month</button>
+            <button class="btn-secondary"  onclick="ReportsView.setQuickDate('clear')">Clear Dates</button>
           </div>
         </div>
 
         <!-- ACTIONS -->
         <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
-          <button class="btn-primary" onclick="ReportsView.generateReport()" style="font-weight:700;">
+          <button class="btn-primary" onclick="ReportsView.generateReport()" >
             <i data-lucide="bar-chart-2" style="width:16px;height:16px;display:inline;"></i>
             Generate Report
           </button>
-          <button class="btn-secondary" onclick="ReportsView.clearFilters()" style="font-weight:600;">
+          <button class="btn-secondary" onclick="ReportsView.clearFilters()" >
             <i data-lucide="x-circle" style="width:16px;height:16px;display:inline;"></i>
             Clear Filters
           </button>
@@ -165,20 +165,24 @@ const ReportsView = {
 
   /* ── CASCADING FILTER HANDLERS ── */
 
-  postInit() {
+  async afterRender() {
+    await this.initFilters();
+  },
+
+  async initFilters() {
     const user = authService.getCurrentUser();
     if (!user) return;
     if (AuthorizationService.isAcademicStaff(user)) {
-      const depts = ReportService.getDepartments(user);
+      const depts = await ReportService.getDepartments(user);
       if (depts.length >= 1) {
         const deptEl = document.getElementById('rpt-dept');
-        if (deptEl) { deptEl.value = depts[0].name; this.onFilterChange('dept'); }
+        if (deptEl) { deptEl.value = depts[0].name; await this.onFilterChange('dept'); }
       }
     }
     if (window.lucide) window.lucide.createIcons();
   },
 
-  onFilterChange(level) {
+  async onFilterChange(level) {
     const user = authService.getCurrentUser();
     if (!user) return;
     const deptEl = document.getElementById('rpt-dept');
@@ -192,9 +196,9 @@ const ReportsView = {
       this._resetSelect(subEl, 'All Subjects');
       const dept = deptEl ? deptEl.value : '';
       if (dept) {
-        const sems = ReportService.getSemesters(user, dept);
+        const sems = await ReportService.getSemesters(user, dept);
         sems.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = `Semester ${s}`; semEl.appendChild(o); });
-        if (AuthorizationService.isAcademicStaff(user) && sems.length === 1) { semEl.value = sems[0]; this.onFilterChange('semester'); }
+        if (AuthorizationService.isAcademicStaff(user) && sems.length === 1) { semEl.value = sems[0]; await this.onFilterChange('semester'); }
       }
     }
 
@@ -204,9 +208,9 @@ const ReportsView = {
       const dept = deptEl ? deptEl.value : '';
       const sem  = semEl  ? semEl.value  : '';
       if (dept && sem) {
-        const sections = ReportService.getSections(user, dept, sem);
+        const sections = await ReportService.getSections(user, dept, sem);
         sections.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = `Section ${s.section} (${s.name})`; secEl.appendChild(o); });
-        if (AuthorizationService.isAcademicStaff(user) && sections.length === 1) { secEl.value = sections[0].id; this.onFilterChange('section'); }
+        if (AuthorizationService.isAcademicStaff(user) && sections.length === 1) { secEl.value = sections[0].id; await this.onFilterChange('section'); }
       }
     }
 
@@ -214,7 +218,7 @@ const ReportsView = {
       this._resetSelect(subEl, 'All Subjects');
       const classId = secEl ? secEl.value : '';
       if (classId) {
-        const subs = ReportService.getSubjectsForClass(user, classId);
+        const subs = await ReportService.getSubjectsForClass(user, classId);
         subs.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = `${s.code} — ${s.name}`; subEl.appendChild(o); });
         if (AuthorizationService.isAcademicStaff(user) && subs.length === 1) subEl.value = subs[0].id;
       }
@@ -246,18 +250,18 @@ const ReportsView = {
 
   /* ── STUDENT SEARCH ── */
 
-  searchStudent() {
+  async searchStudent() {
     const user = authService.getCurrentUser();
     const regNo = (document.getElementById('rpt-reg-search') || {}).value || '';
     if (!regNo.trim()) { UIService.showToast('Please enter a Registration Number.', 'warning'); return; }
 
-    const found = ReportService.searchStudentByRegNo(regNo, user);
+    const found = await ReportService.searchStudentByRegNo(regNo, user);
     if (found.error) {
       this.state.mode = 'error'; this.state.reportData = { error: found.error }; this.state.studentReportData = null;
       this._refreshResultsArea(); return;
     }
 
-    const report = ReportService.generateStudentReport(found.student.id, user);
+    const report = await ReportService.generateStudentReport(found.student.id, user);
     this.state.mode = 'student-results'; this.state.studentReportData = report; this.state.reportData = null;
     this._refreshResultsArea();
   },
@@ -405,34 +409,34 @@ const ReportsView = {
           <span style="font-size:0.78rem;color:#94A3B8;">${rows.length} subject(s)</span>
         </div>
         <div style="overflow-x:auto;">
-          <table class="custom-table" style="width:100%;border-collapse:collapse;min-width:480px;">
-            <thead><tr style="background:#F8FAFC;">
-              <th style="padding:0.7rem 1rem;text-align:left;font-size:0.75rem;color:#64748B;">Subject</th>
-              <th style="padding:0.7rem 1rem;text-align:center;font-size:0.75rem;color:#64748B;">Present</th>
-              <th style="padding:0.7rem 1rem;text-align:center;font-size:0.75rem;color:#64748B;">Absent</th>
-              <th style="padding:0.7rem 1rem;text-align:center;font-size:0.75rem;color:#64748B;">Total</th>
-              <th style="padding:0.7rem 1rem;text-align:center;font-size:0.75rem;color:#64748B;">Attendance</th>
-              <th style="padding:0.7rem 1rem;text-align:center;font-size:0.75rem;color:#64748B;">Status</th>
+          <table class="data-table" style="width:100%; border-collapse:collapse; min-width:480px;">
+            <thead><tr >
+              <th style="text-align:left;">Subject</th>
+              <th style="text-align:center;">Present</th>
+              <th style="text-align:center;">Absent</th>
+              <th style="text-align:center;">Total</th>
+              <th style="text-align:center;">Attendance</th>
+              <th style="text-align:center;">Status</th>
             </tr></thead>
             <tbody>
               ${rows.length === 0
-                ? `<tr><td colspan="6" style="padding:2rem;text-align:center;color:#94A3B8;">No attendance records found for this student.</td></tr>`
+                ? `<tr><td colspan="6" style="text-align:center;">No attendance records found for this student.</td></tr>`
                 : rows.map(r => `
-                  <tr style="border-bottom:1px solid #F1F5F9;">
-                    <td style="padding:0.65rem 1rem;">
+                  <tr >
+                    <td >
                       <div style="font-weight:700;font-size:0.85rem;color:var(--color-navy-dark);">${r.subjectName}</div>
                       <div style="font-size:0.72rem;color:#94A3B8;">${r.subjectCode}</div>
                     </td>
-                    <td style="text-align:center;padding:0.65rem 1rem;font-weight:700;color:#10B981;">${r.present}</td>
-                    <td style="text-align:center;padding:0.65rem 1rem;font-weight:700;color:#EF4444;">${r.absent}</td>
-                    <td style="text-align:center;padding:0.65rem 1rem;color:#64748B;">${r.total}</td>
-                    <td style="text-align:center;padding:0.65rem 1rem;">
+                    <td style="text-align:center;">${r.present}</td>
+                    <td style="text-align:center;">${r.absent}</td>
+                    <td style="text-align:center;">${r.total}</td>
+                    <td style="text-align:center;">
                       <div style="font-weight:800;font-size:0.95rem;color:${c(r.percentage)};">${r.percentage}%</div>
                       <div style="width:72px;height:4px;background:#E2E8F0;border-radius:3px;margin:4px auto 0;">
                         <div style="width:${r.percentage}%;height:100%;background:${c(r.percentage)};border-radius:3px;"></div>
                       </div>
                     </td>
-                    <td style="text-align:center;padding:0.65rem 1rem;">
+                    <td style="text-align:center;">
                       <span class="status-badge ${r.percentage >= 75 ? 'present' : 'warning'}">${r.status}</span>
                     </td>
                   </tr>`).join('')}
@@ -501,35 +505,35 @@ const ReportsView = {
             <h3 style="margin:0;font-size:0.875rem;font-weight:700;color:var(--color-navy-dark);">${meta.subjectName} — Student-wise Report</h3>
             ${meta.dateFrom || meta.dateTo ? `<p style="margin:0.15rem 0 0;font-size:0.75rem;color:#94A3B8;">Period: ${meta.dateFrom || '—'} to ${meta.dateTo || '—'}</p>` : ''}
           </div>
-          <button class="btn-secondary" onclick="ReportsView.exportCSV()" style="font-size:0.78rem;padding:0.4rem 0.85rem;">
+          <button class="btn-secondary" onclick="ReportsView.exportCSV()" >
             <i data-lucide="download" style="width:14px;height:14px;display:inline;"></i> Export CSV
           </button>
         </div>
         <div style="overflow-x:auto;">
-          <table class="custom-table" style="width:100%;border-collapse:collapse;min-width:540px;">
-            <thead><tr style="background:#F8FAFC;">
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:left;">#</th>
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:left;">Reg. No.</th>
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:left;">Student Name</th>
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:center;">Present</th>
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:center;">Absent</th>
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:center;">Total</th>
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:center;">Attendance</th>
-              <th style="padding:0.7rem 1rem;font-size:0.75rem;color:#64748B;text-align:center;">Status</th>
+          <table class="data-table" style="width:100%; border-collapse:collapse; min-width:540px;">
+            <thead><tr >
+              <th style="text-align:left;">#</th>
+              <th style="text-align:left;">Reg. No.</th>
+              <th style="text-align:left;">Student Name</th>
+              <th style="text-align:center;">Present</th>
+              <th style="text-align:center;">Absent</th>
+              <th style="text-align:center;">Total</th>
+              <th style="text-align:center;">Attendance</th>
+              <th style="text-align:center;">Status</th>
             </tr></thead>
             <tbody>
               ${pageRows.length === 0
-                ? `<tr><td colspan="8" style="padding:2.5rem;text-align:center;color:#94A3B8;">No records match the selected filters.</td></tr>`
+                ? `<tr><td colspan="8" style="text-align:center;">No records match the selected filters.</td></tr>`
                 : pageRows.map((r, i) => `
-                  <tr style="border-bottom:1px solid #F1F5F9;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background=''">
-                    <td style="padding:0.6rem 1rem;font-size:0.78rem;color:#94A3B8;">${start + i + 1}</td>
-                    <td style="padding:0.6rem 1rem;font-weight:700;font-size:0.82rem;color:var(--color-navy-dark);">${r.regNo}</td>
-                    <td style="padding:0.6rem 1rem;font-weight:600;color:var(--color-navy-dark);">${r.name}</td>
-                    <td style="text-align:center;padding:0.6rem 1rem;font-weight:700;color:#10B981;">${r.present}</td>
-                    <td style="text-align:center;padding:0.6rem 1rem;font-weight:700;color:#EF4444;">${r.absent}</td>
-                    <td style="text-align:center;padding:0.6rem 1rem;color:#64748B;">${r.total}</td>
-                    <td style="text-align:center;padding:0.6rem 1rem;"><span style="font-weight:800;font-size:0.9rem;color:${c(r.percentage)};">${r.percentage}%</span></td>
-                    <td style="text-align:center;padding:0.6rem 1rem;"><span class="status-badge ${r.percentage >= 75 ? 'present' : 'warning'}">${r.status}</span></td>
+                  <tr  onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background=''">
+                    <td >${start + i + 1}</td>
+                    <td >${r.regNo}</td>
+                    <td >${r.name}</td>
+                    <td style="text-align:center;">${r.present}</td>
+                    <td style="text-align:center;">${r.absent}</td>
+                    <td style="text-align:center;">${r.total}</td>
+                    <td style="text-align:center;"><span style="font-weight:800;font-size:0.9rem;color:${c(r.percentage)};">${r.percentage}%</span></td>
+                    <td style="text-align:center;"><span class="status-badge ${r.percentage >= 75 ? 'present' : 'warning'}">${r.status}</span></td>
                   </tr>`).join('')}
             </tbody>
           </table>
@@ -538,11 +542,11 @@ const ReportsView = {
           <div style="padding:0.8rem 1.25rem;border-top:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
             <span style="font-size:0.78rem;color:#64748B;">Showing ${start + 1}–${Math.min(start + pageSize, rows.length)} of ${rows.length} students</span>
             <div style="display:flex;gap:0.5rem;align-items:center;">
-              <button class="btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.78rem;" onclick="ReportsView.changePage(-1)" ${page <= 1 ? 'disabled' : ''}>
+              <button class="btn-secondary"  onclick="ReportsView.changePage(-1)" ${page <= 1 ? 'disabled' : ''}>
                 ← Prev
               </button>
               <span style="padding:0.3rem 0.7rem;font-size:0.78rem;font-weight:700;color:var(--color-navy-dark);background:#F1F5F9;border-radius:4px;">${page} / ${totalPages}</span>
-              <button class="btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.78rem;" onclick="ReportsView.changePage(1)" ${page >= totalPages ? 'disabled' : ''}>
+              <button class="btn-secondary"  onclick="ReportsView.changePage(1)" ${page >= totalPages ? 'disabled' : ''}>
                 Next →
               </button>
             </div>

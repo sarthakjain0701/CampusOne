@@ -28,9 +28,12 @@ const DigitalLearningView = {
   // STUDENT VIEW
   // --------------------------------------------------------------------------
   renderStudentView(user) {
-    const student = DataStore.get('STUDENTS').find(s => s.email === user.email || s.userId === user.uid) || DataStore.get('STUDENTS')[0];
-    const subjects = subjectService.getSubjects();
-    const allResources = LearningResourceService.getAllResources().filter(r => r.status === 'ACTIVE');
+    const student = this.students.find(s => s.email === user.email || s.userId === user.uid) || this.students[0];
+    let subjects = this.subjects;
+    if (this.selectedSemester !== 'ALL') {
+      subjects = subjects.filter(s => s.semester === Number(this.selectedSemester));
+    }
+    const allResources = this.allResources.filter(r => r.status === 'ACTIVE');
 
     // If a specific subject is selected, show Subject Resource detail page
     if (this.activeSubjectId) {
@@ -49,7 +52,7 @@ const DigitalLearningView = {
       return `
         <div class="page-header" style="display:flex; align-items:center; justify-content:space-between;">
           <div>
-            <button class="btn-secondary" onclick="DigitalLearningView.clearSubject()" style="margin-bottom:0.5rem; padding:0.35rem 0.75rem; font-size:0.85rem;">
+            <button class="btn-secondary" onclick="DigitalLearningView.clearSubject()" style="margin-bottom:0.5rem;">
               <i data-lucide="arrow-left"></i> Back to Subjects
             </button>
             <h1 style="margin:0;">${selectedSubject.name} (${selectedSubject.code})</h1>
@@ -187,10 +190,10 @@ const DigitalLearningView = {
         </div>
 
         <div style="border-top:1px solid #F1F5F9; pt:0.5rem; padding-top:0.5rem; display:flex; gap:0.5rem;">
-          <button class="btn-secondary" style="flex:1; justify-content:center; padding:0.35rem; font-size:0.8rem;" onclick="DigitalLearningView.openResourceModal('${resource.id}')">
+          <button class="btn-secondary" style="flex:1; justify-content:center;" onclick="DigitalLearningView.openResourceModal('${resource.id}')">
             <i data-lucide="eye"></i> Open
           </button>
-          <button class="btn-primary" style="flex:1; justify-content:center; padding:0.35rem; font-size:0.8rem;" onclick="DigitalLearningView.downloadResource('${resource.id}')">
+          <button class="btn-primary" style="flex:1; justify-content:center;" onclick="DigitalLearningView.downloadResource('${resource.id}')">
             <i data-lucide="download"></i> Download
           </button>
         </div>
@@ -202,10 +205,13 @@ const DigitalLearningView = {
   // FACULTY VIEW
   // --------------------------------------------------------------------------
   renderFacultyView(user) {
-    const faculty = DataStore.get('FACULTY').find(f => f.email === user.email || f.userId === user.uid) || DataStore.get('FACULTY')[0];
-    const assignments = DataStore.get('ASSIGNMENTS').filter(a => a.facultyId === faculty.id);
-    const subjects = subjectService.getSubjects();
-    const myResources = LearningResourceService.getFacultyResources(faculty.id);
+    const faculty = this.faculty.find(f => f.email === user.email || f.userId === user.uid) || this.faculty[0];
+    const assignments = this.assignments || [];
+    let subjects = this.subjects;
+    if (this.selectedSemester !== 'ALL') {
+      subjects = subjects.filter(s => s.semester === Number(this.selectedSemester));
+    }
+    const myResources = this.myResources || [];
 
     return `
       <div class="page-header" style="display:flex; align-items:center; justify-content:space-between;">
@@ -235,7 +241,7 @@ const DigitalLearningView = {
                   <h4 style="font-size:0.95rem; font-weight:700; margin:0;">${sub ? sub.name : asgn.subjectId}</h4>
                   <span style="font-size:0.8rem; color:var(--color-text-muted);">${sub ? sub.code : ''} | ${count} Resources</span>
                 </div>
-                <button class="btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.75rem;" onclick="DigitalLearningView.openUploadModal('${asgn.subjectId}')">
+                <button class="btn-secondary"  onclick="DigitalLearningView.openUploadModal('${asgn.subjectId}')">
                   + Upload
                 </button>
               </div>
@@ -298,8 +304,11 @@ const DigitalLearningView = {
   // ADMIN VIEW
   // --------------------------------------------------------------------------
   renderAdminView(user) {
-    const resources = LearningResourceService.getAllResources();
-    const subjects = subjectService.getSubjects();
+    const resources = this.allResources || [];
+    let subjects = this.subjects;
+    if (this.selectedSemester !== 'ALL') {
+      subjects = subjects.filter(s => s.semester === Number(this.selectedSemester));
+    }
 
     return `
       <div class="page-header" style="display:flex; align-items:center; justify-content:space-between;">
@@ -354,24 +363,36 @@ const DigitalLearningView = {
   },
 
   // Interactive Action Methods
+  filterSemester(val) {
+    this.selectedSemester = val;
+    this.loading = true; this.fetchData();
+  },
+
+  handleGlobalSubjectSearch(val) {
+    this.searchQuery = val;
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => App.renderCurrentView(), 300);
+  },
+
   openSubject(subjectId) {
     this.activeSubjectId = subjectId;
-    App.renderCurrentView();
+    this.loading = true; this.fetchData();
   },
 
   clearSubject() {
     this.activeSubjectId = null;
-    App.renderCurrentView();
+    this.loading = true; this.fetchData();
   },
 
   filterCategory(type) {
     this.activeFilterType = type;
-    App.renderCurrentView();
+    this.loading = true; this.fetchData();
   },
 
   handleSearch(val) {
     this.searchQuery = val;
-    App.renderCurrentView();
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => App.renderCurrentView(), 300);
   },
 
   openResourceModal(resourceId) {
@@ -393,7 +414,7 @@ const DigitalLearningView = {
       `,
       [
         { text: 'Close', className: 'btn-secondary', onClick: () => UIService.closeModal() },
-        { text: 'Download Mock File', className: 'btn-primary', onClick: () => { UIService.closeModal(); this.downloadResource(resourceId); } }
+        { text: 'Download Mock File', className: 'btn-primary', onClick: async () => { UIService.closeModal(); this.downloadResource(resourceId); } }
       ]
     );
   },
@@ -404,7 +425,10 @@ const DigitalLearningView = {
   },
 
   openUploadModal(presetSubjectId = '') {
-    const subjects = subjectService.getSubjects();
+    let subjects = this.subjects;
+    if (this.selectedSemester !== 'ALL') {
+      subjects = subjects.filter(s => s.semester === Number(this.selectedSemester));
+    }
     const modalHtml = `
       <form id="upload-resource-form">
         <div class="form-group" style="margin-bottom:1rem;">
@@ -453,7 +477,7 @@ const DigitalLearningView = {
         { 
           text: 'Upload', 
           className: 'btn-primary', 
-          onClick: () => {
+          onClick: async () => {
             const title = document.getElementById('res-title').value;
             const subjectId = document.getElementById('res-subject').value;
             const resourceType = document.getElementById('res-type').value;
@@ -463,12 +487,12 @@ const DigitalLearningView = {
             const fileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : `${title.replace(/\s+/g, '_')}.pdf`;
 
             try {
-              LearningResourceService.createResource({
+              await LearningResourceService.createResource({
                 title, subjectId, resourceType, description, fileName
               });
               UIService.showToast("Learning resource uploaded successfully!", "success");
               UIService.closeModal();
-              App.renderCurrentView();
+              this.loading = true; this.fetchData();
             } catch (err) {
               UIService.showToast(err.message, "danger");
             }
@@ -482,7 +506,10 @@ const DigitalLearningView = {
     const res = LearningResourceService.getResourceById(resourceId);
     if (!res) return;
 
-    const subjects = subjectService.getSubjects();
+    let subjects = this.subjects;
+    if (this.selectedSemester !== 'ALL') {
+      subjects = subjects.filter(s => s.semester === Number(this.selectedSemester));
+    }
     const modalHtml = `
       <form id="edit-resource-form">
         <div class="form-group" style="margin-bottom:1rem;">
@@ -535,7 +562,7 @@ const DigitalLearningView = {
         { 
           text: 'Save Changes', 
           className: 'btn-primary', 
-          onClick: () => {
+          onClick: async () => {
             const title = document.getElementById('edit-res-title').value;
             const subjectId = document.getElementById('edit-res-subject').value;
             const resourceType = document.getElementById('edit-res-type').value;
@@ -543,10 +570,10 @@ const DigitalLearningView = {
             const status = document.getElementById('edit-res-status') ? document.getElementById('edit-res-status').value : res.status;
 
             try {
-              LearningResourceService.updateResource(resourceId, { title, subjectId, resourceType, description, status });
+              await LearningResourceService.updateResource(resourceId, { title, subjectId, resourceType, description, status });
               UIService.showToast("Resource updated successfully!", "success");
               UIService.closeModal();
-              App.renderCurrentView();
+              this.loading = true; this.fetchData();
             } catch (err) {
               UIService.showToast(err.message, "danger");
             }
@@ -558,9 +585,9 @@ const DigitalLearningView = {
 
   deleteResource(id) {
     UIService.showConfirm("Delete Resource", "Are you sure you want to delete this resource material?", () => {
-      LearningResourceService.deleteResource(id);
+      await LearningResourceService.deleteResource(id);
       UIService.showToast("Resource deleted.", "info");
-      App.renderCurrentView();
+      this.loading = true; this.fetchData();
     });
   }
 };

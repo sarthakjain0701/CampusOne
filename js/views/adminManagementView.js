@@ -14,9 +14,14 @@ const AdminManagementView = {
 
   render() {
     return `
-      <div class="page-header">
-        <h1>User Management</h1>
-        <p>Manage all users, roles, and access credentials across the institution.</p>
+      <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <h1>User Management</h1>
+          <p>Manage all users, roles, and access credentials across the institution.</p>
+        </div>
+        <button class="btn-primary" onclick="AdminManagementView.openAddModal()">
+          <i data-lucide="shield-plus"></i> Provision New User
+        </button>
       </div>
 
       <div class="toolbar">
@@ -38,32 +43,23 @@ const AdminManagementView = {
             <option value="INACTIVE" ${this._activeStatusFilter === 'INACTIVE' ? 'selected' : ''}>Inactive Only</option>
           </select>
         </div>
-
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-          <button class="btn-primary" onclick="AdminManagementView.openAddModal()">
-            <i data-lucide="shield-plus"></i> Provision New User
-          </button>
-        </div>
       </div>
 
       <div class="table-container">
-        <table class="custom-table" id="admin-table">
+        <table class="data-table" id="admin-table">
           <thead>
             <tr>
               <th>User Info</th>
               <th>Official Email</th>
               <th>System Role</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style="width:50px;"></th>
             </tr>
           </thead>
           <tbody id="admin-table-body">
             <tr>
-              <td colspan="5" style="text-align:center; padding:2.5rem;">
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem;">
-                  <i data-lucide="loader" class="spin" style="width:28px; height:28px; color:var(--color-primary);"></i>
-                  <span style="color:var(--color-text-muted); font-weight:600;">Loading Users...</span>
-                </div>
+              <td colspan="5" style="text-align:center;">
+                <div class="skeleton" style="height:36px; margin: 10px;"></div>
               </td>
             </tr>
           </tbody>
@@ -92,11 +88,8 @@ const AdminManagementView = {
       this._cachedAdmins = [];
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align:center; padding:2.5rem;">
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem;">
-              <i data-lucide="loader" class="spin" style="width:28px; height:28px; color:var(--color-primary);"></i>
-              <span style="color:var(--color-text-muted); font-weight:600;">Loading Users...</span>
-            </div>
+          <td colspan="5" style="text-align:center;">
+            <div class="skeleton" style="height:36px; margin: 10px;"></div>
           </td>
         </tr>
       `;
@@ -140,14 +133,14 @@ const AdminManagementView = {
         if (!currentTbody) return;
         currentTbody.innerHTML = `
           <tr>
-            <td colspan="5" style="text-align:center; padding:2.5rem; color:var(--color-danger);">
+            <td colspan="5" style="text-align:center;">
               <div style="display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
                 <i data-lucide="alert-circle" style="width:32px; height:32px;"></i>
                 <div>
                   <strong>Unable to load user records</strong>
                   <div style="font-size:0.85rem; color:var(--color-text-muted); margin-top:0.25rem;">${err.message || "Please check your network connection."}</div>
                 </div>
-                <button class="btn-primary" onclick="AdminManagementView.loadUsers(true)" style="margin-top:0.5rem; padding:0.4rem 1rem; font-size:0.85rem;">
+                <button class="btn-primary" onclick="AdminManagementView.loadUsers(true)" style="margin-top:0.5rem;">
                   <i data-lucide="refresh-cw"></i> Retry
                 </button>
               </div>
@@ -196,7 +189,7 @@ const AdminManagementView = {
     if (users.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align:center; padding:3rem 1rem; color:var(--color-text-muted);">
+          <td colspan="5" style="text-align:center;">
             <div style="display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
               <i data-lucide="users" style="width:36px; height:36px; color:#CBD5E1;"></i>
               <strong style="font-size:1rem; color:var(--color-navy-dark);">No users found</strong>
@@ -224,9 +217,18 @@ const AdminManagementView = {
             <td><span class="role-badge ${roleBadgeClass}">${roleLabel}</span></td>
             <td><span class="status-badge ${isActive ? 'present' : 'absent'}">${isActive ? 'ACTIVE' : 'INACTIVE'}</span></td>
             <td>
-              <div class="action-btns">
-                <button class="btn-icon-sm" onclick="AdminManagementView.openEditModal('${a.id}')" title="Edit User"><i data-lucide="edit-2"></i></button>
-                <button class="btn-icon-sm danger" onclick="AdminManagementView.toggleStatus('${a.id}', '${a.status || 'ACTIVE'}')" title="${isActive ? 'Deactivate' : 'Activate'}"><i data-lucide="power"></i></button>
+              <div class="action-menu-container">
+                <button class="btn-icon" onclick="AdminManagementView.toggleActionMenu('${a.id}', event)">
+                  <i data-lucide="more-vertical"></i>
+                </button>
+                <div class="action-menu-dropdown" id="action-menu-${a.id}">
+                  <button class="action-menu-item" onclick="AdminManagementView.openEditModal('${a.id}')">
+                    <i data-lucide="edit-2" style="width:16px;"></i> Edit Profile
+                  </button>
+                  <button class="action-menu-item ${isActive ? 'danger' : ''}" onclick="AdminManagementView.toggleStatus('${a.id}', '${a.status || 'ACTIVE'}')">
+                    <i data-lucide="power" style="width:16px;"></i> ${isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
               </div>
             </td>
           </tr>
@@ -234,6 +236,13 @@ const AdminManagementView = {
       }).join('');
     }
     if (window.lucide) window.lucide.createIcons();
+  },
+
+  toggleActionMenu(id, e) {
+    e.stopPropagation();
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+    const menu = document.getElementById(`action-menu-${id}`);
+    if (menu) menu.classList.toggle('active');
   },
 
   onSearch(query) {
@@ -403,6 +412,12 @@ const AdminManagementView = {
     );
   }
 };
+
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.action-menu-container')) {
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+  }
+});
 
 window.AdminManagementView = AdminManagementView;
 

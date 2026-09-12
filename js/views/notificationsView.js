@@ -58,13 +58,13 @@ const NotificationsView = {
       <!-- FILTER TABS BAR -->
       <div class="toolbar" style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
         <div class="role-tabs" style="margin-bottom:0; width:auto; background:#F1F5F9; padding:0.25rem; border-radius:10px;">
-          <button class="role-tab ${this.activeTab === 'ALL' ? 'active' : ''}" onclick="NotificationsView.setTab('ALL')" style="border-radius:8px;">
+          <button class="role-tab ${this.activeTab === 'ALL' ? 'active' : ''}" onclick="NotificationsView.setTab('ALL')" >
             ALL (${allNotifs.length})
           </button>
-          <button class="role-tab ${this.activeTab === 'UNREAD' ? 'active' : ''}" onclick="NotificationsView.setTab('UNREAD')" style="border-radius:8px;">
+          <button class="role-tab ${this.activeTab === 'UNREAD' ? 'active' : ''}" onclick="NotificationsView.setTab('UNREAD')" >
             UNREAD (${unreadCount})
           </button>
-          <button class="role-tab ${this.activeTab === 'READ' ? 'active' : ''}" onclick="NotificationsView.setTab('READ')" style="border-radius:8px;">
+          <button class="role-tab ${this.activeTab === 'READ' ? 'active' : ''}" onclick="NotificationsView.setTab('READ')" >
             READ (${allNotifs.length - unreadCount})
           </button>
         </div>
@@ -162,13 +162,13 @@ const NotificationsView = {
           <!-- ACTIONS -->
           <div style="display:flex; gap:0.75rem; align-items:center; margin-top:0.6rem;">
             ${isUnread ? `
-              <button class="btn-xs btn-secondary" onclick="NotificationsView.markSingleRead('${n.id}')" style="font-size:0.78rem; padding:0.3rem 0.65rem;">
+              <button class="btn-xs btn-secondary" onclick="NotificationsView.markSingleRead('${n.id}')" >
                 <i data-lucide="check"></i> Mark as Read
               </button>
             ` : '<span style="font-size:0.75rem; color:#16A34A; font-weight:700;">✓ Read</span>'}
 
             ${n.relatedModule ? `
-              <button class="btn-xs btn-primary" onclick="App.navigateTo('${n.relatedModule}')" style="font-size:0.78rem; padding:0.3rem 0.65rem;">
+              <button class="btn-xs btn-primary" onclick="App.navigateTo('${n.relatedModule}')" >
                 <i data-lucide="arrow-right"></i> Open Module
               </button>
             ` : ''}
@@ -191,21 +191,18 @@ const NotificationsView = {
     App.renderCurrentView();
   },
 
-  markAllRead() {
+  async markAllRead() {
     const user = authService.getCurrentUser();
-    notificationService.markAllAsRead(user);
-    UIService.showToast("All notifications marked as read.", "success");
+    await notificationService.markAllAsRead(user);
+    this.notifications.forEach(n => { n.isRead = true; n.read = true; });
     App.renderCurrentView();
   },
 
   retryLoad() {
-    this.error = false;
     this.loading = true;
+    this.error = false;
     App.renderCurrentView();
-    setTimeout(() => {
-      this.loading = false;
-      App.renderCurrentView();
-    }, 600);
+  }, 600);
   }
 };
 

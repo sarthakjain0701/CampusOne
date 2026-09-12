@@ -1,33 +1,41 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM (PAS) - HYBRID MID-TERM MARKS SERVICE
    With Global Role-Based Privacy Controls & Least-Privilege Authorization
+   (Firestore Async Migrated)
    ========================================================================== */
 
 const midTermMarksService = {
   // Search Result Cache
   _searchCache: new Map(),
 
+  get db() {
+    return window.FirebaseService && window.FirebaseService.db ? window.FirebaseService.db : (window.db || firebase.firestore());
+  },
+
   /**
    * Option A: Registration / Roll Number Student Lookup (With Faculty Authorization Guard)
    */
-  findStudentByRegistration(regNo, actorUser = null) {
+  async findStudentByRegistration(regNo, actorUser = null) {
     if (!regNo || typeof regNo !== 'string') return null;
-    const cleanReg = regNo.trim().toUpperCase();
-    if (!cleanReg) return null;
-
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
+    const cleanReg = regNo.trim().toLowerCase();
+    const cacheKey = `${cleanReg}_${user ? user.role : 'GUEST'}`;
 
-    // Check cache
-    const cacheKey = `${cleanReg}_${user ? user.id : 'anon'}`;
     if (this._searchCache.has(cacheKey)) {
       return this._searchCache.get(cacheKey);
     }
 
-    const students = DataStore.get('STUDENTS') || [];
+    let students = [];
+    if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
+      students = await studentService.getStudentsFromFirestore();
+    } else {
+      students = DataStore.get('STUDENTS') || [];
+    }
+
     const match = students.find(s => {
-      const sReg = (s.registrationNumber || '').trim().toUpperCase();
-      const sRoll = (s.rollNumber || s.rollNo || '').trim().toUpperCase();
-      const sId = (s.studentId || s.id || '').trim().toUpperCase();
+      const sReg = (s.registrationNumber || s.regNo || '').trim().toLowerCase();
+      const sRoll = (s.rollNumber || s.rollNo || '').trim().toLowerCase();
+      const sId = (s.studentId || s.id || '').trim().toLowerCase();
 
       return sReg === cleanReg || sRoll === cleanReg || sId === cleanReg;
     });
@@ -36,7 +44,7 @@ const midTermMarksService = {
 
     // AUTHORIZATION GUARD: Faculty can ONLY search students belonging to their assigned classes/sections!
     if (user && typeof AuthorizationService !== 'undefined') {
-      if (!AuthorizationService.canAccessStudent(user, match.id)) {
+      if (!(await AuthorizationService.canAccessStudent(user, match.id))) {
         return { isUnauthorized: true, message: `Access Denied: Student '${cleanReg}' does not belong to your assigned subjects/classes.` };
       }
     }
@@ -48,7 +56,7 @@ const midTermMarksService = {
   /**
    * Option B: Class-Wise Student Filter Engine (With Faculty Class Authorization)
    */
-  filterStudentsByClass(options = {}, actorUser = null) {
+  async filterStudentsByClass(options = {}, actorUser = null) {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
     const {
       enrollmentYear = 'ALL',
@@ -59,11 +67,16 @@ const midTermMarksService = {
       pageSize = 20
     } = options;
 
-    let students = DataStore.get('STUDENTS') || [];
+    let students = [];
+    if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
+      students = await studentService.getStudentsFromFirestore();
+    } else {
+      students = DataStore.get('STUDENTS') || [];
+    }
 
     // Filter by Faculty Assignment Scope
     if (user && typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
-      const authorizedStudentIds = AuthorizationService.getAuthorizedStudentIds(user);
+      const authorizedStudentIds = await AuthorizationService.getAuthorizedStudentIds(user);
       students = students.filter(s => authorizedStudentIds.includes(s.id));
     }
 
@@ -77,7 +90,12 @@ const midTermMarksService = {
 
     // Filter by Department
     if (department && department !== 'ALL') {
-      const departments = DataStore.get('DEPARTMENTS') || [];
+      let departments = [];
+      if (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore) {
+        departments = await departmentService.getDepartmentsFromFirestore();
+      } else {
+        departments = DataStore.get('DEPARTMENTS') || [];
+      }
       const deptObj = departments.find(d => d.id === department || d.code === department);
 
       students = students.filter(s => {
@@ -123,18 +141,37 @@ const midTermMarksService = {
   /**
    * Fetch Mid-Term Marks Specifically for ONE Student (Filtered by Faculty Subject Assignment)
    */
-  getMarksForStudent(studentId, actorUser = null) {
+  async getStudentMarks(studentId, actorUser = null) {
     if (!studentId) return [];
-
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
-    const marksData = DataStore.get('MID_TERM_MARKS') || [];
-    const subjects = DataStore.get('SUBJECTS') || [];
+    
+    let marksData = [];
+    try {
+      const snapshot = await this.db.collection('midTermMarks')
+        .where('studentId', '==', studentId)
+        .where('status', '!=', 'DELETED')
+        .get();
+      snapshot.forEach(doc => {
+        marksData.push({ id: doc.id, ...doc.data() });
+      });
+    } catch(err) {
+      console.error("Error fetching student marks from Firestore:", err);
+      marksData = DataStore.get('MID_TERM_MARKS') || [];
+      marksData = marksData.filter(m => m.studentId === studentId && m.status !== 'DELETED');
+    }
 
-    let studentMarks = marksData.filter(m => m.studentId === studentId && m.status !== 'DELETED');
+    let subjects = [];
+    if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
+      subjects = await subjectService.getSubjectsFromFirestore();
+    } else {
+      subjects = DataStore.get('SUBJECTS') || [];
+    }
+
+    let studentMarks = marksData;
 
     // Faculty Privacy Guard: Filter marks to ONLY assigned subjects!
     if (user && typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
-      const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
+      const authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
       studentMarks = studentMarks.filter(m => authorizedSubjectIds.includes(m.subjectId));
     }
 
@@ -150,15 +187,19 @@ const midTermMarksService = {
     });
   },
 
+  async getMarksForStudent(studentId, actorUser = null) {
+    return this.getStudentMarks(studentId, actorUser);
+  },
+
   /**
    * ADD MARK RECORD (With Authorization Check & Duplicate Protection)
    */
-  addMarkRecord(data, actorUser = {}) {
+  async addMarkRecord(data, actorUser = {}) {
     const user = actorUser.role ? actorUser : (typeof authService !== 'undefined' ? authService.getCurrentUser() : actorUser);
     const { studentId, subjectId, examName, maxMarks, obtainedMarks, semester, academicSession } = data;
 
     if (user && typeof AuthorizationService !== 'undefined') {
-      if (!AuthorizationService.canEditMidterm(user, subjectId)) {
+      if (!(await AuthorizationService.canEditMidterm(user, subjectId))) {
         throw new Error("Access Denied: You are not authorized to add mid-term marks for this subject.");
       }
     }
@@ -180,27 +221,31 @@ const midTermMarksService = {
       throw new Error(`Obtained marks (${parsedObt}) cannot exceed maximum marks (${parsedMax}).`);
     }
 
-    const marksData = DataStore.get('MID_TERM_MARKS') || [];
     const sessionStr = academicSession || '2026-27';
+    const actorName = user.name || user.email || 'Faculty/Admin';
+    const now = new Date().toISOString().split('T')[0];
 
     // Duplicate Check
-    const existingIndex = marksData.findIndex(m =>
-      m.studentId === studentId &&
-      m.subjectId === subjectId &&
-      (m.examName || 'Mid-Term 1').toLowerCase() === examName.toLowerCase() &&
-      (m.academicSession || '2026-27') === sessionStr &&
-      m.status !== 'DELETED'
-    );
+    const snapshot = await this.db.collection('midTermMarks')
+      .where('studentId', '==', studentId)
+      .where('subjectId', '==', subjectId)
+      .get();
+      
+    let existingRecord = null;
+    let existingRef = null;
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      if ((d.examName || 'Mid-Term 1').toLowerCase() === examName.toLowerCase() &&
+          (d.academicSession || '2026-27') === sessionStr &&
+          d.status !== 'DELETED') {
+        existingRecord = { id: doc.id, ...d };
+        existingRef = doc.ref;
+      }
+    });
 
-    const now = new Date().toISOString().split('T')[0];
-    const actorName = user.name || user.email || 'Faculty/Admin';
-
-    if (existingIndex !== -1) {
-      // Duplicate protection: update existing record
-      const existing = marksData[existingIndex];
-      const oldObt = existing.obtainedMarks;
-
-      const auditTrail = existing.auditHistory || [];
+    if (existingRecord && existingRef) {
+      const oldObt = existingRecord.obtainedMarks;
+      const auditTrail = existingRecord.auditHistory || [];
       if (oldObt !== parsedObt) {
         auditTrail.push({
           oldMarks: oldObt,
@@ -210,20 +255,18 @@ const midTermMarksService = {
         });
       }
 
-      marksData[existingIndex] = {
-        ...existing,
+      const updatedData = {
         maxMarks: parsedMax,
         obtainedMarks: parsedObt,
-        facultyId: user.id || existing.facultyId,
+        facultyId: user.id || existingRecord.facultyId,
         updatedAt: now,
         auditHistory: auditTrail
       };
-
-      DataStore.set('MID_TERM_MARKS', marksData);
-      return marksData[existingIndex];
+      
+      await existingRef.update(updatedData);
+      return { ...existingRecord, ...updatedData };
     } else {
       const newRecord = {
-        id: "MTM" + String(Date.now()).slice(-6) + Math.floor(Math.random() * 100),
         studentId,
         facultyId: user.id || "FAC001",
         subjectId,
@@ -239,28 +282,28 @@ const midTermMarksService = {
         auditHistory: []
       };
 
-      marksData.push(newRecord);
-      DataStore.set('MID_TERM_MARKS', marksData);
-      return newRecord;
+      const docRef = await this.db.collection('midTermMarks').add(newRecord);
+      return { id: docRef.id, ...newRecord };
     }
   },
 
   /**
    * EDIT MARK RECORD (With Authorization Check & Correction Audit Logging)
    */
-  updateMarkRecord(markId, newObtainedMarks, actorUser = {}) {
+  async updateMarkRecord(markId, newObtainedMarks, actorUser = {}) {
     const user = actorUser.role ? actorUser : (typeof authService !== 'undefined' ? authService.getCurrentUser() : actorUser);
-    const marksData = DataStore.get('MID_TERM_MARKS') || [];
-    const index = marksData.findIndex(m => m.id === markId && m.status !== 'DELETED');
-
-    if (index === -1) {
+    
+    const docRef = this.db.collection('midTermMarks').doc(markId);
+    const docSnap = await docRef.get();
+    
+    if (!docSnap.exists) {
       throw new Error("Mid-Term mark record not found.");
     }
 
-    const existing = marksData[index];
+    const existing = docSnap.data();
 
     if (user && typeof AuthorizationService !== 'undefined') {
-      if (!AuthorizationService.canEditMidterm(user, existing.subjectId)) {
+      if (!(await AuthorizationService.canEditMidterm(user, existing.subjectId))) {
         throw new Error("Access Denied: You are not authorized to edit mid-term marks for this subject.");
       }
     }
@@ -286,62 +329,66 @@ const midTermMarksService = {
       });
     }
 
-    marksData[index] = {
-      ...existing,
+    const updatedData = {
       obtainedMarks: parsedObt,
       updatedAt: new Date().toISOString().split('T')[0],
       auditHistory: auditTrail
     };
 
-    DataStore.set('MID_TERM_MARKS', marksData);
-    return marksData[index];
+    await docRef.update(updatedData);
+    return { id: markId, ...existing, ...updatedData };
   },
 
   /**
    * REMOVE MARK RECORD (With Authorization Check)
    */
-  deleteMarkRecord(markId, actorUser = {}) {
+  async deleteMarkRecord(markId, actorUser = {}) {
     const user = actorUser.role ? actorUser : (typeof authService !== 'undefined' ? authService.getCurrentUser() : actorUser);
-    const marksData = DataStore.get('MID_TERM_MARKS') || [];
-    const index = marksData.findIndex(m => m.id === markId);
-
-    if (index === -1) {
+    
+    const docRef = this.db.collection('midTermMarks').doc(markId);
+    const docSnap = await docRef.get();
+    
+    if (!docSnap.exists) {
       throw new Error("Mid-Term mark record not found.");
     }
-
-    const existing = marksData[index];
+    
+    const existing = docSnap.data();
 
     if (user && typeof AuthorizationService !== 'undefined') {
-      if (!AuthorizationService.canEditMidterm(user, existing.subjectId)) {
+      if (!(await AuthorizationService.canEditMidterm(user, existing.subjectId))) {
         throw new Error("Access Denied: You are not authorized to remove mid-term marks for this subject.");
       }
     }
 
     const actorName = user.name || user.email || 'Admin';
 
-    existing.status = 'DELETED';
-    existing.updatedAt = new Date().toISOString().split('T')[0];
-    existing.auditHistory = existing.auditHistory || [];
-    existing.auditHistory.push({
+    const auditTrail = existing.auditHistory || [];
+    auditTrail.push({
       oldMarks: existing.obtainedMarks,
       newMarks: 'REMOVED',
       changedBy: actorName,
       changedAt: new Date().toLocaleString()
     });
 
-    DataStore.set('MID_TERM_MARKS', marksData);
+    await docRef.update({
+      status: 'DELETED',
+      updatedAt: new Date().toISOString().split('T')[0],
+      auditHistory: auditTrail
+    });
   },
 
-  getAuditHistory(markId) {
-    const marksData = DataStore.get('MID_TERM_MARKS') || [];
-    const rec = marksData.find(m => m.id === markId);
-    return rec ? (rec.auditHistory || []) : [];
+  async getAuditHistory(markId) {
+    const docSnap = await this.db.collection('midTermMarks').doc(markId).get();
+    if (docSnap.exists) {
+      return docSnap.data().auditHistory || [];
+    }
+    return [];
   },
 
-  isFacultyAuthorized(facultyUser, subjectId, classId) {
+  async isFacultyAuthorized(facultyUser, subjectId, classId) {
     if (!facultyUser || facultyUser.role === 'ADMIN') return true;
     if (typeof AuthorizationService !== 'undefined') {
-      return AuthorizationService.canAccessSubject(facultyUser, subjectId);
+      return await AuthorizationService.canAccessSubject(facultyUser, subjectId);
     }
     return false;
   },

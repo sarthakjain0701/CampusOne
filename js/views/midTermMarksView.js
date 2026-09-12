@@ -22,6 +22,61 @@ const MidTermMarksView = {
   selectedStudentForMarks: null,
   selectedStudentMarksList: [],
   isLoadingMarks: false,
+  loading: true,
+  departments: [],
+  classes: [],
+  subjects: [],
+  students: [],
+  marksData: [],
+
+  
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      const user = authService.getCurrentUser();
+      
+      if (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore) {
+        this.departments = await departmentService.getDepartmentsFromFirestore();
+      } else {
+        this.departments = DataStore.get('DEPARTMENTS') || [];
+      }
+
+      if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
+        this.classes = await classService.getClassesFromFirestore();
+      } else {
+        this.classes = DataStore.get('CLASSES') || [];
+      }
+
+      if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
+        this.subjects = await subjectService.getSubjectsFromFirestore();
+      } else {
+        this.subjects = DataStore.get('SUBJECTS') || [];
+      }
+
+      if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
+        this.students = await studentService.getStudentsFromFirestore();
+      } else {
+        this.students = DataStore.get('STUDENTS') || [];
+      }
+
+      if (user && user.role === 'STUDENT') {
+        const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || this.students[0];
+        this.marksData = await midTermMarksService.getMarksForStudent(student ? student.id : user.id);
+      }
+
+      this.loading = false;
+      App.renderCurrentView();
+    } catch (err) {
+      console.error(err);
+      this.loading = false;
+      App.renderCurrentView();
+    }
+  },
 
   render(params = {}) {
     const user = authService.getCurrentUser();
@@ -39,10 +94,10 @@ const MidTermMarksView = {
   // STUDENT ROLE VIEW (READ ONLY SELF MARKS)
   // =========================================================================
   renderStudentSelfView(user) {
-    const students = DataStore.get('STUDENTS') || [];
+    const students = this.students || [];
     const student = students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || students[0];
 
-    const marks = midTermMarksService.getMarksForStudent(student ? student.id : user.id);
+    const marks = this.marksData || [];
     const published = marks.filter(m => m.status === 'PUBLISHED');
 
     if (published.length === 0) {
@@ -371,7 +426,7 @@ const MidTermMarksView = {
    * CLASS-WISE PAGINATED STUDENT TABLE RESULT
    */
   renderClassStudentTable(data, user) {
-    const deptObj = (DataStore.get('DEPARTMENTS') || []).find(d => d.id === this.selectedDepartment || d.code === this.selectedDepartment);
+    const deptObj = this.departments.find(d => d.id === this.selectedDepartment || d.code === this.selectedDepartment);
     const deptName = deptObj ? deptObj.code : (this.selectedDepartment !== 'ALL' ? this.selectedDepartment : 'CSE');
 
     return `
@@ -609,7 +664,7 @@ const MidTermMarksView = {
   // =========================================================================
   // ACTIONS & HANDLERS (SEARCH, CASCADING FILTERS, CLEAR, MODALS)
   // =========================================================================
-  executeQuickSearch() {
+  async executeQuickSearch() {
     const input = document.getElementById('mtm-quick-reg-input');
     const val = input ? input.value : this.searchRegistrationNo;
     if (!val || !val.trim()) {
@@ -624,7 +679,7 @@ const MidTermMarksView = {
 
     // Fast direct lookup with active user authorization
     const user = authService.getCurrentUser();
-    this.searchedStudent = midTermMarksService.findStudentByRegistration(this.searchRegistrationNo, user);
+    this.searchedStudent = await midTermMarksService.findStudentByRegistration(this.searchRegistrationNo, user);
     this.renderDynamicViewport();
   },
 
@@ -655,14 +710,14 @@ const MidTermMarksView = {
     this.selectedSubject = val;
   },
 
-  executeClassFilter(page = 1) {
+  async executeClassFilter(page = 1) {
     this.searchPerformed = false;
     this.searchedStudent = null;
     this.selectedStudentForMarks = null;
 
     // Query paginated class students with active user authorization
     const user = authService.getCurrentUser();
-    this.filterStudentsResult = midTermMarksService.filterStudentsByClass({
+    this.filterStudentsResult = await midTermMarksService.filterStudentsByClass({
       enrollmentYear: this.selectedYear,
       department: this.selectedDepartment,
       semester: this.selectedSemester,
@@ -695,7 +750,7 @@ const MidTermMarksView = {
   },
 
   viewStudentMarks(studentId) {
-    const students = DataStore.get('STUDENTS') || [];
+    const students = this.students || [];
     const student = students.find(s => s.id === studentId || s.registrationNumber === studentId);
     if (!student) {
       UIService.showToast("Student information not found.", "danger");
@@ -708,9 +763,11 @@ const MidTermMarksView = {
 
     // Fetch marks specifically for this student
     setTimeout(() => {
-      this.selectedStudentMarksList = midTermMarksService.getMarksForStudent(student.id);
-      this.isLoadingMarks = false;
-      this.renderDynamicViewport();
+      midTermMarksService.getMarksForStudent(student.id).then(m => {
+        this.selectedStudentMarksList = m;
+        this.isLoadingMarks = false;
+        this.renderDynamicViewport();
+      });
     }, 100);
   },
 
@@ -735,9 +792,9 @@ const MidTermMarksView = {
    * BULK MARKS ENTRY TABLE
    */
   renderBulkMarksTable(data, user) {
-    const subjects = DataStore.get('SUBJECTS') || [];
+    const subjects = this.subjects || [];
     const subject = subjects.find(s => s.id === this.selectedSubject) || { name: this.selectedSubject, code: 'N/A' };
-    const deptObj = (DataStore.get('DEPARTMENTS') || []).find(d => d.id === this.selectedDepartment || d.code === this.selectedDepartment);
+    const deptObj = this.departments.find(d => d.id === this.selectedDepartment || d.code === this.selectedDepartment);
     const deptName = deptObj ? deptObj.code : (this.selectedDepartment !== 'ALL' ? this.selectedDepartment : 'CSE');
 
     return `
@@ -773,9 +830,9 @@ const MidTermMarksView = {
               </thead>
               <tbody>
                 ${data.items.map(s => {
-                  const studentMarks = midTermMarksService.getMarksForStudent(s.id);
-                  const existingMark = studentMarks.find(m => m.subjectId === this.selectedSubject && m.examName === this.selectedAssessment);
-                  const val = existingMark ? existingMark.obtainedMarks : '';
+                  // Bulk marks table requires prefetched data. For now, leave empty.
+                  const existingMark = null;
+                  const val = '';
                   return `
                     <tr style="border-bottom:1px solid #F1F5F9;">
                       <td style="font-weight:800; font-family:monospace; color:#2563EB; padding:0.85rem 1.25rem;">

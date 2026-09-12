@@ -22,7 +22,7 @@ const attendanceService = {
       if (user.role === 'STUDENT') {
         query = query.where('studentId', '==', user.uid);
       } else if (typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
-        const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
+        const authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
         if (authorizedSubjectIds.length > 0 && authorizedSubjectIds.length <= 10) {
           query = query.where('subjectId', 'in', authorizedSubjectIds);
         } else if (authorizedSubjectIds.length === 0) {
@@ -111,7 +111,7 @@ const attendanceService = {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
 
     if (user && typeof AuthorizationService !== 'undefined') {
-      if (!AuthorizationService.canEditAttendance(user, subjectId, classId)) {
+      if (!(await AuthorizationService.canEditAttendance(user, subjectId, classId))) {
         throw new Error("Access Denied: You are not authorized to mark or update attendance for this subject/class.");
       }
       if (AuthorizationService.isAcademicStaff(user) && typeof AttendanceAssignmentService !== 'undefined') {

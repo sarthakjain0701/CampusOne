@@ -15,6 +15,58 @@ const ExamResultsView = {
   adminFilterStudent: '',
   adminSearchRegNo: '',
 
+  loading: true,
+  students: [],
+  subjects: [],
+  classes: [],
+  departments: [],
+  results: [],
+  summary: null,
+  facultyResults: [],
+  authorizedSubjectIds: [],
+  
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    }
+  },
+
+  async fetchData() {
+    try {
+      this.students = typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : (typeof studentService !== 'undefined' ? studentService.getStudents() : []);
+      this.subjects = typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (typeof subjectService !== 'undefined' ? subjectService.getSubjects() : []);
+      this.departments = typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore ? await departmentService.getDepartmentsFromFirestore() : (typeof departmentService !== 'undefined' ? departmentService.getDepartments() : []);
+      this.classes = typeof classService !== 'undefined' && classService.getClassesFromFirestore ? await classService.getClassesFromFirestore() : (typeof classService !== 'undefined' ? classService.getClasses() : []);
+
+      const user = authService.getCurrentUser();
+      
+      if (user.role === 'STUDENT') {
+        const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || this.students[0];
+        if (student) {
+          this.results = await ExamResultService.getPublishedResults(student.id, this.selectedSemester, user);
+          this.summary = await ExamResultService.calculateStudentSummary(student.id, this.selectedSemester, user);
+        }
+      } else if (AuthorizationService.isAcademicStaff(user)) {
+        this.authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
+        const allResults = await ExamResultService.getAllResults();
+        this.facultyResults = await AuthorizationService.filterStudentResultForRole(user, allResults);
+      } else {
+        if (this.adminFilterStudent) {
+          this.results = await ExamResultService.getStudentResults(this.adminFilterStudent, null, user);
+        } else {
+          this.results = [];
+        }
+      }
+      
+      this.loading = false;
+      App.renderCurrentView();
+    } catch(e) {
+      console.error(e);
+      this.loading = false;
+      App.renderCurrentView();
+    }
+  },
+
   render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
@@ -32,11 +84,11 @@ const ExamResultsView = {
   // STUDENT VIEW (OWN RESULTS ONLY)
   // =========================================================================
   renderStudentView(user) {
-    const students = DataStore.get('STUDENTS') || [];
+    const students = this.students;
     const student = students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || students[0];
-    const results = ExamResultService.getPublishedResults(student.id, this.selectedSemester, user);
-    const summary = ExamResultService.calculateStudentSummary(student.id, this.selectedSemester, user);
-    const subjects = subjectService.getSubjects();
+    const results = this.results || [];
+    const summary = this.summary || { totalMarks: 0, maxMarks: 0, percentage: 0, sgpa: 0, status: 'N/A' };
+    const subjects = this.subjects;
 
     return `
       <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
@@ -102,7 +154,7 @@ const ExamResultsView = {
           <div class="table-responsive">
             <table class="data-table" style="width:100%; border-collapse:collapse;">
               <thead>
-                <tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0;">
+                <tr >
                   <th style="text-align:left;">Subject</th>
                   <th style="text-align:left;">Code</th>
                   <th style="text-align:center;">Credits</th>
@@ -116,8 +168,8 @@ const ExamResultsView = {
                   const sub = subjects.find(s => s.id === r.subjectId);
                   const isPass = r.marks >= (r.maxMarks * 0.4);
                   return `
-                    <tr style="border-bottom:1px solid #F1F5F9;">
-                      <td style="font-weight:700; color:var(--color-navy-dark);">${sub ? sub.name : r.subjectId}</td>
+                    <tr >
+                      <td >${sub ? sub.name : r.subjectId}</td>
                       <td><code>${sub ? sub.code : 'CS'}</code></td>
                       <td style="text-align:center;">${r.credits || 4}</td>
                       <td style="text-align:center;"><strong>${r.marks}</strong> / ${r.maxMarks}</td>
@@ -138,11 +190,11 @@ const ExamResultsView = {
   // FACULTY VIEW (STRICT SUBJECT PRIVACY & ASSIGNED DATA ONLY)
   // =========================================================================
   renderFacultyView(user) {
-    const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
-    const subjects = subjectService.getSubjects().filter(s => authorizedSubjectIds.includes(s.id));
-    const allResults = ExamResultService.getAllResults();
-    const facultyResults = AuthorizationService.filterStudentResultForRole(user, allResults);
-    const students = DataStore.get('STUDENTS') || [];
+    const authorizedSubjectIds = this.authorizedSubjectIds || [];
+    const subjects = this.subjects.filter(s => authorizedSubjectIds.includes(s.id));
+    
+    const facultyResults = this.facultyResults || [];
+    const students = this.students;
 
     return `
       <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem;">
@@ -152,7 +204,7 @@ const ExamResultsView = {
             Faculty Scope: <strong>Academic privacy protection active</strong>. Access limited to assigned subjects only.
           </p>
         </div>
-        <button class="btn-primary" onclick="ExamResultsView.openAddModal()" style="font-weight:700;">
+        <button class="btn-primary" onclick="ExamResultsView.openAddModal()" >
           <i data-lucide="plus-circle" style="width:16px; height:16px; display:inline;"></i> Add Subject Result
         </button>
       </div>
@@ -187,14 +239,14 @@ const ExamResultsView = {
           <div class="table-responsive">
             <table class="data-table" style="width:100%; border-collapse:collapse;">
               <thead>
-                <tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0;">
-                  <th style="text-align:left; padding:0.85rem 1rem;">Student</th>
-                  <th style="text-align:left; padding:0.85rem 1rem;">Subject</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Semester</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Marks Obtained</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Grade</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Status</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Actions</th>
+                <tr >
+                  <th style="text-align:left;">Student</th>
+                  <th style="text-align:left;">Subject</th>
+                  <th style="text-align:center;">Semester</th>
+                  <th style="text-align:center;">Marks Obtained</th>
+                  <th style="text-align:center;">Grade</th>
+                  <th style="text-align:center;">Status</th>
+                  <th style="text-align:center;">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -204,23 +256,23 @@ const ExamResultsView = {
                     const stu = students.find(s => s.id === r.studentId);
                     const sub = subjects.find(s => s.id === r.subjectId);
                     return `
-                      <tr style="border-bottom:1px solid #F1F5F9;">
-                        <td style="padding:0.85rem 1rem;">
+                      <tr >
+                        <td >
                           <strong style="color:var(--color-navy-dark);">${stu ? stu.name : r.studentId}</strong>
                           <div style="font-size:0.75rem; color:var(--color-text-muted); font-family:monospace;">${stu ? stu.registrationNumber || stu.rollNumber : ''}</div>
                         </td>
-                        <td style="padding:0.85rem 1rem; font-weight:600; color:#334155;">${sub ? sub.name : r.subjectId}</td>
-                        <td style="text-align:center; padding:0.85rem 1rem;">Sem ${r.semester}</td>
-                        <td style="text-align:center; padding:0.85rem 1rem;">
+                        <td >${sub ? sub.name : r.subjectId}</td>
+                        <td style="text-align:center;">Sem ${r.semester}</td>
+                        <td style="text-align:center;">
                           <strong style="color:#2563EB;">${r.marks}</strong> / ${r.maxMarks}
                         </td>
-                        <td style="text-align:center; padding:0.85rem 1rem;">
+                        <td style="text-align:center;">
                           <span class="status-badge active" style="font-weight:700;">${r.grade}</span>
                         </td>
-                        <td style="text-align:center; padding:0.85rem 1rem;">
+                        <td style="text-align:center;">
                           <span class="status-badge ${r.status === 'PUBLISHED' ? 'active' : 'warning'}">${r.status}</span>
                         </td>
-                        <td style="text-align:center; padding:0.85rem 1rem;">
+                        <td style="text-align:center;">
                           <button class="btn-icon" style="color:var(--color-danger);" title="Delete Record" onclick="ExamResultsView.deleteResult('${r.id}')">
                             <i data-lucide="trash-2" style="width:16px; height:16px;"></i>
                           </button>
@@ -240,10 +292,10 @@ const ExamResultsView = {
   // ADMIN VIEW (FULL ADMINISTRATIVE ACCESS)
   // =========================================================================
   renderAdminView(user) {
-    const depts = typeof departmentService !== 'undefined' ? departmentService.getDepartments() : [];
-    const classes = typeof classService !== 'undefined' ? classService.getClasses() : [];
-    const allStudents = typeof studentService !== 'undefined' ? studentService.getStudents() : (DataStore.get('STUDENTS') || []);
-    const subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
+    const depts = this.departments;
+    const classes = this.classes;
+    const allStudents = this.students;
+    const subjects = this.subjects;
 
     // Filter Students for dropdown based on upstream selections
     let filteredStudents = [];
@@ -279,7 +331,7 @@ const ExamResultsView = {
             Admin Portal: Input marks, grade calculations, and publish official semester results.
           </p>
         </div>
-        <button class="btn-primary" onclick="ExamResultsView.openAddModal()" style="font-weight:700;">
+        <button class="btn-primary" onclick="ExamResultsView.openAddModal()" >
           <i data-lucide="plus-circle" style="width:16px; height:16px; display:inline;"></i> Add Student Result
         </button>
       </div>
@@ -371,15 +423,15 @@ const ExamResultsView = {
           <div class="table-responsive">
             <table class="data-table" style="width:100%; border-collapse:collapse;">
               <thead>
-                <tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0;">
-                  <th style="text-align:left; padding:0.85rem 1rem;">Student</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Semester</th>
-                  <th style="text-align:left; padding:0.85rem 1rem;">Subject</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Marks</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Grade</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Publish Status / Action</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Published Date</th>
-                  <th style="text-align:center; padding:0.85rem 1rem;">Actions</th>
+                <tr >
+                  <th style="text-align:left;">Student</th>
+                  <th style="text-align:center;">Semester</th>
+                  <th style="text-align:left;">Subject</th>
+                  <th style="text-align:center;">Marks</th>
+                  <th style="text-align:center;">Grade</th>
+                  <th style="text-align:center;">Publish Status / Action</th>
+                  <th style="text-align:center;">Published Date</th>
+                  <th style="text-align:center;">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -387,16 +439,16 @@ const ExamResultsView = {
                   const stu = allStudents.find(s => s.id === r.studentId);
                   const sub = subjects.find(s => s.id === r.subjectId);
                   return `
-                    <tr style="border-bottom:1px solid #F1F5F9;">
-                      <td style="padding:0.85rem 1rem;">
+                    <tr >
+                      <td >
                         <strong style="color:var(--color-navy-dark);">${stu ? stu.name : r.studentId}</strong>
                         <div style="font-size:0.75rem; color:var(--color-text-muted); font-family:monospace;">${stu ? stu.registrationNumber || stu.rollNumber : ''}</div>
                       </td>
-                      <td style="text-align:center; padding:0.85rem 1rem;">Sem ${r.semester}</td>
-                      <td style="padding:0.85rem 1rem; font-weight:600; color:#334155;">${sub ? sub.name : r.subjectId}</td>
-                      <td style="text-align:center; padding:0.85rem 1rem;"><strong>${r.marks}</strong> / ${r.maxMarks}</td>
-                      <td style="text-align:center; padding:0.85rem 1rem;"><span class="status-badge active" style="font-weight:700;">${r.grade}</span></td>
-                      <td style="text-align:center; padding:0.85rem 1rem;">
+                      <td style="text-align:center;">Sem ${r.semester}</td>
+                      <td >${sub ? sub.name : r.subjectId}</td>
+                      <td style="text-align:center;"><strong>${r.marks}</strong> / ${r.maxMarks}</td>
+                      <td style="text-align:center;"><span class="status-badge active" style="font-weight:700;">${r.grade}</span></td>
+                      <td style="text-align:center;">
                         <div style="display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
                           <span class="status-badge ${r.status === 'PUBLISHED' ? 'active' : 'warning'}" style="font-weight:700;">${r.status}</span>
                           ${r.status === 'UNPUBLISHED' ? `
@@ -410,8 +462,8 @@ const ExamResultsView = {
                           `}
                         </div>
                       </td>
-                      <td style="text-align:center; padding:0.85rem 1rem; font-size:0.85rem; color:var(--color-text-muted);">${r.publishedAt || '—'}</td>
-                      <td style="text-align:center; padding:0.85rem 1rem;">
+                      <td style="text-align:center;">${r.publishedAt || '—'}</td>
+                      <td style="text-align:center;">
                         <button class="btn-icon" style="color:var(--color-danger);" title="Delete" onclick="ExamResultsView.deleteResult('${r.id}')"><i data-lucide="trash-2" style="width:16px; height:16px;"></i></button>
                       </td>
                     </tr>
@@ -480,15 +532,15 @@ const ExamResultsView = {
     App.renderCurrentView();
   },
 
-  openAddModal() {
+  async openAddModal() {
     const user = authService.getCurrentUser();
     let students = DataStore.get('STUDENTS') || [];
     let subjects = subjectService.getSubjects();
 
     if (user && AuthorizationService.isAcademicStaff(user)) {
-      const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
+      const authorizedSubjectIds = this.authorizedSubjectIds || [];
       subjects = subjects.filter(s => authorizedSubjectIds.includes(s.id));
-      const authorizedStudentIds = AuthorizationService.getAuthorizedStudentIds(user);
+      const authorizedStudentIds = await AuthorizationService.getAuthorizedStudentIds(user);
       students = students.filter(s => authorizedStudentIds.includes(s.id));
     }
 

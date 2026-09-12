@@ -92,8 +92,27 @@ const facultyService = {
     }
   },
 
+  async listenToFaculty(callback) {
+    this.stopListening();
+    try {
+      const db = await this._ensureDb();
+      this._unsubscribe = db.collection(this._collection()).onSnapshot(snapshot => {
+        const facultyList = snapshot.docs.map(doc => ({ id: doc.id, email: doc.id, ...doc.data() }));
+        callback(facultyList);
+      }, err => console.error("Faculty snapshot listener error:", err));
+      return this._unsubscribe;
+    } catch (err) {
+      console.error("Failed to start faculty snapshot listener:", err);
+    }
+  },
+
   stopListening() {
-    // Deprecated.
+    if (this._unsubscribe) {
+      if (typeof this._unsubscribe === 'function') {
+        this._unsubscribe();
+      }
+      this._unsubscribe = null;
+    }
   },
 
   // --------------------------------------------------------------------------

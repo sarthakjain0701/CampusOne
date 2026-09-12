@@ -12,6 +12,9 @@ const MarkAttendanceView = {
   loading: true,
   hasAccess: false,
   existingRecords: [],
+  _classes: [],
+  _subjects: [],
+  _students: [],
 
   afterRender() {
     if (this.loading) {
@@ -64,7 +67,7 @@ const MarkAttendanceView = {
           });
         } else {
           this.mode = 'MARK';
-          const students = studentService.getStudents().filter(s => s.classId === this.selectedClassId || !s.classId);
+          const students = (this._students || []).filter(s => s.classId === this.selectedClassId || !s.classId);
           students.forEach(s => {
             this.studentState[s.id] = 'NOT_MARKED';
           });
@@ -85,7 +88,7 @@ const MarkAttendanceView = {
     }
   },
 
-  render(params = {}) {
+  async render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
 
@@ -96,7 +99,7 @@ const MarkAttendanceView = {
       this.mode = params.mode;
     }
 
-    // Since render is called synchronously, if loading, we show a spinner.
+    // Since render is called, if loading, we show a spinner.
     // The query params are already consumed.
     if (this.loading) {
       return `
@@ -104,7 +107,7 @@ const MarkAttendanceView = {
           <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">Mark Attendance</h1>
           <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">Loading attendance session...</p>
         </div>
-        <div class="card" style="padding: 3rem; text-align: center;">
+        <div class="glass-panel" style="padding: 3rem; text-align: center;">
           <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
         </div>
       `;
@@ -123,8 +126,8 @@ const MarkAttendanceView = {
         classes = classes.filter(c => c.id === this.selectedClassId);
         subjects = subjects.filter(s => s.id === this.selectedSubjectId);
       } else {
-        const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
-        const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
+        const authorizedClassIds = await AuthorizationService.getAuthorizedClassIds(user);
+        const authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
         classes = classes.filter(c => authorizedClassIds.includes(c.id));
         subjects = subjects.filter(s => authorizedSubjectIds.includes(s.id));
         if (classes.length === 0 || subjects.length === 0) {
@@ -133,7 +136,7 @@ const MarkAttendanceView = {
       }
     }
 
-    const students = studentService.getStudents().filter(s => s.classId === this.selectedClassId || !s.classId);
+    const students = (this._students || []).filter(s => s.classId === this.selectedClassId || !s.classId);
 
     // If state is completely empty but there are students, initialize to NOT_MARKED
     if (Object.keys(this.studentState).length === 0 && students.length > 0 && this.mode === 'MARK') {
@@ -214,7 +217,7 @@ const MarkAttendanceView = {
 
       <!-- SELECTION CARDS GRID -->
       <div class="mark-attendance-grid">
-        <div class="attendance-select-card">
+        <div class="glass-card attendance-select-card">
           <label><i data-lucide="layers"></i> Select Class</label>
           ${AuthorizationService.isAcademicStaff(user) ? `
              <div style="font-weight: 700; color: var(--color-navy-dark); font-size: 1.05rem; padding-top: 0.25rem;">
@@ -228,7 +231,7 @@ const MarkAttendanceView = {
           `}
         </div>
 
-        <div class="attendance-select-card">
+        <div class="glass-card attendance-select-card">
           <label><i data-lucide="book-open"></i> Select Subject</label>
           ${AuthorizationService.isAcademicStaff(user) ? `
              <div style="font-weight: 700; color: var(--color-navy-dark); font-size: 1.05rem; padding-top: 0.25rem;">
@@ -242,7 +245,7 @@ const MarkAttendanceView = {
           `}
         </div>
 
-        <div class="attendance-select-card">
+        <div class="glass-card attendance-select-card">
           <label><i data-lucide="calendar"></i> Session Date</label>
           <div style="font-weight: 700; color: var(--color-primary); font-size: 1.1rem; padding-top: 0.25rem; display: flex; align-items: center; justify-content: space-between;">
             <span id="display-att-date">${formattedDate}</span>
@@ -257,9 +260,9 @@ const MarkAttendanceView = {
 
       <!-- STUDENT ATTENDANCE TABLE -->
       <div class="table-container">
-        <table class="custom-table" style="width:100%; border-collapse:collapse;">
+        <table class="data-table" style="width:100%; border-collapse:collapse;">
           <thead>
-            <tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0;">
+            <tr >
               <th>#</th>
               <th>Roll Number</th>
               <th>Student Name</th>
@@ -269,13 +272,13 @@ const MarkAttendanceView = {
           <tbody>
             ${students.length === 0 ? `
               <tr>
-                <td colspan="4" style="text-align:center; padding:3rem;">
+                <td colspan="4" style="text-align:center;">
                   <i data-lucide="user-x" style="font-size:2rem; color:var(--color-text-light);"></i>
                   <p style="margin-top:0.5rem; color:var(--color-text-muted);">No students enrolled in this class section.</p>
                 </td>
               </tr>
             ` : students.map((stu, idx) => `
-              <tr style="border-bottom:1px solid #F1F5F9;">
+              <tr >
                 <td>${idx + 1}</td>
                 <td><strong>${stu.registrationNumber || stu.rollNumber}</strong></td>
                 <td>

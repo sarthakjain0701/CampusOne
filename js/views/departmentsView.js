@@ -1,15 +1,18 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM - DEPARTMENT MANAGEMENT (SERVICE CONNECTED)
+   POORNIMA ATTENDANCE SYSTEM - DEPARTMENT MANAGEMENT (FIRESTORE CONNECTED)
    ========================================================================== */
 
 const DepartmentsView = {
+  _departments: [],
+  _isLoading: false,
+
   render() {
-    const departments = departmentService.getDepartments();
+    const departments = this._departments || [];
 
     return `
       <div class="page-header">
         <h1>Department Management</h1>
-        <p>Configure academic departments under Poornima Attendance System.</p>
+        <p>Configure academic departments under Poornima Group of College.</p>
       </div>
 
       <div class="toolbar">
@@ -22,6 +25,8 @@ const DepartmentsView = {
       </div>
 
       <div class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+        ${this._isLoading ? '<div style="text-align:center; grid-column: 1/-1;"><i data-lucide="loader" class="spin"></i> Loading...</div>' : ''}
+        ${(!this._isLoading && departments.length === 0) ? '<div style="text-align:center; grid-column: 1/-1;">No departments found.</div>' : ''}
         ${departments.map(d => `
           <div class="card" style="margin-bottom:0;">
             <div class="card-header">
@@ -31,12 +36,26 @@ const DepartmentsView = {
             <h3 style="font-size:1.1rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">${d.name}</h3>
             <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:1rem;">HOD: <strong>${d.hod}</strong></p>
             <div style="display:flex; justify-content:flex-end;">
-              <button class="btn-icon-sm danger" onclick="DepartmentsView.deleteDept('${d.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
+              <button class="btn-icon danger" onclick="DepartmentsView.deleteDept('${d.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
             </div>
           </div>
         `).join('')}
       </div>
     `;
+  },
+
+  async afterRender() {
+    if (this._isLoading) return;
+    this._isLoading = true;
+    try {
+      this._departments = await departmentService.getDepartmentsFromFirestore();
+    } catch (e) {
+      UIService.showToast("Failed to load departments.", "danger");
+    } finally {
+      this._isLoading = false;
+      App.renderCurrentView();
+    }
+    if (window.lucide) window.lucide.createIcons();
   },
 
   openAddModal() {
@@ -72,9 +91,10 @@ const DepartmentsView = {
       { text: "Cancel", className: "btn-secondary", onClick: () => UIService.closeModal() },
       { text: "Add Department", className: "btn-primary", onClick: () => this.saveDept() }
     ]);
+    if (window.lucide) window.lucide.createIcons();
   },
 
-  saveDept() {
+  async saveDept() {
     const data = {
       name: document.getElementById('m-dept-name').value,
       code: document.getElementById('m-dept-code').value,
@@ -82,9 +102,11 @@ const DepartmentsView = {
     };
 
     try {
-      departmentService.addDepartment(data);
+      await departmentService.addDepartment(data);
       UIService.closeModal();
       UIService.showToast("Department created successfully.", "success");
+      
+      this._isLoading = true;
       App.renderCurrentView();
     } catch (err) {
       UIService.showToast(err.message, "danger");
@@ -92,10 +114,11 @@ const DepartmentsView = {
   },
 
   deleteDept(id) {
-    UIService.showConfirm("Delete Department?", "Delete this department record?", () => {
+    UIService.showConfirm("Delete Department?", "Delete this department record?", async () => {
       try {
-        departmentService.deleteDepartment(id);
+        await departmentService.deleteDepartment(id);
         UIService.showToast("Department deleted.", "success");
+        this._isLoading = true;
         App.renderCurrentView();
       } catch (err) {
         UIService.showToast(err.message, "danger");
@@ -105,4 +128,3 @@ const DepartmentsView = {
 };
 
 window.DepartmentsView = DepartmentsView;
-

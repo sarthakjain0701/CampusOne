@@ -4,42 +4,34 @@
    ========================================================================== */
 
 const AttendanceHistoryView = {
-  async render() {
+  state: {
+    attendance: [],
+    classes: [],
+    subjects: [],
+    sessions: [],
+    loading: true
+  },
+
+  render() {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
 
-    const attendance = await attendanceService.getAttendance(user);
-    let classes = DataStore.get('CLASSES') || MOCK_DATA.classes || [];
-    let subjects = DataStore.get('SUBJECTS') || MOCK_DATA.subjects || [];
-
-    if (AuthorizationService.isAcademicStaff(user)) {
-      const authorizedClassIds = AuthorizationService.getAuthorizedClassIds(user);
-      const authorizedSubjectIds = AuthorizationService.getAuthorizedSubjectIds(user);
-
-      classes = classes.filter(c => authorizedClassIds.includes(c.id));
-      subjects = subjects.filter(s => authorizedSubjectIds.includes(s.id));
+    if (this.state.loading) {
+      return `
+        <div class="page-header">
+          <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">Attendance History & Logs</h1>
+          <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">
+            Review submitted attendance sessions and filter records. ${AuthorizationService.isAcademicStaff(user) ? '<strong style="color:var(--color-primary);">(Faculty Scope: Assigned Subjects Only)</strong>' : ''}
+          </p>
+        </div>
+        <div class="card" style="padding: 3rem; text-align: center;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading history...</p>
+        </div>
+      `;
     }
 
-    // Group raw attendance records by session (Class + Subject + Date)
-    const sessionsMap = {};
-    attendance.forEach(rec => {
-      const key = `${rec.classId}_${rec.subjectId}_${rec.date}`;
-      if (!sessionsMap[key]) {
-        sessionsMap[key] = {
-          classId: rec.classId,
-          subjectId: rec.subjectId,
-          date: rec.date,
-          present: 0,
-          absent: 0,
-          total: 0
-        };
-      }
-      sessionsMap[key].total++;
-      if (rec.status === 'PRESENT') sessionsMap[key].present++;
-      else sessionsMap[key].absent++;
-    });
-
-    const sessions = Object.values(sessionsMap);
+    const { classes, subjects, sessions } = this.state;
 
     return `
       <div class="page-header">
@@ -64,7 +56,7 @@ const AttendanceHistoryView = {
 
         <div>
           ${user.role !== 'STUDENT' ? `
-          <button class="btn-primary" onclick="App.navigateTo('mark-attendance')" style="font-weight:700;">
+          <button class="btn-primary" onclick="App.navigateTo('mark-attendance')" >
             <i data-lucide="plus" style="width:16px; height:16px; display:inline;"></i> Mark New Attendance
           </button>
           ` : ''}
@@ -72,9 +64,9 @@ const AttendanceHistoryView = {
       </div>
 
       <div class="table-container">
-        <table class="custom-table" id="history-table" style="width:100%; border-collapse:collapse;">
+        <table class="data-table" id="history-table" style="width:100%; border-collapse:collapse;">
           <thead>
-            <tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0;">
+            <tr>
               <th>Date</th>
               <th>Class</th>
               <th>Subject</th>
@@ -89,7 +81,7 @@ const AttendanceHistoryView = {
           <tbody>
             ${sessions.length === 0 ? `
               <tr>
-                <td colspan="8" style="text-align:center; padding:3rem;">
+                <td colspan="9" style="text-align:center;">
                   <i data-lucide="calendar-x" style="font-size:2rem; color:var(--color-text-light);"></i>
                   <p style="margin-top:0.5rem; color:var(--color-text-muted);">No attendance sessions recorded for your assigned subjects.</p>
                 </td>
@@ -100,12 +92,12 @@ const AttendanceHistoryView = {
               const pct = Math.round((s.present / s.total) * 100);
               const formattedDate = new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
               return `
-                <tr style="border-bottom:1px solid #F1F5F9;">
+                <tr>
                   <td><strong>${formattedDate}</strong></td>
                   <td><span class="status-badge active">${cls ? cls.name : s.classId}</span></td>
-                  <td style="font-weight:600; color:#334155;">${sub ? sub.name : s.subjectId}</td>
-                  <td style="text-align:center; color:var(--color-success); font-weight:700;">${s.present}</td>
-                  <td style="text-align:center; color:var(--color-danger); font-weight:700;">${s.absent}</td>
+                  <td>${sub ? sub.name : s.subjectId}</td>
+                  <td style="text-align:center;">${s.present}</td>
+                  <td style="text-align:center;">${s.absent}</td>
                   <td style="text-align:center;">${s.total}</td>
                   <td style="text-align:center;"><strong>${pct}%</strong></td>
                   <td style="text-align:center;">
@@ -115,11 +107,11 @@ const AttendanceHistoryView = {
                   </td>
                   <td style="text-align:center;">
                     <div style="display:flex; gap:0.5rem; justify-content:center;">
-                      <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'VIEW' })">
+                      <button class="btn-secondary" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'VIEW' })">
                         VIEW
                       </button>
                       ${user.role !== 'STUDENT' ? `
-                      <button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'EDIT' })">
+                      <button class="btn-primary" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'EDIT' })">
                         EDIT
                       </button>
                       ` : ''}
@@ -132,6 +124,64 @@ const AttendanceHistoryView = {
         </table>
       </div>
     `;
+  },
+
+  afterRender() {
+    if (this.state.loading) {
+      this.fetchData();
+    } else {
+      if (window.lucide) window.lucide.createIcons();
+    }
+  },
+
+  async fetchData() {
+    try {
+      const user = authService.getCurrentUser();
+      if (!user) return;
+      
+      const attendance = await attendanceService.getAttendance(user);
+      let classes = DataStore.get('CLASSES') || (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.classes : []);
+      let subjects = DataStore.get('SUBJECTS') || (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.subjects : []);
+
+      if (AuthorizationService.isAcademicStaff(user)) {
+        const authorizedClassIds = await AuthorizationService.getAuthorizedClassIds(user);
+        const authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
+
+        classes = classes.filter(c => authorizedClassIds.includes(c.id));
+        subjects = subjects.filter(s => authorizedSubjectIds.includes(s.id));
+      }
+
+      // Group raw attendance records by session (Class + Subject + Date)
+      const sessionsMap = {};
+      attendance.forEach(rec => {
+        const key = `${rec.classId}_${rec.subjectId}_${rec.date}`;
+        if (!sessionsMap[key]) {
+          sessionsMap[key] = {
+            classId: rec.classId,
+            subjectId: rec.subjectId,
+            date: rec.date,
+            present: 0,
+            absent: 0,
+            total: 0
+          };
+        }
+        sessionsMap[key].total++;
+        if (rec.status === 'PRESENT') sessionsMap[key].present++;
+        else sessionsMap[key].absent++;
+      });
+
+      this.state.attendance = attendance;
+      this.state.classes = classes;
+      this.state.subjects = subjects;
+      this.state.sessions = Object.values(sessionsMap);
+      this.state.loading = false;
+      
+      App.renderCurrentView();
+    } catch (err) {
+      this.state.loading = false;
+      UIService.showToast(err.message || "Failed to load history.", "danger");
+      App.renderCurrentView();
+    }
   },
 
   filterTable(query) {

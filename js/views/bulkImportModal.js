@@ -208,8 +208,8 @@ const BulkImportModal = {
       </div>
 
       <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border:1px solid var(--color-border); border-radius:8px;">
-        <table class="data-table" style="margin:0; font-size:0.85rem;">
-          <thead style="position: sticky; top: 0; background: #F8FAFC; z-index: 1;">
+        <table class="data-table" >
+          <thead style="position: sticky; top: 0; z-index: 1;">
             <tr>
               <th style="width:60px;">Row</th>
               <th>Name</th>
@@ -221,7 +221,7 @@ const BulkImportModal = {
           </thead>
           <tbody>
             ${filteredRecords.length === 0 ? `
-              <tr><td colspan="6" style="text-align:center; padding:2rem; color:#94A3B8;">No records match your filter.</td></tr>
+              <tr><td colspan="6" style="text-align:center;">No records match your filter.</td></tr>
             ` : filteredRecords.map(r => {
               
               let statusBadge = '';
@@ -230,13 +230,13 @@ const BulkImportModal = {
               if (r.__importStatus === 'DUPLICATE') statusBadge = '<span style="background:#FEF9C3; color:#854D0E; padding:2px 6px; border-radius:4px; font-weight:700; font-size:0.75rem;">DUPLICATE</span>';
 
               return `
-                <tr style="${r.__importStatus !== 'VALID' ? 'background:#FAFAFA;' : ''}">
-                  <td style="color:#64748B;">${r.__originalRowIndex}</td>
-                  <td style="font-weight:600;">${r['Name']}</td>
+                <tr style="${r.__importStatus !== 'VALID' ? 'background:#FAFAFA; ' : ''};">
+                  <td >${r.__originalRowIndex}</td>
+                  <td >${r['Name']}</td>
                   <td><code>${this.state.type === 'STUDENT' ? (r['Roll No'] || '') : (r['Employee ID'] || '')}</code></td>
                   <td>${r['Department'] || ''}</td>
                   <td>${statusBadge}</td>
-                  <td style="color:#991B1B; font-size:0.75rem;">${r.__importError || ''}</td>
+                  <td >${r.__importError || ''}</td>
                 </tr>
               `;
             }).join('')}

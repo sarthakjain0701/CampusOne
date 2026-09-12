@@ -1,25 +1,35 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM (PAS) - NOTIFICATION SERVICE
-   Role-Based, UI-Decoupled Mock & Storage Notification Service Architecture
+   POORNIMA ATTENDANCE SYSTEM (PAS) - NOTIFICATION SERVICE (FIRESTORE)
    ========================================================================== */
 
 const notificationService = {
-  /**
-   * Retrieves notifications strictly isolated for the logged in user & role
-   */
-  getNotifications(user) {
-    if (!user) return [];
+  localCache: [],
 
-    const all = DataStore.get('NOTIFICATIONS') || window.MOCK_DATA?.notifications || [];
+  get db() {
+    return window.FirebaseService ? window.FirebaseService.db : null;
+  },
+
+  async fetchNotificationsFromFirestore(user) {
+    if (!this.db || !user) return [];
+    try {
+      const snap = await this.db.collection('notifications').get();
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.localCache = all;
+      return this.filterForUser(all, user);
+    } catch (e) {
+      console.error(e);
+      return this.getNotifications(user); // fallback to local mock
+    }
+  },
+
+  filterForUser(all, user) {
     const userId = user.id || user.uid;
     const userRole = user.role;
 
     return all.filter(n => {
-      // Role match check
       const roleMatches = n.recipientRole === userRole || n.recipientRole === 'ALL';
       if (!roleMatches) return false;
 
-      // Recipient ID match check (if targeted to a specific user)
       if (n.recipientId && n.recipientId !== 'ALL') {
         const idMatches = n.recipientId === userId || 
                           n.recipientId === user.uid || 
@@ -31,7 +41,6 @@ const notificationService = {
                           (userRole === 'ADMIN' && n.recipientId === 'USR_ADMIN_01');
         return idMatches;
       }
-
       return true;
     }).map(n => ({
       ...n,
@@ -40,23 +49,25 @@ const notificationService = {
     }));
   },
 
-  /**
-   * Retrieves unread notifications for current user
-   */
+  getNotifications(user) {
+    if (!user) return [];
+    let all = [];
+    if (this.localCache && this.localCache.length > 0) {
+      all = this.localCache;
+    } else {
+      all = typeof DataStore !== 'undefined' ? (DataStore.get('NOTIFICATIONS') || window.MOCK_DATA?.notifications || []) : [];
+    }
+    return this.filterForUser(all, user);
+  },
+
   getUnreadNotifications(user) {
     return this.getNotifications(user).filter(n => !n.isRead);
   },
 
-  /**
-   * Gets exact unread notification count for badge display
-   */
   getUnreadCount(user) {
     return this.getUnreadNotifications(user).length;
   },
 
-  /**
-   * Formats count for badge display: 0 => '', 1-99 => exact, 100+ => '99+'
-   */
   getBadgeText(user) {
     const count = this.getUnreadCount(user);
     if (count <= 0) return '';
@@ -64,82 +75,99 @@ const notificationService = {
     return String(count);
   },
 
-  /**
-   * Marks a single notification as read
-   */
-  markAsRead(notificationId) {
-    const list = DataStore.get('NOTIFICATIONS') || window.MOCK_DATA?.notifications || [];
-    const item = list.find(n => n.id === notificationId);
+  async markAsRead(notificationId) {
+    // Local Update
+    const item = this.localCache.find(n => n.id === notificationId);
     if (item) {
       item.isRead = true;
       item.read = true;
-      DataStore.set('NOTIFICATIONS', list);
-      if (window.MOCK_DATA) window.MOCK_DATA.notifications = list;
+    }
+    const dStoreList = typeof DataStore !== 'undefined' ? DataStore.get('NOTIFICATIONS') : null;
+    if (dStoreList) {
+      const dItem = dStoreList.find(n => n.id === notificationId);
+      if (dItem) { dItem.isRead = true; dItem.read = true; DataStore.set('NOTIFICATIONS', dStoreList); }
+    }
+
+    // Firestore Update
+    if (this.db) {
+      try {
+        await this.db.collection('notifications').doc(notificationId).update({ isRead: true, read: true });
+      } catch(e) {}
+    }
+    
+    // Refresh Navbar Badge
+    if (typeof App !== 'undefined' && App.renderMainLayout) {
+      // Re-render layout to update badge
+      setTimeout(() => App.renderMainLayout(), 0);
     }
     return item;
   },
 
-  /**
-   * Marks ALL notifications for the CURRENT USER as read
-   */
-  markAllAsRead(user) {
+  async markAllAsRead(user) {
     if (!user) return false;
-    const userNotifs = this.getNotifications(user);
-    const userNotifIds = new Set(userNotifs.map(n => n.id));
+    
+    // Local Update
+    const userNotifs = this.filterForUser(this.localCache, user);
+    userNotifs.forEach(n => { n.isRead = true; n.read = true; });
+    
+    const dStoreList = typeof DataStore !== 'undefined' ? DataStore.get('NOTIFICATIONS') : null;
+    if (dStoreList) {
+      const userNotifsD = this.filterForUser(dStoreList, user);
+      const ids = new Set(userNotifsD.map(n => n.id));
+      dStoreList.forEach(n => { if (ids.has(n.id)) { n.isRead = true; n.read = true; } });
+      DataStore.set('NOTIFICATIONS', dStoreList);
+    }
 
-    const list = DataStore.get('NOTIFICATIONS') || window.MOCK_DATA?.notifications || [];
-    list.forEach(n => {
-      if (userNotifIds.has(n.id)) {
-        n.isRead = true;
-        n.read = true;
-      }
-    });
+    // Firestore Update (Batch)
+    if (this.db) {
+      try {
+        const batch = this.db.batch();
+        userNotifs.forEach(n => {
+          if (!n.isRead) {
+            const ref = this.db.collection('notifications').doc(n.id);
+            batch.update(ref, { isRead: true, read: true });
+          }
+        });
+        await batch.commit();
+      } catch(e) {}
+    }
 
-    DataStore.set('NOTIFICATIONS', list);
-    if (window.MOCK_DATA) window.MOCK_DATA.notifications = list;
+    if (typeof App !== 'undefined' && App.renderMainLayout) {
+      setTimeout(() => App.renderMainLayout(), 0);
+    }
     return true;
   },
 
-  /**
-   * System Event Trigger: Creates a new notification with duplicate prevention
-   */
-  createNotification({ recipientId = 'ALL', recipientRole = 'ALL', title, message, category = 'GENERAL', type = 'INFO', priority = 'LOW', relatedModule = null, rejectionReason = null }) {
-    if (!title || !message) return null;
-
-    const list = DataStore.get('NOTIFICATIONS') || window.MOCK_DATA?.notifications || [];
-
-    // Duplicate Prevention: check if identical title + recipient was emitted in last 60s
-    const isDuplicate = list.some(n => 
-      n.title === title && 
-      n.recipientId === recipientId && 
-      n.message === message
-    );
-
-    if (isDuplicate) return null;
-
-    const now = new Date();
-    const timeStr = `${now.getDate()} ${now.toLocaleString('en', { month: 'short' })}, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-
+  async createNotification(data) {
     const newNotif = {
-      id: "NOT_" + String(Date.now()).slice(-6),
-      recipientId,
-      recipientRole,
-      title,
-      message,
-      rejectionReason,
-      category: category.toUpperCase(),
-      type: type.toUpperCase(),
-      priority: priority.toUpperCase(),
+      title: data.title,
+      message: data.message,
+      recipientId: data.recipientId || 'ALL',
+      recipientRole: data.recipientRole || 'ALL',
+      type: data.type || 'INFO',
+      priority: data.priority || 'LOW',
+      category: data.category || 'SYSTEM',
+      relatedModule: data.relatedModule || '',
       isRead: false,
       read: false,
-      createdAt: timeStr,
-      relatedModule
+      createdAt: new Date().toISOString()
     };
 
-    list.unshift(newNotif);
-    DataStore.set('NOTIFICATIONS', list);
-    if (window.MOCK_DATA) window.MOCK_DATA.notifications = list;
+    // Firestore
+    if (this.db) {
+      try {
+        const docRef = await this.db.collection('notifications').add(newNotif);
+        newNotif.id = docRef.id;
+        this.localCache.push(newNotif);
+      } catch (e) {
+        newNotif.id = "NOT" + String(Date.now());
+        this.localCache.push(newNotif);
+      }
+    }
 
+    if (typeof App !== 'undefined' && App.renderMainLayout) {
+      setTimeout(() => App.renderMainLayout(), 0);
+    }
     return newNotif;
   }
 };

@@ -38,9 +38,9 @@ const ExamFormView = {
   // DASHBOARD VIEW (ACTIVE EXAMS & SUBMISSION HISTORY)
   // --------------------------------------------------------------------------
   renderDashboard(student) {
-    const examPeriods = ExamFormService.getExamPeriods();
+    const examPeriods = this.examPeriods;
     const activePeriods = examPeriods.filter(p => p.status === 'OPEN' || p.status === 'UPCOMING');
-    const submissions = ExamFormService.getStudentExamForms(student.id);
+    const submissions = this.submissions;
 
     return `
       <div class="page-header">
@@ -61,7 +61,7 @@ const ExamFormView = {
         ` : `
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; padding: 1rem 0;">
             ${activePeriods.map(p => {
-              const eligible = ExamFormService.checkStudentEligibility(student.id, p.id);
+              const eligible = (!this.submissions.find(s => s.examId === p.id && s.status !== 'REJECTED' && s.status !== 'NOT_SUBMITTED'));
               const submittedForm = submissions.find(s => s.examId === p.id);
               
               let actionBtnHtml = '';
@@ -160,7 +160,7 @@ const ExamFormView = {
                       <td>${s.submittedAt ? this.formatDateDisplay(s.submittedAt) : '—'}</td>
                       <td><span class="status-badge ${statusClass}">${s.status}</span></td>
                       <td>
-                        <button class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="ExamFormView.viewSubmittedForm('${s.id}')">
+                        <button class="btn-secondary"  onclick="ExamFormView.viewSubmittedForm('${s.id}')">
                           <i data-lucide="eye" style="width:14px; height:14px;"></i> View
                         </button>
                       </td>
@@ -179,15 +179,15 @@ const ExamFormView = {
   // FILL EXAM FORM VIEW
   // --------------------------------------------------------------------------
   renderFillForm(student) {
-    const examPeriod = ExamFormService.getExamPeriods().find(p => p.id === this.selectedExamPeriodId);
-    const allSubjects = subjectService.getSubjects();
+    const examPeriod = this.examPeriods.find(p => p.id === this.selectedExamPeriodId);
+    const allSubjects = this.subjects;
     
     // Eligible subjects for student's current semester
     const eligibleSubjects = allSubjects.filter(sub => sub.semester === Number(examPeriod.semester));
 
     return `
       <div class="page-header">
-        <button class="btn-secondary" onclick="ExamFormView.backToDashboard()" style="margin-bottom:0.5rem; padding:0.35rem 0.75rem; font-size:0.85rem;">
+        <button class="btn-secondary" onclick="ExamFormView.backToDashboard()" style="margin-bottom:0.5rem;">
           <i data-lucide="arrow-left"></i> Cancel
         </button>
         <h1>Fill Examination Form</h1>
@@ -250,13 +250,13 @@ const ExamFormView = {
   // REVIEW FORM VIEW
   // --------------------------------------------------------------------------
   renderReviewForm(student) {
-    const examPeriod = ExamFormService.getExamPeriods().find(p => p.id === this.selectedExamPeriodId);
-    const subjects = subjectService.getSubjects();
+    const examPeriod = this.examPeriods.find(p => p.id === this.selectedExamPeriodId);
+    const subjects = this.subjects;
     const selectedSubjects = subjects.filter(s => this.selectedSubjectIds.includes(s.id));
 
     return `
       <div class="page-header">
-        <button class="btn-secondary" onclick="ExamFormView.backToFill()" style="margin-bottom:0.5rem; padding:0.35rem 0.75rem; font-size:0.85rem;">
+        <button class="btn-secondary" onclick="ExamFormView.backToFill()" style="margin-bottom:0.5rem;">
           <i data-lucide="arrow-left"></i> Back to Edit
         </button>
         <h1>Review Examination Form</h1>
@@ -355,11 +355,11 @@ const ExamFormView = {
   // VIEW SUBMITTED FORM DETAILS (READ-ONLY VIEW)
   // --------------------------------------------------------------------------
   renderViewFormDetails(student) {
-    const submission = ExamFormService.getExamFormById(this.viewingSubmissionId);
+    const submission = (this.submissions.find(s => s.id === this.viewingSubmissionId));
     if (!submission) return `<div class="card">Application not found.</div>`;
 
-    const examPeriod = ExamFormService.getExamPeriods().find(p => p.id === submission.examId);
-    const subjects = subjectService.getSubjects();
+    const examPeriod = this.examPeriods.find(p => p.id === submission.examId);
+    const subjects = this.subjects;
     const selectedSubjects = subjects.filter(s => submission.selectedSubjectIds.includes(s.id));
 
     let badgeClass = 'warning';
@@ -372,7 +372,7 @@ const ExamFormView = {
 
     return `
       <div class="page-header">
-        <button class="btn-secondary" onclick="ExamFormView.backToDashboard()" style="margin-bottom:0.5rem; padding:0.35rem 0.75rem; font-size:0.85rem;">
+        <button class="btn-secondary" onclick="ExamFormView.backToDashboard()" style="margin-bottom:0.5rem;">
           <i data-lucide="arrow-left"></i> Back to Dashboard
         </button>
         <h1>Application Details — ${submission.applicationNumber}</h1>
@@ -429,13 +429,13 @@ const ExamFormView = {
   // CONTROLLER LOGIC METHODS
   // --------------------------------------------------------------------------
   startApplication(examId) {
-    const examPeriod = ExamFormService.getExamPeriods().find(p => p.id === examId);
+    const examPeriod = this.examPeriods.find(p => p.id === examId);
     this.selectedExamPeriodId = examId;
     this.selectedSubjectIds = [];
     this.declarationAgreed = false;
     
     // Auto-check/select eligible subjects by default to make form filling quick
-    const allSubjects = subjectService.getSubjects();
+    const allSubjects = this.subjects;
     const eligible = allSubjects.filter(sub => sub.semester === Number(examPeriod.semester));
     this.selectedSubjectIds = eligible.map(sub => sub.id);
 

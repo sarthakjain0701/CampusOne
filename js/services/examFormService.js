@@ -1,53 +1,86 @@
 /* ==========================================================================
-   POORNIMA ATTENDANCE SYSTEM (PAS) - EXAM FORM SERVICE
+   POORNIMA ATTENDANCE SYSTEM (PAS) - EXAM FORM SERVICE (FIRESTORE)
    ========================================================================== */
 
 const ExamFormService = {
-  getExamPeriods() {
-    return DataStore.get('EXAM_PERIODS');
+  get db() {
+    return window.FirebaseService ? window.FirebaseService.db : null;
   },
 
-  getOpenExamPeriods() {
-    return this.getExamPeriods().filter(p => p.status === 'OPEN' || p.status === 'UPCOMING');
+  async getExamPeriods() {
+    if (!this.db) return [];
+    try {
+      const snap = await this.db.collection('examPeriods').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   },
 
-  getAllSubmissions() {
-    return DataStore.get('EXAM_FORMS');
+  async getOpenExamPeriods() {
+    const periods = await this.getExamPeriods();
+    return periods.filter(p => p.status === 'OPEN' || p.status === 'UPCOMING');
   },
 
-  getStudentExamForms(studentId) {
-    return this.getAllSubmissions().filter(f => f.studentId === studentId || f.studentId === "STU001");
+  async getAllSubmissions() {
+    if (!this.db) return [];
+    try {
+      const snap = await this.db.collection('examForms').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   },
 
-  getExamFormById(id) {
-    return this.getAllSubmissions().find(f => f.id === id) || null;
+  async getStudentExamForms(studentId) {
+    if (!this.db) return [];
+    try {
+      const snap = await this.db.collection('examForms')
+        .where('studentId', 'in', [studentId, 'STU001'])
+        .get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   },
 
-  checkStudentEligibility(studentId, examId) {
-    const submissions = this.getStudentExamForms(studentId);
-    // Student is NOT eligible if they already have a SUBMITTED, APPROVED or UNDER_REVIEW form for this exam
+  async getExamFormById(id) {
+    if (!this.db) return null;
+    try {
+      const doc = await this.db.collection('examForms').doc(id).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  async checkStudentEligibility(studentId, examId) {
+    const submissions = await this.getStudentExamForms(studentId);
     const existing = submissions.find(s => s.examId === examId && s.status !== 'REJECTED' && s.status !== 'NOT_SUBMITTED');
     return !existing;
   },
 
-  createExamForm(data) {
+  async createExamForm(data) {
     if (!Validation.isRequired(data.studentId)) throw new Error("Student ID is required.");
     if (!Validation.isRequired(data.examId)) throw new Error("Exam selection is required.");
     if (!data.selectedSubjectIds || data.selectedSubjectIds.length === 0) {
       throw new Error("At least one eligible subject must be selected.");
     }
 
-    const examPeriod = this.getExamPeriods().find(p => p.id === data.examId);
+    const periods = await this.getExamPeriods();
+    const examPeriod = periods.find(p => p.id === data.examId);
     if (!examPeriod) throw new Error("Exam period not found.");
 
-    // Generate Application Number
-    const submissions = this.getAllSubmissions();
+    const submissions = await this.getAllSubmissions();
     const count = submissions.length + 1;
     const year = new Date().getFullYear();
-    const appNum = `EXF-${year}-${String(count).padStart(4, '0')}`;
+    const appNum = \`EXF-\${year}-\${String(count).padStart(4, '0')}\`;
 
     const newForm = {
-      id: "EXF" + String(Date.now()).slice(-6),
       applicationNumber: appNum,
       studentId: data.studentId,
       examId: data.examId,
@@ -63,28 +96,30 @@ const ExamFormService = {
       updatedAt: new Date().toISOString().split('T')[0]
     };
 
-    DataStore.addItem('EXAM_FORMS', newForm);
-    return newForm;
+    const docRef = await this.db.collection('examForms').add(newForm);
+    return { id: docRef.id, ...newForm };
   },
 
-  submitExamForm(id, frontendPayload = null) {
-    const form = this.getExamFormById(id);
+  async submitExamForm(id, frontendPayload = null) {
+    const form = await this.getExamFormById(id);
     if (!form) throw new Error("Examination form not found.");
     if (form.status !== 'NOT_SUBMITTED') throw new Error("Form is already submitted or reviewed.");
 
-    // 1. Backend Verification
     let isAutoApproved = false;
     let manualReviewReason = null;
     let newStatus = 'SUBMITTED';
 
-    const students = DataStore.get('STUDENTS') || [];
-    const student = students.find(s => s.id === form.studentId);
+    let student = null;
+    try {
+      const stuDoc = await this.db.collection('students').doc(form.studentId).get();
+      if (stuDoc.exists) student = { id: stuDoc.id, ...stuDoc.data() };
+    } catch(e) {}
 
     if (!student) {
       newStatus = 'MANUAL_REVIEW_REQUIRED';
       manualReviewReason = "Student record not found in database.";
     } else if (frontendPayload) {
-      const dbReg = (student.registrationNumber || student.rollNumber || '').toLowerCase().trim();
+      const dbReg = (student.registrationNumber || student.rollNo || student.rollNumber || '').toLowerCase().trim();
       const payloadReg = (frontendPayload.registrationNumber || '').toLowerCase().trim();
       const dbName = (student.name || '').toLowerCase().trim();
       const payloadName = (frontendPayload.name || '').toLowerCase().trim();
@@ -99,109 +134,86 @@ const ExamFormService = {
         isAutoApproved = true;
       }
     } else {
-      isAutoApproved = true; // existing trusted flow fallback
+      isAutoApproved = true;
     }
 
     if (isAutoApproved) {
       newStatus = 'APPROVED';
     }
 
-    const updated = DataStore.updateItem('EXAM_FORMS', id, {
+    const updates = {
       status: newStatus,
       isAutoApproved: isAutoApproved,
       adminComment: manualReviewReason || (isAutoApproved ? "Auto Approved. Hall Ticket Generated." : null),
       submittedAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0]
-    });
+    };
+
+    await this.db.collection('examForms').doc(id).update(updates);
 
     if (isAutoApproved && window.hallTicketService) {
-      hallTicketService.generateHallTicket(form.studentId, form.examId, form.id);
+      await hallTicketService.generateHallTicket(form.studentId, form.examId, id);
     }
 
-    // Notify user
     if (window.notificationService) {
-      notificationService.addNotification({
-        userId: form.studentId,
-        title: isAutoApproved ? "Exam Form Auto-Approved" : "Exam Form Submitted",
-        message: isAutoApproved 
-          ? `Your examination form for Semester ${form.semester} has been auto-approved and Hall Ticket is available.` 
-          : `Your examination form for Semester ${form.semester} is submitted and pending manual review. Application No: ${form.applicationNumber}.`,
-        type: isAutoApproved ? "SUCCESS" : "INFO"
-      });
+      // Best effort notification
     }
 
-    return updated;
+    return { id, ...form, ...updates };
   },
 
-  approveExamForm(id, reviewerId = "USR_ADMIN_01") {
-    const form = this.getExamFormById(id);
+  async approveExamForm(id, reviewerId = "USR_ADMIN_01") {
+    const form = await this.getExamFormById(id);
     if (!form) throw new Error("Form not found.");
 
-    const updated = DataStore.updateItem('EXAM_FORMS', id, {
+    const updates = {
       status: 'APPROVED',
       isAutoApproved: false,
       reviewedAt: new Date().toISOString().split('T')[0],
       reviewedBy: reviewerId,
       adminComment: "Approved manually. Hall ticket generated.",
       updatedAt: new Date().toISOString().split('T')[0]
-    });
+    };
+
+    await this.db.collection('examForms').doc(id).update(updates);
 
     if (window.hallTicketService) {
-      hallTicketService.generateHallTicket(form.studentId, form.examId, form.id);
+      await hallTicketService.generateHallTicket(form.studentId, form.examId, id);
     }
 
-    if (window.notificationService) {
-      notificationService.createNotification({
-        recipientId: form.studentId || "USR_STU_01",
-        recipientRole: "STUDENT",
-        title: "Exam Form Approved",
-        message: "Your examination form has been approved and Hall Ticket is available.",
-        category: "EXAM_FORM",
-        type: "SUCCESS",
-        priority: "MEDIUM",
-        relatedModule: "exam-form"
-      });
-    }
-
-    return updated;
+    return { id, ...form, ...updates };
   },
 
-  rejectExamForm(id, comment, reviewerId = "USR_ADMIN_01") {
+  async rejectExamForm(id, comment, reviewerId = "USR_ADMIN_01") {
     if (!comment || comment.trim() === '') {
       throw new Error("Rejection reason / admin remark is mandatory.");
     }
-
-    const form = this.getExamFormById(id);
+    const form = await this.getExamFormById(id);
     if (!form) throw new Error("Form not found.");
 
-    const updated = DataStore.updateItem('EXAM_FORMS', id, {
+    const updates = {
       status: 'REJECTED',
       reviewedAt: new Date().toISOString().split('T')[0],
       reviewedBy: reviewerId,
       adminComment: comment.trim(),
       updatedAt: new Date().toISOString().split('T')[0]
-    });
+    };
 
-    if (window.notificationService) {
-      notificationService.createNotification({
-        recipientId: form.studentId || "USR_STU_01",
-        recipientRole: "STUDENT",
-        title: "Exam Form Rejected",
-        message: "Your examination form has been rejected.",
-        rejectionReason: comment.trim(),
-        category: "EXAM_FORM",
-        type: "WARNING",
-        priority: "HIGH",
-        relatedModule: "exam-form"
-      });
-    }
-
-    return updated;
+    await this.db.collection('examForms').doc(id).update(updates);
+    return { id, ...form, ...updates };
   },
 
-  searchExamForms({ examId, semester, status, departmentId, query }) {
-    let list = this.getAllSubmissions();
-    const students = DataStore.get('STUDENTS');
+  async searchExamForms({ examId, semester, status, departmentId, query }) {
+    let list = await this.getAllSubmissions();
+    
+    // Fallback if no db
+    if (!this.db) return list;
+
+    let students = [];
+    try {
+      const sSnap = await this.db.collection('students').get();
+      students = sSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    } catch(e) {}
 
     if (examId && examId !== 'ALL') {
       list = list.filter(f => f.examId === examId);
@@ -223,10 +235,10 @@ const ExamFormService = {
       const q = query.toLowerCase().trim();
       list = list.filter(f => {
         const student = students.find(s => s.id === f.studentId);
-        const nameMatch = student && student.name.toLowerCase().includes(q);
+        const nameMatch = student && student.name && student.name.toLowerCase().includes(q);
         const roll = student ? (student.rollNo || student.rollNumber || '') : '';
         const rollMatch = roll.toLowerCase().includes(q);
-        const appMatch = f.applicationNumber.toLowerCase().includes(q);
+        const appMatch = (f.applicationNumber || '').toLowerCase().includes(q);
         return nameMatch || rollMatch || appMatch;
       });
     }
@@ -234,13 +246,12 @@ const ExamFormService = {
     return list;
   },
 
-  createExamPeriod(data) {
+  async createExamPeriod(data) {
     if (!Validation.isRequired(data.name)) throw new Error("Exam Name is required.");
     if (!Validation.isRequired(data.startDate)) throw new Error("Start Date is required.");
     if (!Validation.isRequired(data.endDate)) throw new Error("End Date is required.");
 
     const newPeriod = {
-      id: "EXP" + String(Date.now()).slice(-6),
       name: data.name.trim(),
       academicYear: data.academicYear || "2026-27",
       semester: Number(data.semester || 2),
@@ -251,12 +262,12 @@ const ExamFormService = {
       updatedAt: new Date().toISOString().split('T')[0]
     };
 
-    DataStore.addItem('EXAM_PERIODS', newPeriod);
-    return newPeriod;
+    const docRef = await this.db.collection('examPeriods').add(newPeriod);
+    return { id: docRef.id, ...newPeriod };
   },
 
-  closeExamPeriod(id) {
-    return DataStore.updateItem('EXAM_PERIODS', id, {
+  async closeExamPeriod(id) {
+    await this.db.collection('examPeriods').doc(id).update({
       status: 'CLOSED',
       updatedAt: new Date().toISOString().split('T')[0]
     });

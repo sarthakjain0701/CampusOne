@@ -162,7 +162,7 @@ const HolidayCalendarView = {
           <button class="btn-icon" onclick="HolidayCalendarView.changeMonth(-1)" title="Previous Month"><i data-lucide="chevron-left"></i></button>
           <div style="display:flex; flex-direction:column; align-items:center;">
              <h2 style="font-size:1.25rem; font-weight:800; color:var(--color-navy-dark); margin:0;">${monthNames[this.currentMonth]} ${this.currentYear}</h2>
-             <button class="btn-link" style="font-size:0.75rem; color:var(--color-primary); border:none; background:none; cursor:pointer;" onclick="HolidayCalendarView.setToday()">Go to Today</button>
+             <button class="btn-link" style="color:var(--color-primary); border:none; background:none; cursor:pointer;" onclick="HolidayCalendarView.setToday()">Go to Today</button>
           </div>
           <button class="btn-icon" onclick="HolidayCalendarView.changeMonth(1)" title="Next Month"><i data-lucide="chevron-right"></i></button>
         </div>

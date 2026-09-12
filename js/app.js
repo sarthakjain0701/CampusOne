@@ -88,7 +88,7 @@ const App = {
     return allowed.some(item => item.id === viewId);
   },
 
-  onLoginSuccess(user) {
+  async onLoginSuccess(user) {
     const requestedRoute = this.getRouteFromHash();
     if (user.mustChangePassword) {
       this.currentView = 'change-password';
@@ -153,9 +153,17 @@ const App = {
 
         <!-- SIDEBAR -->
         <aside class="sidebar ${this.mobileSidebarOpen ? 'mobile-open' : ''}" id="sidebar">
-          <div class="sidebar-header" style="padding: 1rem 1.25rem;">
-            ${LogoComponent.render({ variant: 'full', theme: 'dark', size: 'small' })}
-            <span class="role-badge ${user.role.toLowerCase().replace('_', '-')}" style="margin-left: auto;">${roleDisplayName}</span>
+          <div class="sidebar-header" style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem; height: auto;">
+            <div style="width: 100%; display: flex; justify-content: center; margin-bottom: 0.25rem;">
+              <img src="https://www.poornima.org/img/emblem.png" alt="Poornima Group Of College Logo" style="height: 65px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+              <span style="font-size: 1.15rem; font-weight: 800; letter-spacing: 0.5px; color: #FFF; line-height: 1.2; text-align: center; text-transform: uppercase;">Poornima Group</span>
+              <span style="font-size: 0.85rem; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.2px; text-align: center;">Of College</span>
+            </div>
+            <div style="display: flex; justify-content: center; width: 100%; margin-top: 0.25rem;">
+              <span class="role-badge ${user.role.toLowerCase().replace('_', '-')}">${roleDisplayName}</span>
+            </div>
           </div>
 
           <div class="sidebar-menu">
@@ -168,11 +176,15 @@ const App = {
             `).join('')}
           </div>
 
-          <div class="sidebar-footer">
-            <a href="#" class="nav-item" onclick="App.logout(); return false;" style="color: #FCA5A5;">
-              <i data-lucide="log-out"></i>
-              <span>Logout</span>
-            </a>
+          <div class="sidebar-footer" style="padding: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0,0,0,0.15); cursor: pointer;" onclick="App.navigateTo('profile')">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div class="avatar" style="width: 38px; height: 38px;">${user.name ? user.name.charAt(0) : 'U'}</div>
+              <div style="flex: 1; overflow: hidden;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #FFF; white-space: nowrap; text-overflow: ellipsis;">${user.name || 'User'}</div>
+                <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6);">${roleDisplayName}</div>
+              </div>
+              <i data-lucide="log-out" style="color: #FCA5A5; width: 18px; cursor: pointer;" onclick="event.stopPropagation(); App.logout();" title="Logout"></i>
+            </div>
           </div>
         </aside>
 
@@ -187,7 +199,7 @@ const App = {
               <div class="page-title">${this.getPageTitle()}</div>
             </div>
 
-            <div class="navbar-right">
+              <div class="navbar-right">
               <div class="search-box">
                 <i data-lucide="search"></i>
                 <input type="text" class="search-input" placeholder="Global search..." onkeyup="App.handleGlobalSearch(this.value)"/>
@@ -201,7 +213,7 @@ const App = {
                 </button>
 
                 <!-- NOTIFICATION DROPDOWN MENU -->
-                <div id="pams-notif-dropdown" style="display:none; position:absolute; right:0; top:48px; width:360px; max-width:90vw; background:white; border-radius:14px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.04); border:1px solid var(--color-border); z-index:1000; overflow:hidden; animation:fadeIn 0.15s ease-out;">
+                <div id="pams-notif-dropdown" style="display:none; position:absolute; right:0; top:54px; width:360px; max-width:90vw; background:white; border-radius:14px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.04); border:1px solid var(--color-border); z-index:1000; overflow:hidden; animation:fadeIn 0.15s ease-out;">
                   <div style="padding:1rem 1.25rem; background:var(--color-navy-dark); color:white; display:flex; justify-content:space-between; align-items:center;">
                     <div style="font-weight:800; font-size:0.95rem;">Notifications (${unreadCount} unread)</div>
                     <a href="#" onclick="App.navigateTo('notifications'); App.closeNotificationDropdown(); return false;" style="color:#60A5FA; font-size:0.8rem; font-weight:700; text-decoration:none;">View All</a>
@@ -212,20 +224,17 @@ const App = {
                   </div>
 
                   <div style="padding:0.75rem; background:#F8FAFC; border-top:1px solid var(--color-border); text-align:center;">
-                    <button class="btn-xs btn-primary" onclick="App.navigateTo('notifications'); App.closeNotificationDropdown();" style="width:100%; justify-content:center; padding:0.5rem; font-weight:800;">
+                    <button class="btn-xs btn-primary" onclick="App.navigateTo('notifications'); App.closeNotificationDropdown();" style="width:100%; justify-content:center; padding:0.5rem; font-weight:800; border-radius:8px;">
                       Go to Notification Center
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div class="user-profile-menu" onclick="App.navigateTo('profile')">
-                <div class="avatar">${user.name ? user.name.charAt(0) : 'U'}</div>
-                <div class="user-info-text">
-                  <div class="name">${user.name || 'User'}</div>
-                  <div class="role">${roleDisplayName}</div>
-                </div>
-                <i data-lucide="chevron-down" style="font-size: 14px; color: var(--color-text-muted);"></i>
+              <!-- Current Date / Academic Year -->
+              <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; margin-left: 0.5rem;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase;">Academic Year 25-26</div>
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-navy-dark);">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
               </div>
             </div>
           </header>
@@ -497,7 +506,7 @@ const App = {
         if (window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
       }
     } else if (this.currentView === 'reports') {
-      if (window.ReportsView && window.ReportsView.postInit) window.ReportsView.postInit();
+      if (window.ReportsView && window.ReportsView.afterRender) window.ReportsView.afterRender();
     } else if (this.currentView === 'students' && window.StudentsView && window.StudentsView.afterRender) {
       window.StudentsView.afterRender();
     } else if (this.currentView === 'faculty' && window.FacultyView && window.FacultyView.afterRender) {
@@ -526,6 +535,26 @@ const App = {
       window.AttendanceHistoryView.afterRender();
     } else if (this.currentView === 'timetable' && window.TimetableView && window.TimetableView.afterRender) {
       window.TimetableView.afterRender();
+    } else if (this.currentView === 'assignments' && window.AssignmentsView && window.AssignmentsView.afterRender) {
+      window.AssignmentsView.afterRender();
+    } else if (this.currentView === 'departments' && window.DepartmentsView && window.DepartmentsView.afterRender) {
+      window.DepartmentsView.afterRender();
+    } else if (this.currentView === 'subjects' && window.SubjectsView && window.SubjectsView.afterRender) {
+      window.SubjectsView.afterRender();
+    } else if (this.currentView === 'classes' && window.ClassesView && window.ClassesView.afterRender) {
+      window.ClassesView.afterRender();
+    } else if (this.currentView === 'exam-form-management' && window.ExamFormManagementView && window.ExamFormManagementView.afterRender) {
+      window.ExamFormManagementView.afterRender();
+    } else if (this.currentView === 'hall-ticket' && window.HallTicketView && window.HallTicketView.afterRender) {
+      window.HallTicketView.afterRender();
+    } else if (this.currentView === 'digital-learning' && window.DigitalLearningView && window.DigitalLearningView.afterRender) {
+      window.DigitalLearningView.afterRender();
+    } else if (this.currentView === 'notifications' && window.NotificationsView && window.NotificationsView.afterRender) {
+      window.NotificationsView.afterRender();
+    } else if (this.currentView === 'profile' && window.ProfileView && window.ProfileView.afterRender) {
+      window.ProfileView.afterRender();
+    } else if (this.currentView === 'exam-results' && window.ExamResultsView && window.ExamResultsView.afterRender) {
+      window.ExamResultsView.afterRender();
     }
   },
 

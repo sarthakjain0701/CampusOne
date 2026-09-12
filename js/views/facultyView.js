@@ -5,6 +5,7 @@
 
 const FacultyView = {
   _cachedFaculty: [],
+  _depts: [],
   _lastDoc: null,
   _hasMore: false,
   _isLoading: false,
@@ -37,7 +38,7 @@ const FacultyView = {
       </div>
 
       <div class="table-container">
-        <table class="custom-table" id="faculty-table">
+        <table class="data-table" id="faculty-table">
           <thead>
             <tr>
               <th>Employee ID</th>
@@ -47,15 +48,30 @@ const FacultyView = {
               <th>Designation</th>
               <th>Department</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style="width: 50px;"></th>
             </tr>
           </thead>
           <tbody id="faculty-table-body">
-            <tr><td colspan="8" style="text-align:center; padding:2rem;"><i data-lucide="loader" class="spin"></i> Loading Staff...</td></tr>
+            <tr><td colspan="8" style="text-align:center;"><div class="skeleton" style="height:36px; margin: 10px;"></div></td></tr>
           </tbody>
         </table>
         <div id="faculty-load-more-container" style="text-align:center; padding:1rem; display:none;">
           <button id="faculty-load-more-btn" class="btn-secondary" onclick="FacultyView.loadFaculty(true)">Load More</button>
+        </div>
+      </div>
+
+      <!-- VIEW DETAILS DRAWER -->
+      <div class="drawer-overlay" id="faculty-details-drawer" onclick="if(event.target===this) FacultyView.closeDetailsDrawer()">
+        <div class="drawer-panel">
+          <div class="drawer-header">
+            <h3 class="drawer-title">Staff Profile</h3>
+            <button class="btn-close" onclick="FacultyView.closeDetailsDrawer()"><i data-lucide="x"></i></button>
+          </div>
+          <div class="drawer-body" id="faculty-details-content">
+          </div>
+          <div class="drawer-footer">
+            <button class="btn-secondary" onclick="FacultyView.closeDetailsDrawer()">Close</button>
+          </div>
         </div>
       </div>
     `;
@@ -79,7 +95,7 @@ const FacultyView = {
       if (tbody) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="text-align:center; padding:2.5rem;">
+            <td colspan="8" style="text-align:center;">
               <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem;">
                 <i data-lucide="loader" class="spin" style="width:28px; height:28px; color:var(--color-primary);"></i>
                 <span style="color:var(--color-text-muted); font-weight:600;">Loading Staff...</span>
@@ -117,14 +133,14 @@ const FacultyView = {
       if (!isLoadMore && tbody) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="text-align:center; padding:2.5rem; color:var(--color-danger);">
+            <td colspan="8" style="text-align:center;">
               <div style="display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
                 <i data-lucide="alert-circle" style="width:32px; height:32px;"></i>
                 <div>
                   <strong>Unable to load staff records</strong>
                   <div style="font-size:0.85rem; color:var(--color-text-muted); margin-top:0.25rem;">${err.message || "Please check your network connection."}</div>
                 </div>
-                <button class="btn-primary" onclick="FacultyView.loadFaculty(false)" style="margin-top:0.5rem; padding:0.4rem 1rem; font-size:0.85rem;">
+                <button class="btn-primary" onclick="FacultyView.loadFaculty(false)" style="margin-top:0.5rem;">
                   <i data-lucide="refresh-cw"></i> Retry
                 </button>
               </div>
@@ -146,7 +162,7 @@ const FacultyView = {
     if (!tbody) return;
 
     if (faculty.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--color-text-muted);">No staff members found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No staff members found.</td></tr>';
     } else {
       tbody.innerHTML = faculty.map(f => {
         const roleDisplay = AuthorizationService.getRoleDisplayName(f.role || 'FACULTY');
@@ -161,9 +177,21 @@ const FacultyView = {
           <td><span class="status-badge active">${f.department || 'N/A'}</span></td>
           <td><span class="status-badge ${f.status === 'ACTIVE' ? 'present' : 'absent'}">${f.status || 'N/A'}</span></td>
           <td>
-            <div class="action-btns">
-              <button class="btn-icon-sm" onclick="FacultyView.openEditModal('${f.id}')" title="Edit"><i data-lucide="edit-2"></i></button>
-              <button class="btn-icon-sm danger" onclick="FacultyView.deleteFaculty('${f.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
+            <div class="action-menu-container">
+              <button class="btn-icon" onclick="FacultyView.toggleActionMenu('${f.id}', event)">
+                <i data-lucide="more-vertical"></i>
+              </button>
+              <div class="action-menu-dropdown" id="action-menu-${f.id}">
+                <button class="action-menu-item" onclick="FacultyView.openDetailsDrawer('${f.id}')">
+                  <i data-lucide="eye" style="width:16px;"></i> View Details
+                </button>
+                <button class="action-menu-item" onclick="FacultyView.openEditModal('${f.id}')">
+                  <i data-lucide="edit-2" style="width:16px;"></i> Edit Profile
+                </button>
+                <button class="action-menu-item danger" onclick="FacultyView.deleteFaculty('${f.id}')">
+                  <i data-lucide="trash-2" style="width:16px;"></i> Delete Record
+                </button>
+              </div>
             </div>
           </td>
         </tr>
@@ -188,7 +216,7 @@ const FacultyView = {
   },
 
   openAddModal() {
-    const depts = departmentService.getDepartments();
+    const depts = this._depts || [];
     const subjects = subjectService.getSubjects();
     
     const html = `
@@ -495,7 +523,65 @@ const FacultyView = {
         UIService.showToast(err.message, "danger");
       }
     });
+  },
+
+  toggleActionMenu(id, e) {
+    e.stopPropagation();
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+    const menu = document.getElementById(`action-menu-${id}`);
+    if (menu) menu.classList.toggle('active');
+  },
+
+  openDetailsDrawer(id) {
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+    const f = this._cachedFaculty.find(x => x.id === id);
+    if (!f) return;
+
+    document.getElementById('faculty-details-content').innerHTML = `
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--color-accent); color: #FFF; font-size: 2rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          ${(f.name || 'U').charAt(0).toUpperCase()}
+        </div>
+        <h4 style="font-size: 1.25rem; font-weight: 700; color: var(--color-navy-dark); margin: 0;">${f.name || 'N/A'}</h4>
+        <div style="font-size: 0.85rem; color: var(--color-text-muted);">${f.email || 'N/A'}</div>
+      </div>
+
+      <div style="margin-bottom: 2rem;">
+        <h4 style="margin-bottom: 1rem; color: var(--color-primary); border-bottom: 1px solid #E2E8F0; padding-bottom: 0.5rem;">Employment Profile</h4>
+        <div class="detail-group"><div class="detail-label">Employee ID</div><div class="detail-value">${f.employeeId || 'N/A'}</div></div>
+        <div class="detail-group"><div class="detail-label">Department</div><div class="detail-value">${f.department || 'N/A'}</div></div>
+        <div class="detail-group"><div class="detail-label">Designation</div><div class="detail-value">${f.designation || 'N/A'}</div></div>
+        <div class="detail-group"><div class="detail-label">System Role</div><div class="detail-value">${AuthorizationService.getRoleDisplayName(f.role || 'FACULTY')}</div></div>
+      </div>
+      
+      <div style="margin-bottom: 2rem;">
+        <h4 style="margin-bottom: 1rem; color: var(--color-primary); border-bottom: 1px solid #E2E8F0; padding-bottom: 0.5rem;">Qualifications</h4>
+        <div class="detail-group"><div class="detail-label">Highest Degree</div><div class="detail-value">${f.qualification || 'N/A'}</div></div>
+        <div class="detail-group"><div class="detail-label">Specialization</div><div class="detail-value">${f.specialization || 'N/A'}</div></div>
+      </div>
+
+      <div>
+        <h4 style="margin-bottom: 1rem; color: var(--color-primary); border-bottom: 1px solid #E2E8F0; padding-bottom: 0.5rem;">Contact & Status</h4>
+        <div class="detail-group"><div class="detail-label">Phone</div><div class="detail-value">${f.phone || 'N/A'}</div></div>
+        <div class="detail-group">
+          <div class="detail-label">Account Status</div>
+          <div class="detail-value"><span class="status-badge ${f.status === 'ACTIVE' ? 'present' : 'absent'}">${f.status || 'N/A'}</span></div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('faculty-details-drawer').classList.add('active');
+  },
+  
+  closeDetailsDrawer() {
+    document.getElementById('faculty-details-drawer').classList.remove('active');
   }
 };
+
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.action-menu-container')) {
+    document.querySelectorAll('.action-menu-dropdown').forEach(d => d.classList.remove('active'));
+  }
+});
 
 window.FacultyView = FacultyView;
