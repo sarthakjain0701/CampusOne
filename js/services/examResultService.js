@@ -210,7 +210,7 @@ const ExamResultService = {
     this.repository.delete(id);
   },
 
-  searchResults({ studentId, semester, subjectId, status }, actorUser = null) {
+  async searchResults({ studentId, semester, subjectId, status }, actorUser = null) {
     const user = actorUser || (typeof authService !== 'undefined' ? authService.getCurrentUser() : null);
     let list = this.getAllResults();
 
