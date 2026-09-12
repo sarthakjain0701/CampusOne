@@ -1,5 +1,7 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM (PAS) - FACULTY ATTENDANCE ASSIGNMENT SERVICE
+   FIXED: Added deleteAssignment(), updated validation to use department name
+   (consistent with Firestore class/subject schema that stores department as name).
    ========================================================================== */
 
 const AttendanceAssignmentService = {
@@ -37,64 +39,86 @@ const AttendanceAssignmentService = {
 
   async createAssignment(data) {
     const { academicYear, departmentId, semester, classId, subjectId, facultyId, timetableId } = data;
-    
+
     if (!timetableId || !facultyId || !classId || !subjectId || !departmentId || !semester || !academicYear) {
       throw new Error("Missing required fields for attendance assignment.");
     }
 
+    // Validate class exists
     const targetClass = typeof classService !== 'undefined' ? await classService.getClassById(classId) : null;
     if (!targetClass) {
-      throw new Error("The selected Section / Class does not exist.");
-    }
-    
-    if (targetClass.departmentId !== departmentId && targetClass.department !== departmentId) {
-      throw new Error("Validation Error: Section / Class does not belong to the selected Department.");
-    }
-    
-    if (String(targetClass.semester) !== String(semester)) {
-      throw new Error("Validation Error: Section / Class does not belong to the selected Semester.");
+      throw new Error("The selected Section / Class does not exist in the database.");
     }
 
+    // Validate department ownership — departmentId is stored as department NAME in the Firestore schema.
+    // Classes store "department" as a name string (e.g., "Computer Science & Engineering").
+    const classDept = targetClass.department || targetClass.departmentId || '';
+    if (classDept && classDept !== departmentId) {
+      console.warn('[AttendanceAssignment] Department mismatch:', {
+        classDept,
+        selectedDept: departmentId,
+        classId
+      });
+      throw new Error(`Validation Error: The selected class belongs to "${classDept}" but you selected "${departmentId}".`);
+    }
+
+    // Validate semester
+    if (targetClass.semester && String(targetClass.semester) !== String(semester)) {
+      throw new Error(`Validation Error: The selected class is Semester ${targetClass.semester} but you selected Semester ${semester}.`);
+    }
+
+    // Validate subject exists
     const targetSubject = typeof subjectService !== 'undefined' ? await subjectService.getSubjectById(subjectId) : null;
     if (!targetSubject) {
-      throw new Error("The selected Subject does not exist.");
+      throw new Error("The selected Subject does not exist in the database.");
     }
 
-    if (String(targetSubject.semester) !== String(semester)) {
-      throw new Error("Validation Error: Subject does not belong to the selected Semester.");
+    // Validate subject semester
+    if (targetSubject.semester && String(targetSubject.semester) !== String(semester)) {
+      throw new Error(`Validation Error: Subject "${targetSubject.name}" is for Semester ${targetSubject.semester} but you selected Semester ${semester}.`);
     }
 
+    // Duplicate check
     const assignments = await this.getAssignments();
-    
-    const duplicate = assignments.find(a => 
-      a.timetableId === timetableId && 
-      a.facultyId === facultyId && 
+
+    const duplicate = assignments.find(a =>
+      a.timetableId === timetableId &&
+      a.facultyId === facultyId &&
       a.status === 'ACTIVE'
     );
     if (duplicate) {
-      throw new Error("This attendance assignment already exists.");
+      throw new Error("This attendance assignment already exists for the same faculty and timetable session.");
     }
 
-    const sectionConflict = assignments.find(a => 
-      a.timetableId === timetableId && 
+    const sectionConflict = assignments.find(a =>
+      a.timetableId === timetableId &&
       a.status === 'ACTIVE'
     );
     if (sectionConflict && sectionConflict.facultyId !== facultyId) {
-       throw new Error("Another faculty is already assigned to take attendance for this specific timetable session.");
+      throw new Error("Another faculty is already assigned to take attendance for this timetable session.");
     }
 
-    const timetable = typeof TimetableService !== 'undefined' ? await TimetableService.getTimetableById(timetableId) : null;
-    if (timetable) {
-      const allTimetables = typeof TimetableService !== 'undefined' ? await TimetableService.getAllTimetables() : [];
-      const facultyOtherAssignments = assignments.filter(a => a.facultyId === facultyId && a.status === 'ACTIVE');
-      
-      for (const assign of facultyOtherAssignments) {
-        const otherTT = allTimetables.find(t => t.id === assign.timetableId);
-        if (otherTT && otherTT.day === timetable.day) {
-          if (timetable.startTime < otherTT.endTime && timetable.endTime > otherTT.startTime) {
-            throw new Error(`Faculty conflict detected. This faculty is already assigned to another class during this time slot (${otherTT.startTime} - ${otherTT.endTime}).`);
+    // Optional faculty schedule conflict check
+    if (typeof TimetableService !== 'undefined') {
+      try {
+        const timetable = await TimetableService.getTimetableById(timetableId);
+        if (timetable) {
+          const allTimetables = await TimetableService.getAllTimetables();
+          const facultyOtherAssignments = assignments.filter(a => a.facultyId === facultyId && a.status === 'ACTIVE');
+
+          for (const assign of facultyOtherAssignments) {
+            const otherTT = allTimetables.find(t => t.id === assign.timetableId);
+            if (otherTT && otherTT.day === timetable.day) {
+              if (timetable.startTime < otherTT.endTime && timetable.endTime > otherTT.startTime) {
+                throw new Error(`Faculty conflict detected. This faculty is already assigned to another class during this time slot (${otherTT.startTime} - ${otherTT.endTime}).`);
+              }
+            }
           }
         }
+      } catch (conflictErr) {
+        // Re-throw only actual conflict errors, not lookup errors
+        if (conflictErr.message.startsWith('Faculty conflict')) throw conflictErr;
+        console.warn('[AttendanceAssignment] Schedule conflict check skipped:', conflictErr.message);
       }
     }
 
@@ -102,7 +126,7 @@ const AttendanceAssignmentService = {
     const docRef = db.collection('attendanceAssignments').doc();
     const newAssignment = {
       academicYear,
-      departmentId,
+      departmentId,   // stores department NAME (consistent with class/subject schema)
       semester,
       classId,
       subjectId,
@@ -112,7 +136,9 @@ const AttendanceAssignmentService = {
       createdAt: new Date().toISOString()
     };
 
+    console.log('[AttendanceAssignment] Writing to Firestore:', newAssignment);
     await docRef.set(newAssignment);
+    console.log('[AttendanceAssignment] Firestore write success, ID:', docRef.id);
     return { id: docRef.id, ...newAssignment };
   },
 
@@ -120,33 +146,44 @@ const AttendanceAssignmentService = {
     if (!id) throw new Error("Assignment ID is required.");
     const db = this._getDb();
     const docRef = db.collection('attendanceAssignments').doc(id);
-    
+
     await docRef.update({
       status,
       updatedAt: new Date().toISOString()
     });
-    
+
     const doc = await docRef.get();
     return { id: doc.id, ...doc.data() };
   },
-  
+
+  // ===================================================================
+  // deleteAssignment — was MISSING, caused runtime crash on Delete click
+  // ===================================================================
+  async deleteAssignment(id) {
+    if (!id) throw new Error("Assignment ID is required to delete.");
+    const db = this._getDb();
+    await db.collection('attendanceAssignments').doc(id).delete();
+    console.log('[AttendanceAssignment] Deleted assignment:', id);
+    return true;
+  },
+
   async canMarkAttendance(facultyId, classId, subjectId, date) {
     const assignments = await this.getFacultyAssignments(facultyId);
     const relevantAssignments = assignments.filter(a => a.classId === classId && a.subjectId === subjectId);
     if (relevantAssignments.length === 0) return false;
-    
+
     if (typeof AcademicCalendarService !== 'undefined' && typeof TimetableService !== 'undefined') {
       const dayName = AcademicCalendarService.getDayName(date);
       for (const assign of relevantAssignments) {
         const tt = await TimetableService.getTimetableById(assign.timetableId);
         if (tt && tt.day === dayName) {
-           return true;
+          return true;
         }
       }
     } else {
       return true;
     }
-    
+
     return false;
   }
 };

@@ -1,5 +1,7 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - FACULTY ATTENDANCE ASSIGNMENTS (ADMIN)
+   FIXED VERSION: Corrected department ID/name mismatch, added deleteAssignment,
+   fixed double-fetch afterRender guard, fixed validation flow.
    ========================================================================== */
 
 const AttendanceAssignmentsView = {
@@ -10,14 +12,17 @@ const AttendanceAssignmentsView = {
   faculty: [],
   timetables: [],
   loading: true,
+  _fetched: false, // Guard against double-fetch on re-renders
 
   // Stepper state
   isModalOpen: false,
-  currentStep: 1, // 1: Academic, 2: Subject/Time, 3: Faculty, 4: Review
+  currentStep: 1, // 1: Context, 2: Academic, 3: Faculty, 4: Review
 
-  // Form state
+  // Form state — selectedDept stores the DEPARTMENT NAME (not doc ID),
+  // because classes/subjects Firestore docs store "department" as a name string
   selectedYear: '2026-27',
-  selectedDept: '',
+  selectedDept: '',        // ← department NAME string, e.g. "Computer Science & Engineering"
+  selectedDeptId: '',      // ← department Firestore doc ID (for display lookups only)
   selectedSem: '',
   selectedClass: '',
   selectedSubject: '',
@@ -29,24 +34,40 @@ const AttendanceAssignmentsView = {
   drawerAssignmentId: null,
 
   afterRender() {
-    if (this.loading) {
+    // Only fetch once per page load. Reset by setting loading=true externally.
+    if (this.loading && !this._fetched) {
+      this._fetched = true;
       this.fetchData();
     }
   },
 
   async fetchData() {
+    console.log('[AttendanceAssignment] fetchData() started');
     try {
       this.depts = typeof departmentService !== 'undefined' ? await departmentService.getDepartmentsFromFirestore() : [];
+      console.log('[AttendanceAssignment] depts:', this.depts.length, this.depts.map(d => d.name));
+
       this.classes = typeof classService !== 'undefined' ? await classService.getClassesFromFirestore() : [];
+      console.log('[AttendanceAssignment] classes:', this.classes.length, this.classes.map(c => ({ id: c.id, name: c.name, dept: c.department, deptId: c.departmentId, sem: c.semester })));
+
       this.subjects = typeof subjectService !== 'undefined' ? await subjectService.getSubjectsFromFirestore() : [];
+      console.log('[AttendanceAssignment] subjects:', this.subjects.length, this.subjects.map(s => ({ id: s.id, name: s.name, dept: s.department, deptId: s.departmentId, sem: s.semester })));
+
       this.faculty = typeof facultyService !== 'undefined' ? await facultyService.getFacultyFromFirestore() : [];
+      console.log('[AttendanceAssignment] faculty:', this.faculty.length, this.faculty.map(f => ({ id: f.id, name: f.name, dept: f.department, deptId: f.departmentId })));
+
       this.timetables = typeof TimetableService !== 'undefined' ? await TimetableService.getAllTimetables() : [];
-      
+      console.log('[AttendanceAssignment] timetables:', this.timetables.length);
+
       this.assignments = typeof AttendanceAssignmentService !== 'undefined' ? await AttendanceAssignmentService.getAssignments() : [];
+      console.log('[AttendanceAssignment] assignments:', this.assignments.length);
+
       this.loading = false;
       App.renderCurrentView();
     } catch (err) {
+      console.error('[AttendanceAssignment] fetchData error:', err);
       this.loading = false;
+      this._fetched = false; // Allow retry
       UIService.showToast(err.message || "Failed to load attendance assignments.", "danger");
       App.renderCurrentView();
     }
@@ -117,7 +138,7 @@ const AttendanceAssignmentsView = {
                 const fac = faculty.find(f => f.id === a.facultyId);
                 const sub = subjects.find(s => s.id === a.subjectId);
                 const cls = classes.find(c => c.id === a.classId);
-                const dept = depts.find(d => d.id === a.departmentId);
+                const dept = depts.find(d => d.id === a.departmentId || d.name === a.departmentId);
                 const tt = timetables.find(t => t.id === a.timetableId);
                 return `
                   <tr>
@@ -190,9 +211,10 @@ const AttendanceAssignmentsView = {
               </div>
               <div class="form-group">
                 <label class="form-label">Department</label>
+                <!-- VALUE = department name (matches what classes/subjects store in their "department" field) -->
                 <select id="aa-dept" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('dept', this.value)">
                   <option value="">Select Department...</option>
-                  ${depts.map(d => `<option value="${d.id}" ${this.selectedDept === d.id ? 'selected' : ''}>${d.name}</option>`).join('')}
+                  ${depts.map(d => `<option value="${d.name}" data-deptid="${d.id}" ${this.selectedDept === d.name ? 'selected' : ''}>${d.name}</option>`).join('')}
                 </select>
               </div>
               <div class="form-group">
@@ -208,8 +230,8 @@ const AttendanceAssignmentsView = {
                   ${!this.selectedDept || !this.selectedSem 
                     ? '<option value="">Select Department and Semester first</option>' 
                     : (this.getFilteredClasses().length === 0 
-                       ? '<option value="">No sections/classes available</option>' 
-                       : '<option value="">Select Section / Class ▼</option>' + this.getFilteredClasses().map(c => `<option value="${c.id}" ${this.selectedClass === c.id ? 'selected' : ''}>${c.name}</option>`).join(''))
+                       ? '<option value="">No sections found for this dept/semester</option>' 
+                       : '<option value="">Select Section / Class ▼</option>' + this.getFilteredClasses().map(c => `<option value="${c.id}" ${this.selectedClass === c.id ? 'selected' : ''}>${c.name} (${c.section || ''})</option>`).join(''))
                   }
                 </select>
               </div>
@@ -221,6 +243,7 @@ const AttendanceAssignmentsView = {
                 <label class="form-label">Subject</label>
                 <select id="aa-subject" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('subject', this.value)">
                   <option value="">Select Subject...</option>
+                  ${this.getFilteredSubjects().length === 0 ? '<option value="" disabled>No subjects found for this dept/semester</option>' : ''}
                   ${this.getFilteredSubjects().map(s => `<option value="${s.id}" ${this.selectedSubject === s.id ? 'selected' : ''}>${s.name} (${s.code})</option>`).join('')}
                 </select>
               </div>
@@ -228,9 +251,9 @@ const AttendanceAssignmentsView = {
                 <label class="form-label">Timetable Session</label>
                 <select id="aa-timetable" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('timetable', this.value)">
                   <option value="">Select Session...</option>
-                  ${this.getFilteredTimetables().length === 0 && this.selectedSubject ? '<option value="" disabled>No scheduled slots found</option>' : ''}
+                  ${this.getFilteredTimetables().length === 0 && this.selectedSubject ? '<option value="" disabled>No scheduled slots found for this subject/class</option>' : ''}
                   ${this.getFilteredTimetables().map(t => {
-                     return `<option value="${t.id}" ${this.selectedTimetable === t.id ? 'selected' : ''}>${t.day} • ${t.startTime} - ${t.endTime} (Room: ${t.room})</option>`;
+                     return `<option value="${t.id}" ${this.selectedTimetable === t.id ? 'selected' : ''}>${t.day} • ${t.startTime} - ${t.endTime} (Room: ${t.room || 'N/A'})</option>`;
                   }).join('')}
                 </select>
               </div>
@@ -242,6 +265,7 @@ const AttendanceAssignmentsView = {
                 <label class="form-label">Assign Faculty</label>
                 <select id="aa-faculty" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('faculty', this.value)">
                   <option value="">Select Faculty...</option>
+                  ${this.getFilteredFaculty().length === 0 ? '<option value="" disabled>No faculty found for this department</option>' : ''}
                   ${this.getFilteredFaculty().map(f => `<option value="${f.id}" ${this.selectedFaculty === f.id ? 'selected' : ''}>${f.name} (${f.email})</option>`).join('')}
                 </select>
               </div>
@@ -257,8 +281,8 @@ const AttendanceAssignmentsView = {
                     <div class="detail-value">${this.selectedYear}</div>
                   </div>
                   <div class="detail-group">
-                    <div class="detail-label">Department & Class</div>
-                    <div class="detail-value">${this.getDeptName()} • ${this.getClassName()}</div>
+                    <div class="detail-label">Department &amp; Class</div>
+                    <div class="detail-value">${this.selectedDept} • ${this.getClassName()}</div>
                   </div>
                   <div class="detail-group">
                     <div class="detail-label">Subject</div>
@@ -304,36 +328,55 @@ const AttendanceAssignmentsView = {
     `;
   },
 
+  // ============================================================
+  // FILTER HELPERS
+  // NOTE: selectedDept = department NAME string (matches Firestore class/subject "department" field)
+  // ============================================================
   getFilteredClasses() {
-    return this.classes.filter(c => 
-      (!this.selectedDept || c.departmentId === this.selectedDept || c.department === this.selectedDept) &&
-      (!this.selectedSem || c.semester == this.selectedSem)
-    );
+    if (!this.selectedDept || !this.selectedSem) return [];
+    return this.classes.filter(c => {
+      const deptMatch = (c.department === this.selectedDept) ||
+                        (c.departmentId === this.selectedDept) ||
+                        (c.departmentId === this.selectedDeptId);
+      const semMatch = String(c.semester) === String(this.selectedSem);
+      return deptMatch && semMatch;
+    });
   },
+
   getFilteredSubjects() {
-    return this.subjects.filter(s => 
-      (!this.selectedDept || s.departmentId === this.selectedDept || s.department === this.selectedDept) &&
-      (!this.selectedSem || s.semester == this.selectedSem)
-    );
+    if (!this.selectedDept || !this.selectedSem) return [];
+    return this.subjects.filter(s => {
+      const deptMatch = (s.department === this.selectedDept) ||
+                        (s.departmentId === this.selectedDept) ||
+                        (s.departmentId === this.selectedDeptId);
+      const semMatch = String(s.semester) === String(this.selectedSem);
+      return deptMatch && semMatch;
+    });
   },
+
   getFilteredTimetables() {
-    return this.timetables.filter(t => 
+    return this.timetables.filter(t =>
       t.status === 'ACTIVE' &&
       (!this.selectedClass || t.sectionId === this.selectedClass || t.classId === this.selectedClass) &&
       (!this.selectedSubject || t.subjectId === this.selectedSubject)
     );
   },
+
   getFilteredFaculty() {
-    return this.faculty.filter(f => !this.selectedDept || f.departmentId === this.selectedDept);
+    if (!this.selectedDept) return this.faculty;
+    return this.faculty.filter(f =>
+      !f.department ||
+      f.department === this.selectedDept ||
+      f.departmentId === this.selectedDeptId
+    );
   },
 
-  getDeptName() { const d = this.depts.find(x => x.id === this.selectedDept); return d ? d.name : ''; },
   getClassName() { const c = this.classes.find(x => x.id === this.selectedClass); return c ? c.name : ''; },
   getSubjectName() { const s = this.subjects.find(x => x.id === this.selectedSubject); return s ? s.name : ''; },
   getFacultyName() { const f = this.faculty.find(x => x.id === this.selectedFaculty); return f ? f.name : ''; },
-  getTimetableName() { 
-    const t = this.timetables.find(x => x.id === this.selectedTimetable); 
-    return t ? `${t.day} (${t.startTime}-${t.endTime})` : ''; 
+  getTimetableName() {
+    const t = this.timetables.find(x => x.id === this.selectedTimetable);
+    return t ? `${t.day} (${t.startTime}-${t.endTime})` : '';
   },
 
   canProceed() {
@@ -345,7 +388,17 @@ const AttendanceAssignmentsView = {
 
   updateFilter(field, value) {
     if (field === 'year') this.selectedYear = value;
-    if (field === 'dept') { this.selectedDept = value; this.selectedSem = ''; this.selectedClass = ''; this.selectedSubject = ''; this.selectedTimetable = ''; this.selectedFaculty = ''; }
+    if (field === 'dept') {
+      this.selectedDept = value; // department NAME
+      // Also store the doc ID for faculty filtering
+      const deptObj = this.depts.find(d => d.name === value);
+      this.selectedDeptId = deptObj ? deptObj.id : '';
+      this.selectedSem = '';
+      this.selectedClass = '';
+      this.selectedSubject = '';
+      this.selectedTimetable = '';
+      this.selectedFaculty = '';
+    }
     if (field === 'sem') { this.selectedSem = value; this.selectedClass = ''; this.selectedSubject = ''; this.selectedTimetable = ''; }
     if (field === 'class') { this.selectedClass = value; this.selectedSubject = ''; this.selectedTimetable = ''; }
     if (field === 'subject') { this.selectedSubject = value; this.selectedTimetable = ''; }
@@ -358,6 +411,7 @@ const AttendanceAssignmentsView = {
     this.isModalOpen = true;
     this.currentStep = 1;
     this.selectedDept = '';
+    this.selectedDeptId = '';
     this.selectedSem = '';
     this.selectedClass = '';
     this.selectedSubject = '';
@@ -386,9 +440,51 @@ const AttendanceAssignmentsView = {
     const btn = document.getElementById('btn-confirm-assign');
     if(btn) { btn.disabled = true; btn.innerHTML = 'Processing...'; }
 
+    const selectedClass = this.classes.find(c => c.id === this.selectedClass);
+    const selectedSubject = this.subjects.find(s => s.id === this.selectedSubject);
+    const selectedFaculty = this.faculty.find(f => f.id === this.selectedFaculty);
+    const selectedTimetable = this.timetables.find(t => t.id === this.selectedTimetable);
+
+    // Pre-flight diagnostic log
+    console.table({
+      academicYear: this.selectedYear,
+      departmentName: this.selectedDept,
+      departmentId: this.selectedDeptId,
+      semester: this.selectedSem,
+      classId: this.selectedClass,
+      className: selectedClass ? selectedClass.name : 'NOT FOUND',
+      subjectId: this.selectedSubject,
+      subjectName: selectedSubject ? selectedSubject.name : 'NOT FOUND',
+      facultyId: this.selectedFaculty,
+      facultyName: selectedFaculty ? selectedFaculty.name : 'NOT FOUND',
+      timetableId: this.selectedTimetable,
+    });
+
+    if (!selectedClass) {
+      UIService.showToast("Unable to find the selected class. Please re-select the Section.", "danger");
+      if(btn) { btn.disabled = false; btn.innerHTML = 'Confirm Assignment'; }
+      return;
+    }
+    if (!selectedSubject) {
+      UIService.showToast("Unable to find the selected subject. Please re-select.", "danger");
+      if(btn) { btn.disabled = false; btn.innerHTML = 'Confirm Assignment'; }
+      return;
+    }
+    if (!selectedFaculty) {
+      UIService.showToast("Unable to find the selected faculty member. Please re-select.", "danger");
+      if(btn) { btn.disabled = false; btn.innerHTML = 'Confirm Assignment'; }
+      return;
+    }
+    if (!selectedTimetable) {
+      UIService.showToast("Unable to find the selected timetable session. Please re-select.", "danger");
+      if(btn) { btn.disabled = false; btn.innerHTML = 'Confirm Assignment'; }
+      return;
+    }
+
     try {
       await AttendanceAssignmentService.createAssignment({
         academicYear: this.selectedYear,
+        // Store department NAME in Firestore (consistent with class/subject schema)
         departmentId: this.selectedDept,
         semester: this.selectedSem,
         classId: this.selectedClass,
@@ -396,12 +492,11 @@ const AttendanceAssignmentsView = {
         facultyId: this.selectedFaculty,
         timetableId: this.selectedTimetable
       });
-      
+
       this.isModalOpen = false;
-      
-      // Success Modal
+
       UIService.showConfirm(
-        "Assignment Created ✓", 
+        "Assignment Created ✓",
         `<div style="text-align:left;">
           <p><strong>${this.getFacultyName()}</strong> has been assigned to:</p>
           <ul style="margin: 10px 0 10px 20px;">
@@ -409,17 +504,18 @@ const AttendanceAssignmentsView = {
             <li>${this.getClassName()}</li>
             <li>${this.getTimetableName()}</li>
           </ul>
-        </div>`, 
+        </div>`,
         () => {
           this.loading = true;
-          this.fetchData();
+          this._fetched = false;
+          App.renderCurrentView();
         }
       );
 
     } catch (err) {
       if(btn) { btn.disabled = false; btn.innerHTML = 'Confirm Assignment'; }
-      UIService.showToast("Unable to create assignment. Please try again.", "danger");
-      console.error(err);
+      UIService.showToast(err.message || "Unable to create assignment. Please try again.", "danger");
+      console.error('[AttendanceAssignment] createAssignment error:', err);
     }
   },
 
@@ -449,7 +545,7 @@ const AttendanceAssignmentsView = {
     const fac = this.faculty.find(f => f.id === a.facultyId) || {};
     const sub = this.subjects.find(s => s.id === a.subjectId) || {};
     const cls = this.classes.find(c => c.id === a.classId) || {};
-    const dept = this.depts.find(d => d.id === a.departmentId) || {};
+    const dept = this.depts.find(d => d.id === a.departmentId || d.name === a.departmentId) || {};
     const tt = this.timetables.find(t => t.id === a.timetableId) || {};
 
     return `
@@ -469,7 +565,7 @@ const AttendanceAssignmentsView = {
 
       <div style="margin-bottom: 2rem;">
         <h4 style="margin-bottom: 1rem; color: var(--color-primary); border-bottom: 1px solid #E2E8F0; padding-bottom: 0.5rem;">Timetable Session</h4>
-        <div class="detail-group"><div class="detail-label">Day & Time</div><div class="detail-value">${tt.day || 'N/A'} • ${tt.startTime || ''} - ${tt.endTime || ''}</div></div>
+        <div class="detail-group"><div class="detail-label">Day &amp; Time</div><div class="detail-value">${tt.day || 'N/A'} • ${tt.startTime || ''} - ${tt.endTime || ''}</div></div>
         <div class="detail-group"><div class="detail-label">Room</div><div class="detail-value">${tt.room || 'N/A'}</div></div>
       </div>
 
@@ -488,9 +584,11 @@ const AttendanceAssignmentsView = {
       await AttendanceAssignmentService.updateAssignmentStatus(id, newStatus);
       UIService.showToast(`Assignment marked as ${newStatus}`, "info");
       this.loading = true;
-      this.fetchData();
+      this._fetched = false;
+      App.renderCurrentView();
     } catch (err) {
       UIService.showToast("Failed to update status", "danger");
+      console.error('[AttendanceAssignment] toggleStatus error:', err);
     }
   },
 
@@ -501,9 +599,11 @@ const AttendanceAssignmentsView = {
         await AttendanceAssignmentService.deleteAssignment(id);
         UIService.showToast("Assignment deleted successfully", "info");
         this.loading = true;
-        this.fetchData();
+        this._fetched = false;
+        App.renderCurrentView();
       } catch(err) {
-        UIService.showToast("Failed to delete assignment", "danger");
+        UIService.showToast(err.message || "Failed to delete assignment", "danger");
+        console.error('[AttendanceAssignment] deleteAssignment error:', err);
       }
     });
   }
