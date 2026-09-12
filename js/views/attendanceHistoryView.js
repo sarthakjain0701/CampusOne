@@ -107,12 +107,12 @@ const AttendanceHistoryView = {
                   </td>
                   <td style="text-align:center;">
                     <div style="display:flex; gap:0.5rem; justify-content:center;">
-                      <button class="btn-secondary" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'VIEW' })">
-                        VIEW
+                      <button class="btn-secondary btn-sm" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'VIEW' })">
+                        <i data-lucide="eye" style="width:14px; height:14px; display:inline;"></i> View
                       </button>
                       ${user.role !== 'STUDENT' ? `
-                      <button class="btn-primary" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'EDIT' })">
-                        EDIT
+                      <button class="btn-primary btn-sm" onclick="App.navigateTo('mark-attendance', { classId: '${s.classId}', subjectId: '${s.subjectId}', date: '${s.date}', mode: 'EDIT' })">
+                        <i data-lucide="edit-2" style="width:14px; height:14px; display:inline;"></i> Edit
                       </button>
                       ` : ''}
                     </div>

@@ -37,51 +37,45 @@ const SettingsView = {
         <p>Configure attendance warning thresholds, notification rules, database seed data, and system migrations.</p>
       </div>
 
-      <div class="dashboard-grid">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title"><i data-lucide="sliders"></i> Attendance Rules & Thresholds</h3>
-          </div>
+      <div class="form-grid-3">
+        <div class="form-card">
+          <div class="form-section-title" style="border-bottom:none; margin-bottom:1rem; padding-bottom:0;"><i data-lucide="sliders"></i> Attendance Rules & Thresholds</div>
 
           <div class="form-group">
             <label class="form-label">Minimum Attendance Requirement (%)</label>
-            <input type="number" class="form-input" value="75" min="50" max="100" style="padding-left:1rem;">
+            <input type="number" class="form-input" value="75" min="50" max="100">
             <p style="font-size:0.75rem; color:var(--color-text-muted); margin-top:4px;">Students falling below this requirement receive warning alerts.</p>
           </div>
 
           <div class="form-group">
             <label class="form-label">Critical Warning Threshold (%)</label>
-            <input type="number" class="form-input" value="65" min="40" max="74" style="padding-left:1rem;">
+            <input type="number" class="form-input" value="65" min="40" max="74">
           </div>
 
-          <button class="btn-primary" onclick="UIService.showToast('Threshold settings saved.', 'success')">
+          <button class="btn-primary" onclick="UIService.showToast('Threshold settings saved.', 'success')" style="width:100%;">
             Save Rule Preferences
           </button>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title"><i data-lucide="database"></i> Reference Data Migration</h3>
-          </div>
+        <div class="form-card">
+          <div class="form-section-title" style="border-bottom:none; margin-bottom:1rem; padding-bottom:0;"><i data-lucide="database"></i> Reference Data Migration</div>
           <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:1.5rem;">
             Safely migrate baseline static reference data (Subjects, Classes, Departments) to authoritative Firestore collections.
             This action is idempotent and conflict-safe.
           </p>
 
-          <button id="btn-run-migration" class="btn-primary" style="background-color: var(--color-warning); color: var(--color-warning-foreground);" onclick="SettingsView.runReferenceMigration()">
+          <button id="btn-run-migration" class="btn-secondary" onclick="SettingsView.runReferenceMigration()" style="width:100%;">
             <i data-lucide="server"></i> Run Live Migration
           </button>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title"><i data-lucide="database"></i> Database Seed & Reset</h3>
-          </div>
+        <div class="form-card" style="border: 1px solid var(--color-danger-bg);">
+          <div class="form-section-title" style="border-bottom:none; margin-bottom:1rem; padding-bottom:0; color:var(--color-danger);"><i data-lucide="alert-triangle"></i> Database Seed & Reset</div>
           <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:1.5rem;">
             Reset local data store with default Poornima Group of Education sample records (Students, Faculty, Subjects, Classes, Attendance).
           </p>
 
-          <button class="btn-secondary" style="border-color:var(--color-danger); color:var(--color-danger);" onclick="SettingsView.resetData()">
+          <button class="btn-danger" onclick="SettingsView.resetData()" style="width:100%;">
             <i data-lucide="refresh-cw"></i> Reset & Re-Seed Database
           </button>
         </div>

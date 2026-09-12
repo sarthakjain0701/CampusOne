@@ -584,7 +584,7 @@ const DigitalLearningView = {
   },
 
   deleteResource(id) {
-    UIService.showConfirm("Delete Resource", "Are you sure you want to delete this resource material?", () => {
+    UIService.showConfirm("Delete Resource", "Are you sure you want to delete this resource material?", async () => {
       await LearningResourceService.deleteResource(id);
       UIService.showToast("Resource deleted.", "info");
       this.loading = true; this.fetchData();

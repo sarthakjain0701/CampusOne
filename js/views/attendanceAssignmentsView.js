@@ -95,16 +95,14 @@ const AttendanceAssignmentsView = {
     const timetables = this.timetables;
 
     return `
-      <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:var(--space-xl);">
+      <div class="page-header">
         <div>
-          <h1 style="margin-bottom:var(--space-xs);">Faculty Attendance Assignments</h1>
+          <h1>Faculty Attendance Assignments</h1>
           <p>Assign faculty members to timetable sessions.</p>
         </div>
-        <div>
-          <button class="btn-primary" onclick="AttendanceAssignmentsView.openAssignModal()">
-            <i data-lucide="plus"></i> Assign Faculty
-          </button>
-        </div>
+        <button class="btn-primary" onclick="AttendanceAssignmentsView.openAssignModal()">
+          <i data-lucide="plus"></i> Assign Faculty
+        </button>
       </div>
 
       ${assignments.length === 0 ? `
@@ -202,60 +200,66 @@ const AttendanceAssignmentsView = {
 
             <!-- STEP 1: CONTEXT -->
             <div style="display: ${this.currentStep === 1 ? 'block' : 'none'};">
-              <div class="form-group">
-                <label class="form-label">Academic Year</label>
-                <select id="aa-year" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('year', this.value)">
-                  <option value="2026-27" ${this.selectedYear === '2026-27' ? 'selected' : ''}>2026-27</option>
-                  <option value="2025-26" ${this.selectedYear === '2025-26' ? 'selected' : ''}>2025-26</option>
-                </select>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Academic Year</label>
+                  <select id="aa-year" class="form-select" onchange="AttendanceAssignmentsView.updateFilter('year', this.value)">
+                    <option value="2026-27" ${this.selectedYear === '2026-27' ? 'selected' : ''}>2026-27</option>
+                    <option value="2025-26" ${this.selectedYear === '2025-26' ? 'selected' : ''}>2025-26</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Department</label>
+                  <!-- VALUE = department name (matches what classes/subjects store in their "department" field) -->
+                  <select id="aa-dept" class="form-select" onchange="AttendanceAssignmentsView.updateFilter('dept', this.value)">
+                    <option value="">Select Department...</option>
+                    ${depts.map(d => `<option value="${d.name}" data-deptid="${d.id}" ${this.selectedDept === d.name ? 'selected' : ''}>${d.name}</option>`).join('')}
+                  </select>
+                </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Department</label>
-                <!-- VALUE = department name (matches what classes/subjects store in their "department" field) -->
-                <select id="aa-dept" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('dept', this.value)">
-                  <option value="">Select Department...</option>
-                  ${depts.map(d => `<option value="${d.name}" data-deptid="${d.id}" ${this.selectedDept === d.name ? 'selected' : ''}>${d.name}</option>`).join('')}
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Semester</label>
-                <select id="aa-sem" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('sem', this.value)" ${!this.selectedDept ? 'disabled' : ''}>
-                  <option value="">Select Semester...</option>
-                  ${[1,2,3,4,5,6,7,8].map(s => `<option value="${s}" ${this.selectedSem == s ? 'selected' : ''}>Semester ${s}</option>`).join('')}
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Section / Class</label>
-                <select id="aa-class" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('class', this.value)" ${!this.selectedDept || !this.selectedSem ? 'disabled' : ''}>
-                  ${!this.selectedDept || !this.selectedSem 
-                    ? '<option value="">Select Department and Semester first</option>' 
-                    : (this.getFilteredClasses().length === 0 
-                       ? '<option value="">No sections found for this dept/semester</option>' 
-                       : '<option value="">Select Section / Class ▼</option>' + this.getFilteredClasses().map(c => `<option value="${c.id}" ${this.selectedClass === c.id ? 'selected' : ''}>${c.name} (${c.section || ''})</option>`).join(''))
-                  }
-                </select>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Semester</label>
+                  <select id="aa-sem" class="form-select" onchange="AttendanceAssignmentsView.updateFilter('sem', this.value)" ${!this.selectedDept ? 'disabled' : ''}>
+                    <option value="">Select Semester...</option>
+                    ${[1,2,3,4,5,6,7,8].map(s => `<option value="${s}" ${this.selectedSem == s ? 'selected' : ''}>Semester ${s}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Section / Class</label>
+                  <select id="aa-class" class="form-select" onchange="AttendanceAssignmentsView.updateFilter('class', this.value)" ${!this.selectedDept || !this.selectedSem ? 'disabled' : ''}>
+                    ${!this.selectedDept || !this.selectedSem 
+                      ? '<option value="">Select Department and Semester first</option>' 
+                      : (this.getFilteredClasses().length === 0 
+                         ? '<option value="">No sections found for this dept/semester</option>' 
+                         : '<option value="">Select Section / Class ▼</option>' + this.getFilteredClasses().map(c => `<option value="${c.id}" ${this.selectedClass === c.id ? 'selected' : ''}>${c.name} (${c.section || ''})</option>`).join(''))
+                    }
+                  </select>
+                </div>
               </div>
             </div>
 
             <!-- STEP 2: ACADEMIC -->
             <div style="display: ${this.currentStep === 2 ? 'block' : 'none'};">
-              <div class="form-group">
-                <label class="form-label">Subject</label>
-                <select id="aa-subject" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('subject', this.value)">
-                  <option value="">Select Subject...</option>
-                  ${this.getFilteredSubjects().length === 0 ? '<option value="" disabled>No subjects found for this dept/semester</option>' : ''}
-                  ${this.getFilteredSubjects().map(s => `<option value="${s.id}" ${this.selectedSubject === s.id ? 'selected' : ''}>${s.name} (${s.code})</option>`).join('')}
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Timetable Session</label>
-                <select id="aa-timetable" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('timetable', this.value)">
-                  <option value="">Select Session...</option>
-                  ${this.getFilteredTimetables().length === 0 && this.selectedSubject ? '<option value="" disabled>No scheduled slots found for this subject/class</option>' : ''}
-                  ${this.getFilteredTimetables().map(t => {
-                     return `<option value="${t.id}" ${this.selectedTimetable === t.id ? 'selected' : ''}>${t.day} • ${t.startTime} - ${t.endTime} (Room: ${t.room || 'N/A'})</option>`;
-                  }).join('')}
-                </select>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Subject</label>
+                  <select id="aa-subject" class="form-select" onchange="AttendanceAssignmentsView.updateFilter('subject', this.value)">
+                    <option value="">Select Subject...</option>
+                    ${this.getFilteredSubjects().length === 0 ? '<option value="" disabled>No subjects found for this dept/semester</option>' : ''}
+                    ${this.getFilteredSubjects().map(s => `<option value="${s.id}" ${this.selectedSubject === s.id ? 'selected' : ''}>${s.name} (${s.code})</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Timetable Session</label>
+                  <select id="aa-timetable" class="form-select" onchange="AttendanceAssignmentsView.updateFilter('timetable', this.value)">
+                    <option value="">Select Session...</option>
+                    ${this.getFilteredTimetables().length === 0 && this.selectedSubject ? '<option value="" disabled>No scheduled slots found for this subject/class</option>' : ''}
+                    ${this.getFilteredTimetables().map(t => {
+                       return `<option value="${t.id}" ${this.selectedTimetable === t.id ? 'selected' : ''}>${t.day} • ${t.startTime} - ${t.endTime} (Room: ${t.room || 'N/A'})</option>`;
+                    }).join('')}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -263,7 +267,7 @@ const AttendanceAssignmentsView = {
             <div style="display: ${this.currentStep === 3 ? 'block' : 'none'};">
               <div class="form-group">
                 <label class="form-label">Assign Faculty</label>
-                <select id="aa-faculty" class="form-control" onchange="AttendanceAssignmentsView.updateFilter('faculty', this.value)">
+                <select id="aa-faculty" class="form-select" onchange="AttendanceAssignmentsView.updateFilter('faculty', this.value)">
                   <option value="">Select Faculty...</option>
                   ${this.getFilteredFaculty().length === 0 ? '<option value="" disabled>No faculty found for this department</option>' : ''}
                   ${this.getFilteredFaculty().map(f => `<option value="${f.id}" ${this.selectedFaculty === f.id ? 'selected' : ''}>${f.name} (${f.email})</option>`).join('')}

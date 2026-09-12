@@ -86,7 +86,7 @@ const HallTicketView = {
     const allSubjects = this.allSubjects || [];
     
     const deptName = this.departments.find(d => studentInfo && (d.name === studentInfo.department || d.id === studentInfo.departmentId))?.name || studentInfo?.department || "N/A";
-    const examName = examPeriod?.name || "Examination";
+    const examName = examPeriod?.name || "End Semester Examination";
     const academicYear = examPeriod?.academicYear || "2026-27";
     const semester = examPeriod?.semester || examForm?.semester || studentInfo?.semester || "N/A";
 
@@ -96,99 +96,105 @@ const HallTicketView = {
       const selectedSubjects = allSubjects.filter(s => examForm.selectedSubjectIds.includes(s.id));
       if (selectedSubjects.length > 0) {
         subjectsHtml = selectedSubjects.map(s => {
-          // Defaulting to empty string for missing schedule data to not "invent" data
-          const date = examPeriod?.startDate ? new Date(examPeriod.startDate).toLocaleDateString() : '';
-          const time = '';
+          // Display actual exam dates/times if available, otherwise display TBA to avoid inventing data
+          const dateStr = examPeriod?.startDate ? new Date(examPeriod.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
+          const timeStr = 'TBA'; // Assuming no specific time is stored in the current mock model
+          
           return `
             <tr>
-              <td style="border:1px solid #333; padding:8px;"><strong>${s.code}</strong></td>
-              <td style="border:1px solid #333; padding:8px;">${s.name}</td>
-              <td style="border:1px solid #333; padding:8px;">${date}</td>
-              <td style="border:1px solid #333; padding:8px;">${time}</td>
+              <td style="border:1px solid #333; padding:10px 12px; font-weight:bold;">${s.code}</td>
+              <td style="border:1px solid #333; padding:10px 12px;">${s.name}</td>
+              <td style="border:1px solid #333; padding:10px 12px; text-align:center;">${dateStr}</td>
+              <td style="border:1px solid #333; padding:10px 12px; text-align:center;">${timeStr}</td>
             </tr>
           `;
         }).join('');
       } else {
-        subjectsHtml = `<tr><td colspan="4" style="border:1px solid #333; padding:8px; text-align:center;">No subjects found for this registration.</td></tr>`;
+        subjectsHtml = `<tr><td colspan="4" style="border:1px solid #333; padding:12px; text-align:center;">No subjects found for this registration.</td></tr>`;
       }
     } else {
-      subjectsHtml = `<tr><td colspan="4" style="border:1px solid #333; padding:8px; text-align:center;">No subjects found for this registration.</td></tr>`;
+      subjectsHtml = `<tr><td colspan="4" style="border:1px solid #333; padding:12px; text-align:center;">No subjects found for this registration.</td></tr>`;
     }
 
     // Build the hall ticket DOM string
     return `
       <div class="page-header no-print">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
           <div>
-            <h1>Hall Ticket</h1>
-            <p>Your hall ticket is available.</p>
+            <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">Hall Ticket</h1>
+            <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">Download and print your examination hall ticket.</p>
           </div>
-          <button class="btn-primary" onclick="window.print()">
-            <i data-lucide="printer"></i> Print Hall Ticket
-          </button>
+          <div style="display:flex; gap:1rem;">
+            <button class="btn-secondary" onclick="window.print()">
+              <i data-lucide="download" style="width:18px; height:18px;"></i> Save as PDF
+            </button>
+            <button class="btn-primary" onclick="window.print()">
+              <i data-lucide="printer" style="width:18px; height:18px;"></i> Print Hall Ticket
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Printable Hall Ticket Area -->
-      <div class="hall-ticket-container printable-area" style="background:white; padding:40px; border-radius:12px; border:1px solid var(--color-border); max-width:800px; margin:0 auto; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); color: #000; font-family: 'Times New Roman', serif;">
+      <div class="hall-ticket-container printable-area" style="background:white; padding:40px; border-radius:12px; border:1px solid var(--color-border); max-width:850px; margin:0 auto; box-shadow:var(--glass-shadow); color: #000; font-family: 'Times New Roman', Times, serif; line-height:1.5;">
         
         <!-- Header -->
-        <div style="display:flex; align-items:center; border-bottom:2px solid #000; padding-bottom:20px; margin-bottom:20px;">
-          <img src="https://images.shiksha.com/mediadata/images/1684410058phpjSEJOU.jpeg" alt="Logo" style="height:80px; margin-right:20px;">
+        <div style="display:flex; align-items:center; border-bottom:3px solid #000; padding-bottom:20px; margin-bottom:24px;">
+          <img src="https://images.shiksha.com/mediadata/images/1684410058phpjSEJOU.jpeg" alt="Logo" style="height:90px; margin-right:24px;">
           <div style="flex:1; text-align:center;">
-            <h2 style="font-size:24px; font-weight:bold; text-transform:uppercase; margin:0;">Poornima Group of College</h2>
-            <h3 style="font-size:18px; font-weight:bold; margin:8px 0;">EXAMINATION HALL TICKET</h3>
-            <p style="font-weight:bold; margin:0;">${examName} - Academic Year: ${academicYear}</p>
+            <h2 style="font-size:28px; font-weight:900; text-transform:uppercase; margin:0; letter-spacing:1px; font-family: 'Arial', sans-serif;">POORNIMA GROUP OF COLLEGE</h2>
+            <h3 style="font-size:20px; font-weight:bold; margin:12px 0 6px; letter-spacing:2px; text-decoration:underline;">EXAMINATION HALL TICKET</h3>
+            <p style="font-weight:bold; margin:0; font-size:16px;">${examName} - Academic Year: ${academicYear}</p>
           </div>
         </div>
 
         <!-- Student Info -->
-        <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 24px;">
           <div style="flex:1;">
-            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <table style="width:100%; border-collapse:collapse; font-size:16px;">
               <tr>
-                <td style="padding:4px 0; width:150px;"><strong>Name:</strong></td>
-                <td style="padding:4px 0;">${studentInfo?.name || user.name}</td>
+                <td style="padding:6px 0; width:180px;"><strong>Candidate Name:</strong></td>
+                <td style="padding:6px 0; font-weight:bold; text-transform:uppercase;">${studentInfo?.name || user.name}</td>
               </tr>
               <tr>
-                <td style="padding:4px 0;"><strong>Roll Number:</strong></td>
-                <td style="padding:4px 0;">${studentInfo?.rollNumber || studentInfo?.rollNo || 'N/A'}</td>
+                <td style="padding:6px 0;"><strong>Roll Number:</strong></td>
+                <td style="padding:6px 0;">${studentInfo?.rollNumber || studentInfo?.rollNo || 'N/A'}</td>
               </tr>
               <tr>
-                <td style="padding:4px 0;"><strong>Registration Number:</strong></td>
-                <td style="padding:4px 0;">${studentInfo?.registrationNumber || 'N/A'}</td>
+                <td style="padding:6px 0;"><strong>Registration No:</strong></td>
+                <td style="padding:6px 0;">${studentInfo?.registrationNumber || 'N/A'}</td>
               </tr>
               <tr>
-                <td style="padding:4px 0;"><strong>Department:</strong></td>
-                <td style="padding:4px 0;">${deptName}</td>
+                <td style="padding:6px 0;"><strong>Department:</strong></td>
+                <td style="padding:6px 0;">${deptName}</td>
               </tr>
               <tr>
-                <td style="padding:4px 0;"><strong>Semester:</strong></td>
-                <td style="padding:4px 0;">${semester}</td>
+                <td style="padding:6px 0;"><strong>Semester:</strong></td>
+                <td style="padding:6px 0;">${semester}</td>
               </tr>
               <tr>
-                <td style="padding:4px 0;"><strong>Section:</strong></td>
-                <td style="padding:4px 0;">${studentInfo?.section || 'A'}</td>
+                <td style="padding:6px 0;"><strong>Section:</strong></td>
+                <td style="padding:6px 0;">${studentInfo?.section || 'A'}</td>
               </tr>
             </table>
           </div>
           
           <!-- Photo Placeholder -->
-          <div style="width:120px; height:150px; border:1px solid #000; display:flex; align-items:center; justify-content:center; margin-left:20px;">
-            <span style="color:#666; font-size:12px;">Affix Photo Here</span>
+          <div style="width:130px; height:160px; border:2px solid #000; display:flex; align-items:center; justify-content:center; margin-left:30px; background:#f9f9f9;">
+            <span style="color:#666; font-size:13px; text-align:center; padding:10px;">Affix Recent<br>Passport Photo</span>
           </div>
         </div>
 
         <!-- Subjects Table -->
         <div style="margin-bottom: 30px;">
-          <h4 style="font-size:16px; font-weight:bold; margin-bottom:10px; border-bottom:1px solid #000; padding-bottom:5px;">Examination Schedule</h4>
-          <table style="width:100%; border-collapse:collapse; font-size:14px;">
+          <h4 style="font-size:18px; font-weight:bold; margin-bottom:12px; border-bottom:2px solid #000; padding-bottom:5px; text-transform:uppercase;">Examination Schedule</h4>
+          <table style="width:100%; border-collapse:collapse; font-size:15px;">
             <thead>
               <tr>
-                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Subject Code</th>
-                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Subject Name</th>
-                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Exam Date</th>
-                <th style="border:1px solid #333; padding:8px; text-align:left; background:#f0f0f0;">Exam Time</th>
+                <th style="border:1px solid #333; padding:10px; text-align:left; background:#e0e0e0; font-weight:bold; width:15%;">Subject Code</th>
+                <th style="border:1px solid #333; padding:10px; text-align:left; background:#e0e0e0; font-weight:bold; width:45%;">Subject Name</th>
+                <th style="border:1px solid #333; padding:10px; text-align:center; background:#e0e0e0; font-weight:bold; width:20%;">Exam Date</th>
+                <th style="border:1px solid #333; padding:10px; text-align:center; background:#e0e0e0; font-weight:bold; width:20%;">Time</th>
               </tr>
             </thead>
             <tbody>
@@ -198,23 +204,31 @@ const HallTicketView = {
         </div>
 
         <!-- Exam Center & Instructions -->
-        <div style="margin-bottom: 40px;">
-          <h4 style="font-size:14px; font-weight:bold; margin-bottom:5px; text-transform:uppercase;">Important Instructions</h4>
-          <ol style="margin:0; padding-left:20px; font-size:12px; line-height:1.5;">
+        <div style="margin-bottom: 50px; border:1px solid #000; padding:15px; border-radius:4px;">
+          <h4 style="font-size:15px; font-weight:bold; margin:0 0 10px; text-transform:uppercase; text-decoration:underline;">Important Instructions to Candidates</h4>
+          <ol style="margin:0; padding-left:24px; font-size:13px; line-height:1.6;">
             <li>The candidate must carry this Hall Ticket and a valid College ID Card to the examination hall.</li>
-            <li>Electronic devices including mobile phones and smartwatches are strictly prohibited.</li>
-            <li>Candidates must report to the examination hall 30 minutes before the commencement of the exam.</li>
-            <li>No candidate will be allowed to enter the examination hall after 30 minutes from the start time.</li>
+            <li>Electronic devices including mobile phones, programmable calculators, and smartwatches are strictly prohibited inside the examination premises.</li>
+            <li>Candidates must report to the examination hall at least 30 minutes before the commencement of the exam.</li>
+            <li>No candidate will be allowed to enter the examination hall after 30 minutes from the start time, and no candidate is allowed to leave before 1 hour has elapsed.</li>
+            <li>Malpractice of any form will lead to immediate confiscation of the answer booklet and strict disciplinary action.</li>
           </ol>
         </div>
 
         <!-- Signatures -->
-        <div style="display:flex; justify-content:space-between; margin-top:60px;">
-          <div style="text-align:center; width:200px; border-top:1px solid #000; padding-top:10px;">
-            <span style="font-size:14px; font-weight:bold;">Candidate Signature</span>
+        <div style="display:flex; justify-content:space-between; margin-top:80px; padding:0 20px;">
+          <div style="text-align:center; width:250px; border-top:1px solid #000; padding-top:10px;">
+            <span style="font-size:15px; font-weight:bold;">Signature of Candidate</span>
           </div>
-          <div style="text-align:center; width:200px; border-top:1px solid #000; padding-top:10px;">
-            <span style="font-size:14px; font-weight:bold;">Controller of Examinations</span>
+          
+          <div style="text-align:center; width:150px; position:relative; top:-60px;">
+            <div style="width:100px; height:100px; border:2px dashed #ccc; border-radius:50%; margin:0 auto 10px; display:flex; align-items:center; justify-content:center;">
+              <span style="font-size:12px; color:#999;">College Seal</span>
+            </div>
+          </div>
+          
+          <div style="text-align:center; width:250px; border-top:1px solid #000; padding-top:10px;">
+            <span style="font-size:15px; font-weight:bold;">Controller of Examinations</span>
           </div>
         </div>
       </div>
@@ -223,4 +237,3 @@ const HallTicketView = {
 };
 
 window.HallTicketView = HallTicketView;
-

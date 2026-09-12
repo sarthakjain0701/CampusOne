@@ -8,6 +8,34 @@ const ExamFormManagementView = {
   selectedStatus: 'ALL',
   selectedDepartmentId: 'ALL',
   searchQuery: '',
+  loading: true,
+  examPeriods: [],
+  submissions: [],
+  students: [],
+  departments: [],
+
+  async fetchData() {
+    this.examPeriods = await ExamFormService.getExamPeriods();
+    this.submissions = await ExamFormService.searchExamForms({
+      examId: this.selectedExamId,
+      semester: this.selectedSemester,
+      status: this.selectedStatus,
+      departmentId: this.selectedDepartmentId,
+      query: this.searchQuery
+    });
+    this.students = DataStore.get('STUDENTS') || [];
+    this.departments = DataStore.get('DEPARTMENTS') || [];
+    this.loading = false;
+    App.renderCurrentView();
+  },
+
+  afterRender() {
+    if (this.loading) {
+      this.fetchData();
+    } else {
+      if (window.lucide) window.lucide.createIcons();
+    }
+  },
 
   render(params = {}) {
     const user = authService.getCurrentUser();
@@ -15,17 +43,20 @@ const ExamFormManagementView = {
       return `<div class="card" style="padding:2rem; text-align:center; color:var(--color-danger);">Access Denied. Admins only.</div>`;
     }
 
-    const examPeriods = ExamFormService.getExamPeriods();
-    const departments = DataStore.get('DEPARTMENTS');
-    const submissions = ExamFormService.searchExamForms({
-      examId: this.selectedExamId,
-      semester: this.selectedSemester,
-      status: this.selectedStatus,
-      departmentId: this.selectedDepartmentId,
-      query: this.searchQuery
-    });
+    if (this.loading) {
+      return `
+        <div class="page-header"><h1>EXAM FORM MANAGEMENT</h1></div>
+        <div class="card" style="padding: 3rem; text-align: center;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading exam forms...</p>
+        </div>
+      `;
+    }
 
-    const students = DataStore.get('STUDENTS');
+    const examPeriods = this.examPeriods;
+    const departments = this.departments;
+    const submissions = this.submissions;
+    const students = this.students;
 
     return `
       <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
@@ -156,18 +187,18 @@ const ExamFormManagementView = {
                       <td><span class="status-badge ${badgeClass}">${statusDisplay}</span></td>
                       <td style="display:flex; gap:0.5rem; align-items:center;">
                         ${s.status === 'MANUAL_REVIEW_REQUIRED' || s.status === 'SUBMITTED' ? `
-                          <button class="btn-primary"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
+                          <button class="btn-primary btn-sm"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
                             <i data-lucide="check-square" style="width:12px; height:12px; display:inline;"></i> Review
                           </button>
                         ` : (s.status === 'APPROVED' ? `
-                          <button class="btn-secondary" style="color:var(--color-primary); border-color:var(--color-primary);" onclick="App.navigate('hall-ticket')">
+                          <button class="btn-secondary btn-sm" style="color:var(--color-primary); border-color:var(--color-primary);" onclick="App.navigate('hall-ticket')">
                             <i data-lucide="file-text" style="width:12px; height:12px; display:inline;"></i> Hall Ticket
                           </button>
-                          <button class="btn-secondary"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
+                          <button class="btn-secondary btn-sm"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
                             <i data-lucide="eye" style="width:12px; height:12px; display:inline;"></i> View
                           </button>
                         ` : `
-                          <button class="btn-secondary"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
+                          <button class="btn-secondary btn-sm"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
                             <i data-lucide="eye" style="width:12px; height:12px; display:inline;"></i> View
                           </button>
                         `)}
@@ -196,21 +227,25 @@ const ExamFormManagementView = {
 
   handleSearch(val) {
     this.searchQuery = val;
+    this.loading = true;
     App.renderCurrentView();
   },
 
   filterExam(examId) {
     this.selectedExamId = examId;
+    this.loading = true;
     App.renderCurrentView();
   },
 
   filterStatus(status) {
     this.selectedStatus = status;
+    this.loading = true;
     App.renderCurrentView();
   },
 
   filterDepartment(deptId) {
     this.selectedDepartmentId = deptId;
+    this.loading = true;
     App.renderCurrentView();
   },
 

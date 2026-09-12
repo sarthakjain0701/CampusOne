@@ -221,48 +221,17 @@ const FacultyView = {
     
     const html = `
       <form id="add-fac-form" onsubmit="return false;">
-        <div class="form-group">
-          <label class="form-label">System Role *</label>
-          <select id="m-fac-role-val" class="form-select">
-            <option value="FACULTY" selected>Faculty</option>
-            <option value="STUDENT">Student</option>
-            <option value="LIBRARIAN">Librarian</option>
-            <option value="LAB_ASSISTANT">Lab Assistant</option>
-            <option value="ADMIN">Administrator</option>
-            <option value="PROCTOR">Proctor</option>
-            <option value="HOD">HOD</option>
-            <option value="DEAN">Dean</option>
-            <option value="REGISTRAR">Registrar</option>
-            <option value="COE">COE</option>
-            <option value="FINANCE_OFFICER">Finance Officer</option>
-            <option value="IT_SUPPORT">IT Support</option>
-            <option value="MANAGEMENT">Management</option>
-          </select>
-        </div>
-
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">First Name *</label>
-            <input type="text" id="m-fac-fname" class="form-input" placeholder="e.g. Shivansh" required oninput="FacultyView.updateGeneratedEmail()">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Last Name *</label>
-            <input type="text" id="m-fac-lname" class="form-input" placeholder="e.g. Jain" required oninput="FacultyView.updateGeneratedEmail()">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Official Faculty Email (Auto-generated)</label>
-          <div style="position:relative;">
-            <i data-lucide="mail" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--color-primary); width:16px; height:16px;"></i>
-            <input type="email" id="m-fac-email" class="form-input" readonly placeholder="Will be generated automatically..." style="padding-left:2.5rem; background-color: var(--color-bg-main); font-family: monospace; color: var(--color-primary); font-weight: 600;">
-          </div>
-        </div>
-
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Employee / Faculty ID *</label>
-            <input type="text" id="m-fac-empid" class="form-input" placeholder="e.g. EMP-FAC-103" required>
+        <div class="form-section">
+          <div class="form-section-title">Personal Information</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">First Name *</label>
+              <input type="text" id="m-fac-fname" class="form-input" placeholder="e.g. Shivansh" required oninput="FacultyView.updateGeneratedEmail()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Last Name *</label>
+              <input type="text" id="m-fac-lname" class="form-input" placeholder="e.g. Jain" required oninput="FacultyView.updateGeneratedEmail()">
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Phone Number</label>
@@ -270,57 +239,93 @@ const FacultyView = {
           </div>
         </div>
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Department *</label>
-            <select id="m-fac-dept" class="form-select">
-              <option value="" disabled selected>Select Department ▼</option>
-              ${depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('')}
-            </select>
+        <div class="form-section">
+          <div class="form-section-title">Professional Information</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Employee / Faculty ID *</label>
+              <input type="text" id="m-fac-empid" class="form-input" placeholder="e.g. EMP-FAC-103" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Department *</label>
+              <select id="m-fac-dept" class="form-select">
+                <option value="" disabled selected>Select Department ▼</option>
+                ${depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('')}
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Designation *</label>
-            <select id="m-fac-designation" class="form-select" onchange="FacultyView.onDesignationChange(this.value, 'add')">
-              <option value="" disabled selected>Select Designation ▼</option>
-              <option value="Assistant Professor">Assistant Professor</option>
-              <option value="Associate Professor">Associate Professor</option>
-              <option value="Professor">Professor</option>
-              <option value="Lecturer">Lecturer</option>
-              <option value="HOD">HOD</option>
-            </select>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Designation *</label>
+              <select id="m-fac-designation" class="form-select" onchange="FacultyView.onDesignationChange(this.value, 'add')">
+                <option value="" disabled selected>Select Designation ▼</option>
+                <option value="Assistant Professor">Assistant Professor</option>
+                <option value="Associate Professor">Associate Professor</option>
+                <option value="Professor">Professor</option>
+                <option value="Lecturer">Lecturer</option>
+                <option value="HOD">HOD</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">System Role *</label>
+              <select id="m-fac-role-val" class="form-select">
+                <option value="FACULTY" selected>Faculty</option>
+                <option value="STUDENT">Student</option>
+                <option value="LIBRARIAN">Librarian</option>
+                <option value="LAB_ASSISTANT">Lab Assistant</option>
+                <option value="ADMIN">Administrator</option>
+                <option value="PROCTOR">Proctor</option>
+                <option value="HOD">HOD</option>
+                <option value="DEAN">Dean</option>
+                <option value="REGISTRAR">Registrar</option>
+                <option value="COE">COE</option>
+                <option value="FINANCE_OFFICER">Finance Officer</option>
+                <option value="IT_SUPPORT">IT Support</option>
+                <option value="MANAGEMENT">Management</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Qualification</label>
+              <select id="m-fac-qual" class="form-select">
+                <option value="" disabled selected>Select Qualification ▼</option>
+                <option value="B.Tech">B.Tech</option>
+                <option value="M.Tech">M.Tech</option>
+                <option value="Ph.D.">Ph.D.</option>
+                <option value="M.Sc.">M.Sc.</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Specialization</label>
+              <select id="m-fac-spec" class="form-select">
+                <option value="" disabled selected>Select Specialization ▼</option>
+                <option value="Computer Networks">Computer Networks</option>
+                <option value="Artificial Intelligence">Artificial Intelligence</option>
+                <option value="Data Science">Data Science</option>
+                <option value="Software Engineering">Software Engineering</option>
+                <option value="General">General</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div class="form-grid-2">
+        <div class="form-section">
+          <div class="form-section-title">Account Information</div>
           <div class="form-group">
-            <label class="form-label">Qualification</label>
-            <select id="m-fac-qual" class="form-select">
-              <option value="" disabled selected>Select Qualification ▼</option>
-              <option value="B.Tech">B.Tech</option>
-              <option value="M.Tech">M.Tech</option>
-              <option value="Ph.D.">Ph.D.</option>
-              <option value="M.Sc.">M.Sc.</option>
-            </select>
+            <label class="form-label">Official Faculty Email (Auto-generated)</label>
+            <div style="position:relative;">
+              <i data-lucide="mail" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--color-primary); width:16px; height:16px;"></i>
+              <input type="email" id="m-fac-email" class="form-input" readonly placeholder="Will be generated automatically..." style="padding-left:2.5rem; background-color: var(--color-app-bg); font-family: monospace; color: var(--color-primary); font-weight: 600;">
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Specialization</label>
-            <select id="m-fac-spec" class="form-select">
-              <option value="" disabled selected>Select Specialization ▼</option>
-              <option value="Computer Networks">Computer Networks</option>
-              <option value="Artificial Intelligence">Artificial Intelligence</option>
-              <option value="Data Science">Data Science</option>
-              <option value="Software Engineering">Software Engineering</option>
-              <option value="General">General</option>
+            <label class="form-label">Status</label>
+            <select id="m-fac-status" class="form-select">
+              <option value="ACTIVE" selected>Active</option>
+              <option value="INACTIVE">Inactive</option>
             </select>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Status</label>
-          <select id="m-fac-status" class="form-select">
-            <option value="ACTIVE" selected>Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
         </div>
       </form>
     `;

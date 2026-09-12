@@ -11,31 +11,27 @@ const DepartmentsView = {
 
     return `
       <div class="page-header">
-        <h1>Department Management</h1>
-        <p>Configure academic departments under Poornima Group of College.</p>
-      </div>
-
-      <div class="toolbar">
-        <div></div>
         <div>
-          <button class="btn-primary" onclick="DepartmentsView.openAddModal()">
-            <i data-lucide="folder-plus"></i> Add Department
-          </button>
+          <h1>Department Management</h1>
+          <p>Configure academic departments under Poornima Group of College.</p>
         </div>
+        <button class="btn-primary" onclick="DepartmentsView.openAddModal()">
+          <i data-lucide="folder-plus"></i> Add Department
+        </button>
       </div>
 
-      <div class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+      <div class="stat-cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: stretch;">
         ${this._isLoading ? '<div style="text-align:center; grid-column: 1/-1;"><i data-lucide="loader" class="spin"></i> Loading...</div>' : ''}
         ${(!this._isLoading && departments.length === 0) ? '<div style="text-align:center; grid-column: 1/-1;">No departments found.</div>' : ''}
         ${departments.map(d => `
-          <div class="card" style="margin-bottom:0;">
-            <div class="card-header">
-              <span class="status-badge active">CODE: ${d.code}</span>
+          <div class="stat-card-compact" style="aspect-ratio: auto; padding: 1.5rem; text-align: left; align-items: flex-start; justify-content: flex-start;">
+            <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 1rem;">
+              <span class="status-badge active" style="font-family: monospace;">CODE: ${d.code}</span>
               <span class="status-badge ${d.status === 'ACTIVE' ? 'present' : 'absent'}">${d.status}</span>
             </div>
-            <h3 style="font-size:1.1rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">${d.name}</h3>
-            <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:1rem;">HOD: <strong>${d.hod}</strong></p>
-            <div style="display:flex; justify-content:flex-end;">
+            <h3 style="font-size:1.15rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem; width: 100%;">${d.name}</h3>
+            <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:1.5rem; width: 100%;">HOD: <strong>${d.hod}</strong></p>
+            <div style="display:flex; justify-content:flex-end; width: 100%; gap: 0.5rem; margin-top: auto;">
               <button class="btn-icon danger" onclick="DepartmentsView.deleteDept('${d.id}')" title="Delete"><i data-lucide="trash-2"></i></button>
             </div>
           </div>

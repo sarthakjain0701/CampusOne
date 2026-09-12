@@ -54,7 +54,7 @@ const hallTicketService = {
       const rollNum = student ? (student.registrationNumber || student.rollNumber || student.rollNo || studentId) : studentId;
 
       const newTicket = {
-        hallTicketNo: \`HT-\${new Date().getFullYear()}-\${rollNum}\`,
+        hallTicketNo: `HT-${new Date().getFullYear()}-${rollNum}`,
         studentId,
         examId,
         examFormId: formId,

@@ -230,72 +230,74 @@ const StudentsView = {
   openAddModal() {
     const depts = departmentService.getDepartments();
 
-    const html = `
-      <form id="add-student-form" onsubmit="return false;">
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">First Name *</label>
-            <input type="text" id="m-stu-firstname" class="form-input" placeholder="e.g. Rahul" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Full Name *</label>
-            <input type="text" id="m-stu-name" class="form-input" placeholder="e.g. Rahul Sharma" required>
-          </div>
-        </div>
-
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Enrollment Year *</label>
-            <select id="m-stu-year" class="form-select">
-              <option value="2024">2024</option>
-              <option value="2025" selected>2025</option>
-              <option value="2026">2026</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Department *</label>
-            <select id="m-stu-dept" class="form-select">
-              <option value="" disabled selected>Select Department ▼</option>
-              ${depts.map(d => `<option value="${d.code}">${d.name} (${d.code})</option>`).join('')}
-            </select>
+    const html = `      <form id="add-student-form" onsubmit="return false;">
+        <div class="form-section">
+          <div class="form-section-title">Personal Information</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">First Name *</label>
+              <input type="text" id="m-stu-firstname" class="form-input" placeholder="e.g. Rahul" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Last Name / Full Name *</label>
+              <input type="text" id="m-stu-name" class="form-input" placeholder="e.g. Rahul Sharma" required>
+            </div>
           </div>
         </div>
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Semester *</label>
-            <select id="m-stu-sem" class="form-select">
-              <option value="" disabled selected>Select Semester ▼</option>
-              ${[1,2,3,4,5,6,7,8].map(s => `<option value="${s}">${s}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Section *</label>
-            <select id="m-stu-sec" class="form-select">
-              <option value="" disabled selected>Select Section ▼</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
+        <div class="form-section">
+          <div class="form-section-title">Academic Information</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Enrollment Year *</label>
+              <select id="m-stu-year" class="form-select">
+                <option value="2024">2024</option>
+                <option value="2025" selected>2025</option>
+                <option value="2026">2026</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Department *</label>
+              <select id="m-stu-dept" class="form-select">
+                <option value="" disabled selected>Select Department ▼</option>
+                ${depts.map(d => `<option value="${d.code}">${d.name} (${d.code})</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Semester *</label>
+              <select id="m-stu-sem" class="form-select">
+                <option value="" disabled selected>Select Semester ▼</option>
+                ${[1,2,3,4,5,6,7,8].map(s => `<option value="${s}">${s}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Section *</label>
+              <select id="m-stu-sec" class="form-select">
+                <option value="" disabled selected>Select Section ▼</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Roll Number *</label>
+              <input type="text" id="m-stu-roll" class="form-input" placeholder="e.g. 25eptcs006" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Registration Number *</label>
+              <input type="text" id="m-stu-reg" class="form-input" placeholder="e.g. PIET25CS006" required>
+            </div>
           </div>
         </div>
 
-        <div class="form-grid-2">
+        <div class="form-section">
+          <div class="form-section-title">Account Information</div>
           <div class="form-group">
-            <label class="form-label">Roll Number *</label>
-            <input type="text" id="m-stu-roll" class="form-input" placeholder="e.g. 25eptcs006" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Registration Number *</label>
-            <input type="text" id="m-stu-reg" class="form-input" placeholder="e.g. PIET25CS006" required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Official Student Email (Auto-generated)</label>
-          <div style="position:relative;">
-            <i data-lucide="mail" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--color-primary); width:16px; height:16px;"></i>
-            <input type="email" id="m-stu-preview-email" class="form-input" readonly placeholder="Will be generated automatically..." style="padding-left:2.5rem; background-color: var(--color-bg-main); font-family: monospace; color: var(--color-primary); font-weight: 600;">
+            <label class="form-label">Official Email (Auto-generated)</label>
+            <div style="position:relative;">
+              <i data-lucide="mail" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--color-primary); width:16px; height:16px;"></i>
+              <input type="email" id="m-stu-preview-email" class="form-input" readonly placeholder="Will be generated automatically..." style="padding-left:2.5rem; background-color: var(--color-app-bg); font-family: monospace; color: var(--color-primary); font-weight: 600;">
+            </div>
           </div>
         </div>
       </form>

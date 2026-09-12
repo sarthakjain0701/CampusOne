@@ -78,7 +78,7 @@ const ExamFormService = {
     const submissions = await this.getAllSubmissions();
     const count = submissions.length + 1;
     const year = new Date().getFullYear();
-    const appNum = \`EXF-\${year}-\${String(count).padStart(4, '0')}\`;
+    const appNum = `EXF-${year}-${String(count).padStart(4, '0')}`;
 
     const newForm = {
       applicationNumber: appNum,

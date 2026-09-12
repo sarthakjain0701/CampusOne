@@ -113,22 +113,34 @@ const DashboardAdmin = {
       <div style="background: rgba(255,255,255,0.5); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: var(--radius-xl); padding: 2rem; margin-bottom: 2rem; box-shadow: var(--glass-shadow);">
         
         <!-- CORE STATS -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 2.5rem;">
-          <div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Students</div>
-            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${students.length}</div>
+        <div class="stat-cards-grid">
+          <div class="stat-card-compact">
+            <div class="stat-icon">
+              <i data-lucide="users"></i>
+            </div>
+            <div class="stat-value">${students.length}</div>
+            <div class="stat-label">Active Students</div>
           </div>
-          <div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Faculty</div>
-            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${faculty.length}</div>
+          <div class="stat-card-compact">
+            <div class="stat-icon" style="color: var(--color-accent); background: rgba(139, 92, 246, 0.15);">
+              <i data-lucide="user-check"></i>
+            </div>
+            <div class="stat-value">${faculty.length}</div>
+            <div class="stat-label">Active Faculty</div>
           </div>
-          <div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Departments</div>
-            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${departments.length}</div>
+          <div class="stat-card-compact">
+            <div class="stat-icon" style="color: var(--color-warning); background: var(--color-warning-bg);">
+              <i data-lucide="building"></i>
+            </div>
+            <div class="stat-value">${departments.length}</div>
+            <div class="stat-label">Departments</div>
           </div>
-          <div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Classes</div>
-            <div style="font-size: 2.5rem; font-weight: 800; color: var(--color-navy-dark);">${classes.length}</div>
+          <div class="stat-card-compact">
+            <div class="stat-icon" style="color: var(--color-success); background: var(--color-success-bg);">
+              <i data-lucide="layers"></i>
+            </div>
+            <div class="stat-value">${classes.length}</div>
+            <div class="stat-label">Active Classes</div>
           </div>
         </div>
 
