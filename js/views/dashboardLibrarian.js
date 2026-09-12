@@ -37,6 +37,28 @@ const DashboardLibrarian = {
     }
   },
 
+  async seedDemoData() {
+    const btn = document.getElementById('seed-demo-btn');
+    if(btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-dots">...</span> Seeding...';
+    }
+    try {
+      await window.LibraryService.seedTestData();
+      window.UIService.showToast('Test data seeded successfully.', 'success');
+      this.stats = null;
+      this.fetchStats();
+      App.renderCurrentView();
+    } catch (err) {
+      window.UIService.showToast(err.message, 'danger');
+      if(btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="database"></i> Seed Library Demo Data';
+        window.lucide.createIcons();
+      }
+    }
+  },
+
   render() {
     const user = authService.getCurrentUser() || { name: 'Librarian' };
     
@@ -48,11 +70,16 @@ const DashboardLibrarian = {
     const s = this.stats || { totalBooks: 0, availableCopies: 0, issuedCopies: 0, overdueCount: 0, pendingFinesTotal: 0 };
 
     return `
-      <div class="page-header">
+      <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
         <div>
           <h1>Welcome, ${user.name}! 📚</h1>
           <p>Library Management Dashboard — Live statistics and quick operations.</p>
         </div>
+        ${this.stats && s.totalBooks === 0 ? `
+          <button class="btn-primary" id="seed-demo-btn" onclick="DashboardLibrarian.seedDemoData()" style="background:#8B5CF6; border-color:#7C3AED;">
+            <i data-lucide="database"></i> Seed Library Demo Data
+          </button>
+        ` : ''}
       </div>
 
       <!-- STATS GRID -->

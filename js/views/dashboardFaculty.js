@@ -24,7 +24,7 @@ const DashboardFaculty = {
       } else {
         facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
       }
-      this.myFaculty = facultyList.find(f => f.email === user.email || f.userId === user.uid) || facultyList[0];
+      this.myFaculty = facultyList.find(f => f.email === user.email || f.userId === user.uid) || { id: user.uid || user.id, name: user.name || user.displayName || 'Faculty', email: user.email };
       
       this.assignments = typeof assignmentService !== 'undefined' ? await assignmentService.getAssignments() : [];
       if (typeof AttendanceAssignmentService !== 'undefined' && this.myFaculty) {
@@ -71,13 +71,13 @@ const DashboardFaculty = {
   render() {
     const user = authService.getCurrentUser();
     const facultyList = typeof facultyService !== 'undefined' ? facultyService.getFaculty() : [];
-    const myFaculty = facultyList.find(f => f.email === user.email) || facultyList[0];
+    const myFaculty = facultyList.find(f => f.email === user.email || f.userId === user.uid) || { id: user.uid || user.id, name: user.name || user.displayName || 'Faculty', email: user.email };
     const roleTitle = user.role === 'LAB_ASSISTANT' ? 'Lab Assistant' : 'Faculty';
 
     if (this.loading) {
       return `
         <div class="page-header" style="margin-bottom: 2rem;">
-          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">Welcome, ${myFaculty ? myFaculty.name : 'Faculty'}! 👋</h1>
+          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">Welcome, ${myFaculty.name}! 👋</h1>
           <p style="color: var(--color-text-muted); font-size: 1rem;">${roleTitle} Portal — Loading your assigned classes...</p>
         </div>
         <div class="glass-panel" style="padding: 4rem; text-align: center;">
@@ -93,7 +93,7 @@ const DashboardFaculty = {
     return `
       <div class="page-header" style="margin-bottom: 2rem;">
         <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
-          Welcome, ${myFaculty ? myFaculty.name : 'Faculty'}! 👋
+          Welcome, ${myFaculty.name}! 👋
         </h1>
         <p style="color: var(--color-text-muted); font-size: 1rem;">
           ${roleTitle} Portal — Manage your assigned classes, lectures, and student attendance.

@@ -6,10 +6,34 @@ const DigitalLearningView = {
   activeSubjectId: null,
   activeFilterType: 'ALL',
   searchQuery: '',
+  loading: true,
+  error: null,
+  students: [],
+  subjects: [],
+  allResources: [],
+  faculty: [],
+  myResources: [],
+  assignments: [],
+  selectedSemester: 'ALL',
 
   render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
+
+    if (this.loading) {
+      return `<div style="padding:3rem; text-align:center;">
+                <div class="spinner" style="border:4px solid #F1F5F9; border-top:4px solid var(--color-primary); border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; margin: 0 auto;"></div>
+                <p style="margin-top:1rem; color:var(--color-text-muted);">Loading learning resources...</p>
+              </div>`;
+    }
+
+    if (this.error) {
+      return `<div style="padding:3rem; text-align:center; color:var(--color-danger);">
+                <i data-lucide="alert-circle" style="width:48px; height:48px; margin-bottom:1rem; color:var(--color-danger);"></i>
+                <p>${this.error}</p>
+                <button class="btn-primary" style="margin-top:1rem; margin-left:auto; margin-right:auto;" onclick="DigitalLearningView.fetchData()">Try Again</button>
+              </div>`;
+    }
 
     if (params.subjectId) {
       this.activeSubjectId = params.subjectId;
@@ -28,8 +52,14 @@ const DigitalLearningView = {
   // STUDENT VIEW
   // --------------------------------------------------------------------------
   renderStudentView(user) {
-    const student = this.students.find(s => s.email === user.email || s.userId === user.uid) || this.students[0];
-    let subjects = this.subjects;
+    const student = this.students.find(s => s.email === user.email || s.userId === user.uid) || { id: user.uid || user.id, name: user.name || user.displayName || 'Student', email: user.email, department: 'CSE', semester: 1 };
+    
+    // Filter subjects to only show the student's enrolled subjects based on dept and sem
+    const studentSem = student.semester || 1;
+    const studentDept = student.department || 'CSE';
+    
+    let subjects = this.subjects.filter(s => s.department === studentDept && s.semester === studentSem);
+    
     if (this.selectedSemester !== 'ALL') {
       subjects = subjects.filter(s => s.semester === Number(this.selectedSemester));
     }
@@ -70,15 +100,19 @@ const DigitalLearningView = {
           <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center;">
             <div class="search-box" style="flex:1; min-width:240px;">
               <i data-lucide="search"></i>
-              <input type="text" class="search-input" id="resource-search" placeholder="Search notes, assignments, books..." value="${this.searchQuery}" onkeyup="DigitalLearningView.handleSearch(this.value)">
+              <input type="text" class="search-input" id="resource-search" placeholder="Search resources..." value="${this.searchQuery}" onkeyup="DigitalLearningView.handleSearch(this.value)">
             </div>
-            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-              <button class="btn-secondary ${this.activeFilterType === 'ALL' ? 'active-filter' : ''}" onclick="DigitalLearningView.filterCategory('ALL')">All</button>
-              <button class="btn-secondary ${this.activeFilterType === 'NOTES' ? 'active-filter' : ''}" onclick="DigitalLearningView.filterCategory('NOTES')">Notes</button>
-              <button class="btn-secondary ${this.activeFilterType === 'ASSIGNMENT' ? 'active-filter' : ''}" onclick="DigitalLearningView.filterCategory('ASSIGNMENT')">Assignments</button>
-              <button class="btn-secondary ${this.activeFilterType === 'TUTE' ? 'active-filter' : ''}" onclick="DigitalLearningView.filterCategory('TUTE')">Tutes</button>
-              <button class="btn-secondary ${this.activeFilterType === 'BOOK' ? 'active-filter' : ''}" onclick="DigitalLearningView.filterCategory('BOOK')">Books</button>
-            </div>
+            <select class="form-control" style="width:auto; min-width:140px;" onchange="DigitalLearningView.filterCategory(this.value)">
+              <option value="ALL" ${this.activeFilterType === 'ALL' ? 'selected' : ''}>All Types</option>
+              <option value="NOTES" ${this.activeFilterType === 'NOTES' ? 'selected' : ''}>Notes</option>
+              <option value="ASSIGNMENT" ${this.activeFilterType === 'ASSIGNMENT' ? 'selected' : ''}>Assignments</option>
+              <option value="TUTE" ${this.activeFilterType === 'TUTE' ? 'selected' : ''}>Tutes</option>
+              <option value="BOOK" ${this.activeFilterType === 'BOOK' ? 'selected' : ''}>Books</option>
+              <option value="OTHER" ${this.activeFilterType === 'OTHER' ? 'selected' : ''}>Other</option>
+            </select>
+            <button class="btn-secondary" onclick="DigitalLearningView.filterCategory('ALL'); document.getElementById('resource-search').value=''; DigitalLearningView.handleSearch('');">
+              Clear Filters
+            </button>
           </div>
         </div>
 
@@ -205,7 +239,7 @@ const DigitalLearningView = {
   // FACULTY VIEW
   // --------------------------------------------------------------------------
   renderFacultyView(user) {
-    const faculty = this.faculty.find(f => f.email === user.email || f.userId === user.uid) || this.faculty[0];
+    const faculty = this.faculty.find(f => f.email === user.email || f.userId === user.uid) || { id: user.uid || user.id, name: user.name || user.displayName || 'Faculty', email: user.email };
     const assignments = this.assignments || [];
     let subjects = this.subjects;
     if (this.selectedSemester !== 'ALL') {
@@ -589,6 +623,58 @@ const DigitalLearningView = {
       UIService.showToast("Resource deleted.", "info");
       this.loading = true; this.fetchData();
     });
+  },
+
+  async fetchData() {
+    this.loading = true;
+    this.error = null;
+    App.renderCurrentView();
+
+    try {
+      if (typeof studentService !== 'undefined') {
+         this.students = studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : studentService.getStudents();
+      } else {
+         this.students = [];
+      }
+      
+      if (typeof subjectService !== 'undefined') {
+         this.subjects = subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (subjectService.getSubjects ? subjectService.getSubjects() : []);
+      } else {
+         this.subjects = [];
+      }
+
+      this.allResources = await LearningResourceService.getAllResources();
+
+      const user = authService.getCurrentUser();
+      if (user && AuthorizationService.isAcademicStaff(user)) {
+         if (typeof facultyService !== 'undefined') {
+           this.faculty = facultyService.getFacultyFromFirestore ? await facultyService.getFacultyFromFirestore() : facultyService.getFaculty();
+         } else {
+           this.faculty = [];
+         }
+         
+         if (typeof assignmentService !== 'undefined') {
+           const allAssignments = await assignmentService.getAssignments();
+           this.assignments = allAssignments.filter(a => a.facultyId === (user.uid || user.id));
+         } else {
+           this.assignments = [];
+         }
+         this.myResources = this.allResources.filter(r => r.facultyId === (user.uid || user.id) || r.uploadedBy === user.email);
+      }
+      this.loading = false;
+      App.renderCurrentView();
+    } catch (e) {
+      console.error(e);
+      this.error = "Unable to load learning resources. Please try again.";
+      this.loading = false;
+      App.renderCurrentView();
+    }
+  },
+
+  afterRender() {
+    if (this.loading) {
+       this.fetchData();
+    }
   }
 };
 

@@ -212,7 +212,7 @@ const AdminManagementView = {
               ${a.department ? `<div style="font-size:0.75rem; color:var(--color-text-muted);">${a.department}</div>` : ''}
             </td>
             <td>
-              <span style="font-family:monospace; font-size:0.85rem;">${a.email || a.id}</span>
+              <span style="font-family:monospace; font-size:0.85rem; font-weight:700; color:var(--color-navy-dark);">${a.email || a.id}</span>
             </td>
             <td><span class="role-badge ${roleBadgeClass}">${roleLabel}</span></td>
             <td><span class="status-badge ${isActive ? 'present' : 'absent'}">${isActive ? 'ACTIVE' : 'INACTIVE'}</span></td>

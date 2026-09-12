@@ -57,6 +57,12 @@ const MarkAttendanceView = {
         this.existingRecords = [];
       }
 
+      if (this.selectedClassId) {
+        this._students = await studentService.getStudentsByClassId(this.selectedClassId);
+      } else {
+        this._students = [];
+      }
+
       // Initialize state based on existing records if not already initialized
       if (!this.mode || (Object.keys(this.studentState).length === 0 && this.existingRecords.length > 0)) {
         this.studentState = {};
@@ -67,7 +73,7 @@ const MarkAttendanceView = {
           });
         } else {
           this.mode = 'MARK';
-          const students = (this._students || []).filter(s => s.classId === this.selectedClassId || !s.classId);
+          const students = this._students || [];
           students.forEach(s => {
             this.studentState[s.id] = 'NOT_MARKED';
           });
@@ -136,7 +142,7 @@ const MarkAttendanceView = {
       }
     }
 
-    const students = (this._students || []).filter(s => s.classId === this.selectedClassId || !s.classId);
+    const students = this._students || [];
 
     // If state is completely empty but there are students, initialize to NOT_MARKED
     if (Object.keys(this.studentState).length === 0 && students.length > 0 && this.mode === 'MARK') {
@@ -163,22 +169,22 @@ const MarkAttendanceView = {
       `;
     } else if (this.mode === 'EDIT') {
       actionsBarHtml = `
-        <div class="attendance-actions-bar" style="background:#FFFBEB; border-color:#FDE68A;">
-          <div class="toggle-switch-group">
+        <div class="attendance-actions-bar" style="background:#FFFBEB; border-color:#FDE68A; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; padding:1rem; border-radius:8px; margin-bottom:1rem;">
+          <div class="toggle-switch-group" style="display:flex; gap:0.75rem; align-items:center;">
             <span style="font-size:0.85rem; font-weight:600; color:var(--color-navy-dark);">Quick Actions:</span>
-            <button class="attendance-toggle-btn present-all" onclick="MarkAttendanceView.markAll('PRESENT')">
-              <i data-lucide="check"></i> Mark All Present
+            <button class="btn-secondary" onclick="MarkAttendanceView.markAll('PRESENT')" style="background:white;">
+              <i data-lucide="check" style="color:var(--color-success); width:16px;"></i> Mark All Present
             </button>
-            <button class="attendance-toggle-btn absent-all" onclick="MarkAttendanceView.markAll('ABSENT')">
-              <i data-lucide="x"></i> Mark All Absent
+            <button class="btn-secondary" onclick="MarkAttendanceView.markAll('ABSENT')" style="background:white;">
+              <i data-lucide="x" style="color:var(--color-danger); width:16px;"></i> Mark All Absent
             </button>
           </div>
-          <div style="display:flex; gap:0.5rem;">
-            <button class="btn-secondary" onclick="MarkAttendanceView.cancelEdit()">
+          <div style="display:flex; gap:0.75rem;">
+            <button class="btn-secondary" onclick="MarkAttendanceView.cancelEdit()" style="background:white;">
               Cancel
             </button>
             <button class="btn-primary" onclick="MarkAttendanceView.promptSave()">
-              <i data-lucide="save"></i> Update Attendance
+              <i data-lucide="save" style="width:16px;"></i> Update Attendance
             </button>
           </div>
         </div>
@@ -186,19 +192,19 @@ const MarkAttendanceView = {
     } else {
       // MARK mode
       actionsBarHtml = `
-        <div class="attendance-actions-bar">
-          <div class="toggle-switch-group">
+        <div class="attendance-actions-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; padding:1rem; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; margin-bottom:1rem;">
+          <div class="toggle-switch-group" style="display:flex; gap:0.75rem; align-items:center;">
             <span style="font-size:0.85rem; font-weight:600; color:var(--color-navy-dark);">Quick Actions:</span>
-            <button class="attendance-toggle-btn present-all" onclick="MarkAttendanceView.markAll('PRESENT')">
-              <i data-lucide="check"></i> Mark All Present
+            <button class="btn-secondary" onclick="MarkAttendanceView.markAll('PRESENT')" style="background:white;">
+              <i data-lucide="check" style="color:var(--color-success); width:16px;"></i> Mark All Present
             </button>
-            <button class="attendance-toggle-btn absent-all" onclick="MarkAttendanceView.markAll('ABSENT')">
-              <i data-lucide="x"></i> Mark All Absent
+            <button class="btn-secondary" onclick="MarkAttendanceView.markAll('ABSENT')" style="background:white;">
+              <i data-lucide="x" style="color:var(--color-danger); width:16px;"></i> Mark All Absent
             </button>
           </div>
           <div>
             <button class="btn-primary" onclick="MarkAttendanceView.promptSave()">
-              <i data-lucide="save"></i> Save Attendance Record
+              <i data-lucide="save" style="width:16px;"></i> Save Attendance Record
             </button>
           </div>
         </div>
@@ -356,7 +362,7 @@ const MarkAttendanceView = {
   },
 
   async promptSave() {
-    const students = studentService.getStudents().filter(s => s.classId === this.selectedClassId || !s.classId);
+    const students = this._students || [];
     if (students.length === 0) {
       UIService.showToast("No students to save attendance for.", "warning");
       return;

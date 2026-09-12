@@ -81,6 +81,46 @@ const studentService = {
   },
 
   // --------------------------------------------------------------------------
+  // READ — Query by Class ID
+  // --------------------------------------------------------------------------
+  async getStudentsByClassId(classId) {
+    const db = await this._ensureDb();
+    try {
+      // 1. Fetch class details to get dept/sem/sec
+      let classData = null;
+      const classDoc = await db.collection('classes').doc(classId).get();
+      
+      if (classDoc.exists) {
+        classData = classDoc.data();
+      } else if (typeof window.classService !== 'undefined') {
+        const classes = window.classService.getClasses();
+        classData = classes.find(c => c.id === classId);
+      }
+      
+      if (!classData) {
+        throw new Error("Class not found.");
+      }
+
+      // 2. Query students matching department, semester, and section
+      const query = db.collection(this._collection())
+        .where('role', '==', 'STUDENT')
+        .where('department', '==', classData.department)
+        .where('semester', '==', classData.semester)
+        .where('section', '==', classData.section);
+        
+      const snapshot = await query.get();
+      const students = [];
+      snapshot.forEach(doc => {
+        students.push({ id: doc.id, email: doc.id, ...doc.data() });
+      });
+      return students;
+    } catch (err) {
+      console.error("Failed to fetch students by class", err);
+      throw new Error("Unable to load student records for this class.");
+    }
+  },
+
+  // --------------------------------------------------------------------------
   // READ — Single document
   // --------------------------------------------------------------------------
   async getStudentById(docId) {

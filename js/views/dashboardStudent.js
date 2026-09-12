@@ -4,9 +4,13 @@
 
 const DashboardStudent = {
   loading: true,
+  hasError: false,
   students: [],
   subjects: [],
   libraryStats: { issued: 0, overdue: 0, fine: 0 },
+  attendanceStats: { percentage: 0, total: 0, present: 0, absent: 0, status: 'Unknown' },
+  subjectStats: [],
+  myStudent: null,
   _hasFetchedLibrary: false,
 
   afterRender() {
@@ -16,6 +20,12 @@ const DashboardStudent = {
   },
 
   async fetchData() {
+    if (this._isFetching) return;
+    this._isFetching = true;
+    this.loading = true;
+    this.hasError = false;
+    App.renderCurrentView();
+
     try {
       if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
         this.students = await studentService.getStudentsFromFirestore();
@@ -29,11 +39,59 @@ const DashboardStudent = {
         this.subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
       }
 
+      const user = typeof authService !== 'undefined' ? authService.getCurrentUser() : null;
+      if (!user) throw new Error("No authenticated user");
+
+      let studentList = this.students || [];
+      let student = studentList.find(s => (s.email === user.email || s.userId === user.uid || s.id === user.uid));
+      
+      if (!student) {
+        student = { id: user.uid, name: user.name, department: 'N/A', semester: 1, section: 'A' };
+      }
+      this.myStudent = student;
+
+      if (typeof attendanceService !== 'undefined') {
+        const db = attendanceService._getDb();
+        const snapshot = await db.collection('attendance').where('studentId', '==', this.myStudent.id).get();
+        const records = snapshot.docs.map(doc => doc.data());
+        
+        const totalClasses = records.length;
+        const totalPresent = records.filter(a => a.status === 'PRESENT').length;
+        const totalPercentage = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0;
+        
+        this.attendanceStats = { total: totalClasses, present: totalPresent, percentage: totalPercentage, absent: totalClasses - totalPresent, status: totalPercentage >= 75 ? 'Good' : 'Low' };
+
+        const subStats = [];
+        const relevantSubjects = this.subjects.filter(s => s.department === this.myStudent.department && Number(s.semester) === Number(this.myStudent.semester));
+        let subjectsToDisplay = relevantSubjects.length > 0 ? relevantSubjects : this.subjects.filter(s => records.some(r => r.subjectId === s.id));
+        
+        for (const sub of subjectsToDisplay) {
+           const subRecords = records.filter(r => r.subjectId === sub.id);
+           const sTotal = subRecords.length;
+           const sPresent = subRecords.filter(r => r.status === 'PRESENT').length;
+           subStats.push({
+             id: sub.id,
+             name: sub.name,
+             code: sub.code,
+             percentage: sTotal > 0 ? Math.round((sPresent / sTotal) * 100) : 0,
+             status: (sTotal > 0 && Math.round((sPresent / sTotal) * 100) >= 75) ? 'Good' : 'Low',
+             hasData: sTotal > 0
+           });
+        }
+        this.subjectStats = subStats;
+      } else {
+        this.attendanceStats = { percentage: 85, total: 40, present: 34, absent: 6, status: 'Good' };
+        this.subjectStats = this.subjects.map(sub => ({ id: sub.id, name: sub.name, code: sub.code, percentage: 80, status: 'Good', hasData: true }));
+      }
+
       this.loading = false;
+      this._isFetching = false;
       App.renderCurrentView();
     } catch (err) {
       console.error(err);
+      this.hasError = true;
       this.loading = false;
+      this._isFetching = false;
       App.renderCurrentView();
     }
   },
@@ -76,6 +134,24 @@ const DashboardStudent = {
   render() {
     const user = authService.getCurrentUser() || { name: 'Student', email: '', uid: 'STU001', role: 'STUDENT' };
 
+    if (this.hasError) {
+      return `
+        <div class="page-header" style="margin-bottom: 2rem;">
+          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
+            Welcome, ${user.name || 'Student'}! 👋
+          </h1>
+        </div>
+        <div class="glass-panel" style="padding: 4rem; text-align: center;">
+          <i data-lucide="alert-triangle" style="width: 48px; height: 48px; color: var(--color-danger); margin-bottom: 1rem;"></i>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 0.5rem;">Unable to load dashboard data</h2>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.5rem;">There was an error connecting to the server. Please try again.</p>
+          <button class="btn btn-primary" onclick="DashboardStudent.fetchData()">
+            <i data-lucide="refresh-cw" style="width: 18px; height: 18px; margin-right: 8px;"></i> Try Again
+          </button>
+        </div>
+      `;
+    }
+
     if (this.loading) {
       return `
         <div class="page-header" style="margin-bottom: 2rem;">
@@ -93,26 +169,15 @@ const DashboardStudent = {
       `;
     }
 
-    const studentList = this.students || [];
-    const myStudent = studentList.find(s => s.email === user.email || s.userId === user.uid) || studentList.find(s => s.id === "STU001") || studentList[0] || { id: user.uid, name: user.name, semester: 1, section: 'A' };
-    const studentRoll = myStudent.rollNo || myStudent.rollNumber || 'N/A';
+    const myStudent = this.myStudent || { id: user.uid, name: user.name, semester: 1, section: 'A' };
+    const studentRoll = myStudent.rollNo || myStudent.rollNumber || '—';
     
     setTimeout(() => this.fetchLibraryStats(user), 0);
     
-    const stats = typeof attendanceService !== 'undefined' ? attendanceService.getStudentAttendance(myStudent.id) : { percentage: 85, total: 40, present: 34, absent: 6, status: 'Good' };
+    const stats = this.attendanceStats || { percentage: 85, total: 40, present: 34, absent: 6, status: 'Good' };
     const strokeOffset = 364 - (364 * (stats.percentage / 100));
 
-    const subjects = this.subjects || [];
-    const subjectStats = subjects.map(sub => {
-      const subCalc = typeof attendanceService !== 'undefined' ? attendanceService.getStudentSubjectAttendance(myStudent.id, sub.id) : { total: 10, percentage: 80, status: 'Good' };
-      return {
-        id: sub.id,
-        name: sub.name,
-        code: sub.code,
-        percentage: subCalc.total > 0 ? subCalc.percentage : 80,
-        status: subCalc.status
-      };
-    });
+    const subjectStats = this.subjectStats || [];
 
     const learningResources = window.MOCK_DATA && MOCK_DATA.learningResources ? MOCK_DATA.learningResources.length : 0;
     const holidays = window.MOCK_DATA && MOCK_DATA.holidays ? MOCK_DATA.holidays : [];
@@ -125,7 +190,7 @@ const DashboardStudent = {
           Welcome, ${user.name || myStudent.name}! 👋
         </h1>
         <p style="color: var(--color-text-muted); font-size: 0.95rem;">
-          Roll Number: <strong>${studentRoll}</strong> | Class: <strong>CSE-${myStudent.section || 'A'}</strong> (Semester ${myStudent.semester || '1'})
+          Roll Number: <strong>${studentRoll}</strong> | Class: <strong>${myStudent.department || 'CSE'}-${myStudent.section || 'A'}</strong> (Semester ${myStudent.semester || '1'})
         </p>
       </div>
 
@@ -178,7 +243,12 @@ const DashboardStudent = {
               <i data-lucide="book-open" style="color: var(--color-accent);"></i> Subject Breakdown
             </h3>
             <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-              ${subjectStats.map(s => `
+              ${subjectStats.length === 0 ? `
+                <div style="text-align:center; padding:2rem 0; color:var(--color-text-muted);">
+                  <i data-lucide="bar-chart-2" style="width:40px; height:40px; margin-bottom:1rem; opacity:0.5;"></i>
+                  <p style="font-size:0.9rem;">Analytics will appear once academic activity is available.</p>
+                </div>
+              ` : subjectStats.map(s => `
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <div style="font-size: 0.95rem; font-weight: 600; color: var(--color-navy-dark);">${s.name} <span style="color: var(--color-text-muted); font-size: 0.8rem; font-weight: 500;">(${s.code})</span></div>
@@ -228,39 +298,11 @@ const DashboardStudent = {
               <div style="display: flex; gap: 0.75rem; padding: 1rem; background: #FFF; border-radius: var(--radius-md); border: 1px solid var(--glass-border);">
                 <div style="color: var(--color-success); margin-top: 2px;"><i data-lucide="check-circle" style="width: 18px;"></i></div>
                 <div>
-                  <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-main);">Attendance Marked Present</div>
-                  <div style="font-size: 0.75rem; color: var(--color-text-muted);">Data Structures (Today, 10:15 AM)</div>
+                  <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-main);">Library Dues</div>
+                  <div style="font-size: 0.75rem; color: var(--color-text-muted);"><span id="stu-dash-lib-fines">₹0</span> Pending | <span id="stu-dash-lib-overdue">0 Overdue</span></div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- LIBRARY WIDGET -->
-          <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.7);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-              <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--color-navy-dark); display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="book" style="color: var(--color-secondary);"></i> My Library
-              </h3>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center; margin-bottom: 1rem;">
-              <div style="background: rgba(255,255,255,0.8); padding: 0.75rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
-                <div style="font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase;">Issued</div>
-                <div id="stu-dash-lib-issued" style="font-size: 1.05rem; font-weight: 800; color: var(--color-navy-dark);">${this.libraryStats.issued}</div>
-              </div>
-              <div style="background: rgba(255,255,255,0.8); padding: 0.75rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
-                <div style="font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase;">Overdue</div>
-                <div id="stu-dash-lib-overdue" style="font-size: 1.05rem; font-weight: 800; color: var(--color-danger);">${this.libraryStats.overdue}</div>
-              </div>
-              <div style="background: rgba(255,255,255,0.8); padding: 0.75rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
-                <div style="font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase;">Fines</div>
-                <div id="stu-dash-lib-fines" style="font-size: 1.05rem; font-weight: 800; color: var(--color-warning);">₹${this.libraryStats.fine}</div>
-              </div>
-            </div>
-            
-            <button class="btn-secondary" style="width: 100%;" onclick="App.navigateTo('library')">
-              Access Library Portal
-            </button>
           </div>
 
         </div>

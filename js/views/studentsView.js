@@ -21,16 +21,28 @@ const StudentsView = {
         <p>View, enroll, search, edit, and delete student records.</p>
       </div>
 
-      <div class="toolbar">
-        <div class="filter-group">
-          <input type="text" id="student-search" class="search-input" style="width:240px; background:white;" placeholder="Search name, roll no..." onkeyup="StudentsView.onSearch(this.value)">
-          <select id="student-dept-filter" class="form-select" onchange="StudentsView.onFilter()">
-            <option value="">All Departments</option>
-            ${departments.map(d => `<option value="${d.name}">${d.name}</option>`).join('')}
-          </select>
+      <div class="toolbar" style="display:flex; flex-direction:column; gap:1.25rem; margin-bottom:1.5rem;">
+        <!-- HORIZONTAL FILTER BAR -->
+        <div class="glass-panel" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:1rem; background:white;">
+          <div style="flex:2 1 240px; position:relative; min-width:240px;">
+            <i data-lucide="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--color-text-muted); width:16px; height:16px;"></i>
+            <input type="text" id="student-search" class="form-control" style="width:100%; padding-left:36px;" placeholder="Search name, roll no..." onkeyup="StudentsView.applyFilters()">
+          </div>
+          <div style="flex:1 1 180px; min-width:160px;">
+            <select id="student-dept-filter" class="form-control" style="width:100%;" onchange="StudentsView.onDepartmentChange()">
+              <option value="">All Departments</option>
+              ${departments.map(d => `<option value="${d.name}">${d.name}</option>`).join('')}
+            </select>
+          </div>
+          <div style="flex:1 1 180px; min-width:160px;">
+            <select id="student-section-filter" class="form-control" style="width:100%;" onchange="StudentsView.applyFilters()">
+              <option value="">All Sections</option>
+            </select>
+          </div>
         </div>
 
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <!-- ACTION BUTTONS -->
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
           <button class="btn-primary" onclick="StudentsView.openAddModal()">
             <i data-lucide="user-plus"></i> Enroll Student
           </button>
@@ -202,28 +214,65 @@ const StudentsView = {
     if (window.lucide) window.lucide.createIcons();
   },
 
-  onSearch(query) {
-    const q = (query || '').toLowerCase();
-    if (!q) {
-      this._renderTableRows(this._cachedStudents);
-      return;
+  onDepartmentChange() {
+    const dept = document.getElementById('student-dept-filter').value;
+    const secSelect = document.getElementById('student-section-filter');
+    
+    // Clear existing sections
+    secSelect.innerHTML = '<option value="">All Sections</option>';
+    
+    if (dept) {
+      // Find classes for this department to populate sections
+      let sections = [];
+      if (typeof classService !== 'undefined' && classService.getClasses) {
+        const classes = classService.getClasses();
+        sections = [...new Set(classes.filter(c => c.department === dept).map(c => c.section))].filter(Boolean);
+      }
+      
+      // Fallback: extract from cached students if classes not available
+      if (sections.length === 0 && this._cachedStudents.length > 0) {
+        sections = [...new Set(this._cachedStudents.filter(s => s.department === dept).map(s => s.section))].filter(Boolean);
+      }
+      
+      sections.sort().forEach(sec => {
+        const opt = document.createElement('option');
+        opt.value = sec;
+        opt.textContent = `Section ${sec}`;
+        secSelect.appendChild(opt);
+      });
     }
-    const filtered = this._cachedStudents.filter(s =>
-      (s.name || '').toLowerCase().includes(q) ||
-      (s.rollNumber || s.rollNo || '').toLowerCase().includes(q) ||
-      (s.registrationNumber || '').toLowerCase().includes(q) ||
-      (s.email || '').toLowerCase().includes(q)
-    );
-    this._renderTableRows(filtered);
+    
+    this.applyFilters();
   },
 
-  onFilter() {
-    const dept = document.getElementById('student-dept-filter').value;
-    if (!dept) {
-      this._renderTableRows(this._cachedStudents);
-      return;
+  applyFilters() {
+    const searchInput = document.getElementById('student-search');
+    const deptInput = document.getElementById('student-dept-filter');
+    const secInput = document.getElementById('student-section-filter');
+    
+    const q = searchInput ? (searchInput.value || '').toLowerCase() : '';
+    const dept = deptInput ? deptInput.value : '';
+    const sec = secInput ? secInput.value : '';
+
+    let filtered = this._cachedStudents;
+
+    if (dept) {
+      filtered = filtered.filter(s => s.department === dept);
     }
-    const filtered = this._cachedStudents.filter(s => s.department === dept);
+    
+    if (sec) {
+      filtered = filtered.filter(s => s.section === sec);
+    }
+
+    if (q) {
+      filtered = filtered.filter(s =>
+        (s.name || '').toLowerCase().includes(q) ||
+        (s.rollNumber || s.rollNo || '').toLowerCase().includes(q) ||
+        (s.registrationNumber || '').toLowerCase().includes(q) ||
+        (s.email || '').toLowerCase().includes(q)
+      );
+    }
+    
     this._renderTableRows(filtered);
   },
 

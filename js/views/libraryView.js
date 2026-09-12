@@ -92,41 +92,139 @@ const LibraryView = {
         </div>
       </div>
 
-      <!-- TOP SUMMARY CARDS -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-info">
-            <h3>Currently Issued</h3>
-            <div class="value">${activeIssued.length}</div>
-            <span class="stat-trend positive">Active borrowings</span>
+      <!-- TOP SUMMARY CARDS (SQUARE REDESIGN) -->
+      <style>
+        .library-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+        .library-stat-card {
+          aspect-ratio: 1 / 1;
+          border-radius: 16px;
+          padding: 1.75rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.5);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .library-stat-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .library-stat-icon-wrapper {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: auto;
+        }
+        .library-stat-title {
+          font-size: 1.1rem;
+          font-weight: 600;
+          margin-top: 1.5rem;
+          margin-bottom: 0.25rem;
+          line-height: 1.2;
+        }
+        .library-stat-value {
+          font-size: 2.5rem;
+          font-weight: 800;
+          line-height: 1;
+          margin-bottom: 0.5rem;
+        }
+        .library-stat-desc {
+          font-size: 0.85rem;
+          font-weight: 500;
+          opacity: 0.8;
+        }
+        
+        /* THEMES */
+        .library-stat-blue {
+          background: linear-gradient(145deg, #EFF6FF 0%, #DBEAFE 100%);
+          border-color: #BFDBFE;
+          color: #1E3A8A;
+        }
+        .library-stat-blue .library-stat-icon-wrapper {
+          background: #3B82F6;
+          color: white;
+        }
+        
+        .library-stat-amber {
+          background: linear-gradient(145deg, #FEF3C7 0%, #FDE68A 100%);
+          border-color: #FCD34D;
+          color: #92400E;
+        }
+        .library-stat-amber .library-stat-icon-wrapper {
+          background: #F59E0B;
+          color: white;
+        }
+        
+        .library-stat-green {
+          background: linear-gradient(145deg, #ECFDF5 0%, #D1FAE5 100%);
+          border-color: #A7F3D0;
+          color: #065F46;
+        }
+        .library-stat-green .library-stat-icon-wrapper {
+          background: #10B981;
+          color: white;
+        }
+
+        @media (max-width: 1024px) {
+          .library-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (max-width: 640px) {
+          .library-stats-grid {
+            grid-template-columns: 1fr;
+          }
+          .library-stat-card {
+            aspect-ratio: auto;
+            min-height: 240px;
+          }
+        }
+      </style>
+
+      <div class="library-stats-grid">
+        <!-- Currently Issued -->
+        <div class="library-stat-card library-stat-blue">
+          <div class="library-stat-icon-wrapper">
+            <i data-lucide="book-open" style="width: 24px; height: 24px;"></i>
           </div>
-          <div class="stat-icon blue"><i data-lucide="book-open"></i></div>
+          <div>
+            <div class="library-stat-title">Currently<br>Issued</div>
+            <div class="library-stat-value">${activeIssued.length}</div>
+            <div class="library-stat-desc">Active borrowings</div>
+          </div>
         </div>
 
-        <div class="stat-card">
-          <div class="stat-info">
-            <h3>Overdue Books</h3>
-            <div class="value" style="color: ${overdueBooks.length > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">
-              ${overdueBooks.length}
-            </div>
-            <span class="stat-trend ${overdueBooks.length > 0 ? 'negative' : 'positive'}">
-              ${overdueBooks.length > 0 ? 'Action required' : 'No overdue items'}
-            </span>
+        <!-- Overdue Books -->
+        <div class="library-stat-card library-stat-amber">
+          <div class="library-stat-icon-wrapper">
+            <i data-lucide="alert-triangle" style="width: 24px; height: 24px;"></i>
           </div>
-          <div class="stat-icon ${overdueBooks.length > 0 ? 'red' : 'green'}"><i data-lucide="alert-triangle"></i></div>
+          <div>
+            <div class="library-stat-title">Overdue<br>Books</div>
+            <div class="library-stat-value">${overdueBooks.length}</div>
+            <div class="library-stat-desc">${overdueBooks.length > 0 ? 'Action required' : 'No overdue items'}</div>
+          </div>
         </div>
 
-        <div class="stat-card">
-          <div class="stat-info">
-            <h3>Pending Fine</h3>
-            <div class="value" style="color: ${totalFineAmount > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">
-              ₹${totalFineAmount}
-            </div>
-            <span class="stat-trend ${totalFineAmount > 0 ? 'warning' : 'positive'}">
-              Outstanding library fines
-            </span>
+        <!-- Pending Fine -->
+        <div class="library-stat-card library-stat-green">
+          <div class="library-stat-icon-wrapper">
+            <i data-lucide="indian-rupee" style="width: 24px; height: 24px;"></i>
           </div>
-          <div class="stat-icon ${totalFineAmount > 0 ? 'amber' : 'green'}"><i data-lucide="indian-rupee"></i></div>
+          <div>
+            <div class="library-stat-title">Pending<br>Fine</div>
+            <div class="library-stat-value">₹${totalFineAmount}</div>
+            <div class="library-stat-desc">Outstanding library fines</div>
+          </div>
         </div>
       </div>
 

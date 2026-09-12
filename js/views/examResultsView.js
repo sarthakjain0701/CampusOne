@@ -16,6 +16,9 @@ const ExamResultsView = {
   adminSearchRegNo: '',
 
   loading: true,
+  hasError: false,
+  profileMissing: false,
+  myStudent: null,
   students: [],
   subjects: [],
   classes: [],
@@ -32,6 +35,13 @@ const ExamResultsView = {
   },
 
   async fetchData() {
+    if (this._isFetching) return;
+    this._isFetching = true;
+    this.loading = true;
+    this.hasError = false;
+    this.profileMissing = false;
+    App.renderCurrentView();
+
     try {
       this.students = typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : (typeof studentService !== 'undefined' ? studentService.getStudents() : []);
       this.subjects = typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (typeof subjectService !== 'undefined' ? subjectService.getSubjects() : []);
@@ -41,10 +51,14 @@ const ExamResultsView = {
       const user = authService.getCurrentUser();
       
       if (user.role === 'STUDENT') {
-        const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || this.students[0];
-        if (student) {
-          this.results = await ExamResultService.getPublishedResults(student.id, this.selectedSemester, user);
-          this.summary = await ExamResultService.calculateStudentSummary(student.id, this.selectedSemester, user);
+        const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id);
+        
+        if (!student && !user.name) {
+          this.profileMissing = true;
+        } else {
+          this.myStudent = student || { id: user.uid || user.id, name: user.name || user.displayName || 'Student', email: user.email, rollNumber: 'N/A' };
+          this.results = await ExamResultService.getPublishedResults(this.myStudent.id, this.selectedSemester, user);
+          this.summary = await ExamResultService.calculateStudentSummary(this.myStudent.id, this.selectedSemester, user);
         }
       } else if (AuthorizationService.isAcademicStaff(user)) {
         this.authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
@@ -59,10 +73,13 @@ const ExamResultsView = {
       }
       
       this.loading = false;
+      this._isFetching = false;
       App.renderCurrentView();
     } catch(e) {
       console.error(e);
+      this.hasError = true;
       this.loading = false;
+      this._isFetching = false;
       App.renderCurrentView();
     }
   },
@@ -70,6 +87,56 @@ const ExamResultsView = {
   render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
+
+    if (this.hasError) {
+      return `
+        <div class="page-header" style="margin-bottom: 2rem;">
+          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
+            EXAMINATION RESULTS
+          </h1>
+        </div>
+        <div class="glass-panel" style="padding: 4rem; text-align: center;">
+          <i data-lucide="alert-triangle" style="width: 48px; height: 48px; color: var(--color-danger); margin-bottom: 1rem;"></i>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 0.5rem;">Unable to load examination results.</h2>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.5rem;">There was an error connecting to the server. Please try again.</p>
+          <button class="btn btn-primary" onclick="ExamResultsView.fetchData()">
+            <i data-lucide="refresh-cw" style="width: 18px; height: 18px; margin-right: 8px;"></i> Try Again
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.profileMissing) {
+      return `
+        <div class="page-header" style="margin-bottom: 2rem;">
+          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
+            EXAMINATION RESULTS
+          </h1>
+        </div>
+        <div class="glass-panel" style="padding: 4rem; text-align: center;">
+          <i data-lucide="user-x" style="width: 48px; height: 48px; color: var(--color-warning); margin-bottom: 1rem;"></i>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 0.5rem;">Student profile could not be found.</h2>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.5rem;">Your account is not linked to a valid student profile.</p>
+          <button class="btn btn-primary" onclick="ExamResultsView.fetchData()">
+            <i data-lucide="refresh-cw" style="width: 18px; height: 18px; margin-right: 8px;"></i> Try Again
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.loading) {
+      return `
+        <div class="page-header" style="margin-bottom: 2rem;">
+          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
+            EXAMINATION RESULTS
+          </h1>
+        </div>
+        <div class="glass-panel" style="padding: 4rem; text-align: center;">
+          <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid var(--glass-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s infinite linear;"></div>
+          <p style="margin-top: 1.5rem; color: var(--color-text-muted); font-weight: 600;">Loading examination results...</p>
+        </div>
+      `;
+    }
 
     if (user.role === 'STUDENT') {
       return this.renderStudentView(user);
@@ -84,108 +151,324 @@ const ExamResultsView = {
   // STUDENT VIEW (OWN RESULTS ONLY)
   // =========================================================================
   renderStudentView(user) {
-    const students = this.students;
-    const student = students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || students[0];
+    const student = this.myStudent;
+    if (!student) return ''; 
     const results = this.results || [];
     const summary = this.summary || { totalMarks: 0, maxMarks: 0, percentage: 0, sgpa: 0, status: 'N/A' };
-    const subjects = this.subjects;
+    const subjects = this.subjects || [];
+    
+    // Resolve Department
+    let deptName = student.department || '—';
+    if (student.departmentId && this.departments) {
+      const d = this.departments.find(d => d.id === student.departmentId);
+      if (d) deptName = d.name;
+    }
+
+    const hasResults = results.length > 0;
+    
+    // Determine overall result status badge
+    let statusBadgeColor = 'var(--color-text-muted)';
+    if (hasResults) {
+      if (summary.status === 'PASS') statusBadgeColor = 'var(--color-success)';
+      else if (summary.status === 'FAIL') statusBadgeColor = 'var(--color-danger)';
+      else if (summary.status === 'ABSENT') statusBadgeColor = 'var(--color-warning)';
+      else if (summary.status === 'WITHHELD') statusBadgeColor = 'var(--color-primary)';
+    }
 
     return `
-      <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
+      <style>
+        .result-print-area { display: block; }
+        
+        .result-summary-cards {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+        
+        .result-summary-card {
+          background: #fff;
+          border-radius: 12px;
+          border: 1px solid var(--color-border);
+          padding: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .result-summary-title {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: var(--color-text-muted);
+          font-weight: 700;
+          margin-bottom: 0.5rem;
+        }
+        
+        .result-summary-val {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: var(--color-navy-dark);
+          margin-bottom: 0.25rem;
+        }
+        
+        .result-summary-sub {
+          font-size: 0.8rem;
+          color: var(--color-text-light);
+        }
+        
+        .result-table th, .result-table td {
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--color-border);
+        }
+        
+        @media (max-width: 992px) {
+          .result-summary-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 600px) {
+          .result-summary-cards { grid-template-columns: 1fr; }
+        }
+
+        /* PRINT CSS FOR RESULT */
+        @media print {
+          @page { size: A4 portrait; margin: 10mm; }
+          html, body {
+            width: 210mm;
+            height: 297mm;
+            margin: 0;
+            padding: 0;
+            background: #fff !important;
+          }
+          * { box-sizing: border-box; }
+          body > :not(#view-container),
+          .sidebar, .navbar, .sidebar-overlay, .page-header, .no-print { 
+            display: none !important; 
+          }
+          
+          #app, #view-container, .main-layout, .main-wrapper, .main-content {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: visible !important;
+            background: #fff !important;
+          }
+
+          .result-print-area {
+            display: block !important;
+            width: 100% !important;
+            max-width: 190mm !important;
+            margin: 0 auto;
+            padding: 0;
+            background: #fff !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          
+          .result-summary-cards { gap: 10px; margin-bottom: 15px; }
+          .result-summary-card { padding: 10px; border: 1px solid #ccc; box-shadow: none; border-radius: 4px; }
+          .result-summary-val { font-size: 1.25rem; }
+          
+          table.result-table { width: 100% !important; table-layout: auto; border-collapse: collapse; }
+          .result-table th, .result-table td { border: 1px solid #ccc !important; padding: 8px !important; }
+          
+          .glass-panel, .card {
+            box-shadow: none !important;
+            border: 1px solid #000 !important;
+            border-radius: 4px !important;
+            background: transparent !important;
+          }
+          
+          /* Force page breaks properly */
+          .result-print-area { page-break-inside: avoid; }
+        }
+      </style>
+
+      <div class="page-header no-print" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem;">
         <div>
           <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">EXAMINATION RESULTS</h1>
           <p style="color:var(--color-text-muted); font-size:0.9rem; margin:0;">
-            Student: <strong>${student.name}</strong> | Registration No: <strong>${student.registrationNumber || student.rollNumber}</strong>
+            Student: <strong>${student.name}</strong> | Registration No: <strong>${student.registrationNumber || student.rollNumber || '—'}</strong>
           </p>
         </div>
 
         <div>
-          <select class="form-control" style="font-weight:700; min-width:160px;" onchange="ExamResultsView.selectSemester(this.value)">
+          <select class="form-control" style="font-weight:700; min-width:160px; padding:0.6rem 1rem;" onchange="ExamResultsView.selectSemester(this.value)">
             <option value="1" ${this.selectedSemester === '1' ? 'selected' : ''}>Semester 1</option>
             <option value="2" ${this.selectedSemester === '2' ? 'selected' : ''}>Semester 2</option>
+            <option value="3" ${this.selectedSemester === '3' ? 'selected' : ''}>Semester 3</option>
+            <option value="4" ${this.selectedSemester === '4' ? 'selected' : ''}>Semester 4</option>
+            <option value="5" ${this.selectedSemester === '5' ? 'selected' : ''}>Semester 5</option>
+            <option value="6" ${this.selectedSemester === '6' ? 'selected' : ''}>Semester 6</option>
+            <option value="7" ${this.selectedSemester === '7' ? 'selected' : ''}>Semester 7</option>
+            <option value="8" ${this.selectedSemester === '8' ? 'selected' : ''}>Semester 8</option>
           </select>
         </div>
       </div>
 
-      <!-- PERFORMANCE SUMMARY CARDS (STUDENT ONLY) -->
-      <div class="stats-grid" style="margin-bottom:1.5rem;">
-        <div class="stat-card">
-          <div class="stat-info">
-            <h3>Cumulative Percentage</h3>
-            <div class="value" style="color:var(--color-primary);">${summary.percentage}%</div>
-            <span class="stat-trend positive">Total Marks: ${summary.totalMarks} / ${summary.maxMarks}</span>
+      <div class="result-print-area">
+        <!-- OFFICIAL HEADER -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 1.25rem 1.5rem; background: var(--color-navy-dark); color: white; border-radius: 8px 8px 0 0;">
+          <h2 style="font-size: 1.1rem; font-weight: 800; margin: 0; letter-spacing: 1px;">SEMESTER ${this.selectedSemester} — EXAMINATION RESULT</h2>
+          ${hasResults ? `<span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px;"><i data-lucide="check-circle" style="width:12px; height:12px; display:inline-block; margin-right:4px;"></i> OFFICIALLY PUBLISHED</span>` : ''}
+        </div>
+
+        <!-- STUDENT INFO BLOCK -->
+        <div style="background: white; border: 1px solid var(--color-border); border-top: none; padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 0 0 8px 8px;">
+          <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--color-text-muted); font-weight: 800; margin: 0 0 1rem 0; letter-spacing: 1px;">STUDENT INFORMATION</h3>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-light);">Student Name</div>
+              <div style="font-weight: 700; color: var(--color-navy-dark); text-transform: uppercase;">${student.name}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-light);">Roll Number</div>
+              <div style="font-weight: 700; color: var(--color-navy-dark);">${student.rollNumber || student.rollNo || '—'}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-light);">Registration No.</div>
+              <div style="font-weight: 700; color: var(--color-navy-dark);">${student.registrationNumber || '—'}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-light);">Department</div>
+              <div style="font-weight: 700; color: var(--color-navy-dark);">${deptName}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-light);">Semester</div>
+              <div style="font-weight: 700; color: var(--color-navy-dark);">Semester ${this.selectedSemester}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-light);">Academic Year</div>
+              <div style="font-weight: 700; color: var(--color-navy-dark);">${results[0]?.academicYear || '2026-27'}</div>
+            </div>
           </div>
-          <div class="stat-icon blue"><i data-lucide="percent"></i></div>
         </div>
 
-        <div class="stat-card">
-          <div class="stat-info">
-            <h3>SGPA Score</h3>
-            <div class="value" style="color:var(--color-indigo);">${summary.sgpa}</div>
-            <span class="stat-trend positive">Semester ${this.selectedSemester}</span>
-          </div>
-          <div class="stat-icon purple"><i data-lucide="award"></i></div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <h3>Final Status</h3>
-            <div class="value" style="color:${summary.status === 'PASS' ? 'var(--color-success)' : 'var(--color-danger)'};">${summary.status}</div>
-            <span class="stat-trend ${summary.status === 'PASS' ? 'positive' : 'negative'}">${summary.status === 'PASS' ? 'Promoted' : 'Needs Improvement'}</span>
-          </div>
-          <div class="stat-icon ${summary.status === 'PASS' ? 'green' : 'red'}"><i data-lucide="${summary.status === 'PASS' ? 'check-circle' : 'alert-circle'}"></i></div>
-        </div>
-      </div>
-
-      <!-- SUBJECT RESULTS TABLE -->
-      <div class="card">
-        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-          <h3 class="card-title" style="margin:0; font-weight:800;"><i data-lucide="file-text"></i> Grade Card — Semester ${this.selectedSemester}</h3>
-          <span class="status-badge active"><i data-lucide="shield-check" style="width:12px; height:12px;"></i> Official Published</span>
-        </div>
-
-        ${results.length === 0 ? `
-          <div style="padding:3rem; text-align:center; color:var(--color-text-muted);">
-            <i data-lucide="file-x" style="width:48px; height:48px; stroke-width:1.5; margin-bottom:1rem; color:#94A3B8;"></i>
-            <h3>No Published Results Available</h3>
-            <p style="font-size:0.9rem;">Results for Semester ${this.selectedSemester} have not been published yet.</p>
+        ${!hasResults ? `
+          <!-- EMPTY STATE -->
+          <div class="glass-panel" style="padding: 4rem; text-align: center; border: 1px solid var(--color-border); border-radius: 8px;">
+            <i data-lucide="file-x" style="width: 48px; height: 48px; color: var(--color-text-light); margin-bottom: 1rem;"></i>
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 0.5rem;">No Result Published Yet</h2>
+            <p style="color: var(--color-text-muted); margin: 0;">Examination results for Semester ${this.selectedSemester} have not been published yet.</p>
           </div>
         ` : `
-          <div class="table-responsive">
-            <table class="data-table" style="width:100%; border-collapse:collapse;">
-              <thead>
-                <tr >
-                  <th style="text-align:left;">Subject</th>
-                  <th style="text-align:left;">Code</th>
-                  <th style="text-align:center;">Credits</th>
-                  <th style="text-align:center;">Marks Obtained</th>
-                  <th style="text-align:center;">Grade</th>
-                  <th style="text-align:center;">Status</th>
+          <!-- RESULT SUMMARY CARDS -->
+          <div class="result-summary-cards">
+            <div class="result-summary-card">
+              <div class="result-summary-title">Total Subjects</div>
+              <div class="result-summary-val">${results.length}</div>
+              <div class="result-summary-sub">Subjects in Semester ${this.selectedSemester}</div>
+            </div>
+            <div class="result-summary-card">
+              <div class="result-summary-title">Marks Obtained</div>
+              <div class="result-summary-val" style="color: var(--color-primary);">${summary.totalMarks} <span style="font-size:1rem; color:var(--color-text-light);">/ ${summary.maxMarks}</span></div>
+              <div class="result-summary-sub">Total Marks</div>
+            </div>
+            <div class="result-summary-card">
+              <div class="result-summary-title">Percentage</div>
+              <div class="result-summary-val">${summary.percentage}%</div>
+              <div class="result-summary-sub">Semester Percentage</div>
+            </div>
+            <div class="result-summary-card">
+              <div class="result-summary-title">SGPA</div>
+              <div class="result-summary-val" style="color: var(--color-navy-dark);">${summary.sgpa.toFixed(2)}</div>
+              <div class="result-summary-sub">Semester Grade Point Average</div>
+            </div>
+          </div>
+
+          <!-- SUBJECT RESULT TABLE -->
+          <div style="background: white; border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden;">
+            <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); background: #F8FAFC;">
+              <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--color-text-muted); font-weight: 800; margin: 0; letter-spacing: 1px;">SUBJECT-WISE RESULT</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="result-table" style="width: 100%; text-align: left; border-collapse: collapse;">
+                <thead style="background: #F1F5F9; font-size: 0.8rem; text-transform: uppercase; color: var(--color-navy-dark);">
+                  <tr>
+                    <th style="width: 50px; text-align: center;">#</th>
+                    <th>Code</th>
+                    <th>Subject</th>
+                    <th style="text-align: center;">Max Marks</th>
+                    <th style="text-align: center;">Marks Obtained</th>
+                    <th style="text-align: center;">Grade</th>
+                    <th style="text-align: center;">Point</th>
+                    <th style="text-align: center;">Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${results.map((r, i) => {
+                    const sub = subjects.find(s => s.id === r.subjectId);
+                    const code = sub ? sub.code : (r.subjectId || 'N/A');
+                    const name = sub ? sub.name : r.subjectId;
+                    
+                    // Derive Pass/Fail at subject level based on 40% mapping
+                    const isPass = r.marks >= (r.maxMarks * 0.4);
+                    const gradePointMap = { 'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6, 'C': 5, 'P': 4, 'F': 0 };
+                    const point = gradePointMap[r.grade] !== undefined ? gradePointMap[r.grade] : 7;
+                    
+                    return `
+                      <tr style="font-size: 0.9rem;">
+                        <td style="text-align: center; color: var(--color-text-light);">${i + 1}</td>
+                        <td style="font-weight: 600; font-family: monospace; color: var(--color-navy-dark);">${code}</td>
+                        <td style="font-weight: 600;">${name}</td>
+                        <td style="text-align: center; color: var(--color-text-light);">${r.maxMarks}</td>
+                        <td style="text-align: center; font-weight: 700; color: var(--color-navy-dark);">${r.marks}</td>
+                        <td style="text-align: center;"><span style="font-weight: 800; color: ${r.grade === 'F' ? 'var(--color-danger)' : 'var(--color-success)'}">${r.grade}</span></td>
+                        <td style="text-align: center; font-weight: 700;">${point}</td>
+                        <td style="text-align: center;"><span style="font-weight: 700; font-size: 0.8rem; color: ${isPass ? 'var(--color-success)' : 'var(--color-danger)'}">${isPass ? 'PASS' : 'FAIL'}</span></td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SEMESTER SUMMARY AGGREGATE -->
+          <div style="background: white; border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 2rem; overflow: hidden;">
+            <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); background: #F8FAFC;">
+              <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--color-text-muted); font-weight: 800; margin: 0; letter-spacing: 1px;">SEMESTER SUMMARY</h3>
+            </div>
+            <div style="padding: 1.5rem;">
+              <table style="width: 100%; max-width: 400px; font-size: 0.95rem;">
+                <tr>
+                  <td style="padding: 0.5rem 0; color: var(--color-text-muted);">Total Marks</td>
+                  <td style="padding: 0.5rem 0; font-weight: 700; color: var(--color-navy-dark);">${summary.totalMarks} / ${summary.maxMarks}</td>
                 </tr>
-              </thead>
-              <tbody>
-                ${results.map(r => {
-                  const sub = subjects.find(s => s.id === r.subjectId);
-                  const isPass = r.marks >= (r.maxMarks * 0.4);
-                  return `
-                    <tr >
-                      <td >${sub ? sub.name : r.subjectId}</td>
-                      <td><code>${sub ? sub.code : 'CS'}</code></td>
-                      <td style="text-align:center;">${r.credits || 4}</td>
-                      <td style="text-align:center;"><strong>${r.marks}</strong> / ${r.maxMarks}</td>
-                      <td style="text-align:center;"><span class="status-badge ${r.grade === 'O' || r.grade.startsWith('A') ? 'active' : 'warning'}" style="font-weight:700;">${r.grade}</span></td>
-                      <td style="text-align:center;"><span class="status-badge ${isPass ? 'present' : 'danger'}">${isPass ? 'PASS' : 'FAIL'}</span></td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
+                <tr>
+                  <td style="padding: 0.5rem 0; color: var(--color-text-muted);">Percentage</td>
+                  <td style="padding: 0.5rem 0; font-weight: 700; color: var(--color-navy-dark);">${summary.percentage}%</td>
+                </tr>
+                <tr>
+                  <td style="padding: 0.5rem 0; color: var(--color-text-muted);">SGPA</td>
+                  <td style="padding: 0.5rem 0; font-weight: 700; color: var(--color-navy-dark);">${summary.sgpa.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 0.5rem 0; color: var(--color-text-muted);">Overall Grade</td>
+                  <td style="padding: 0.5rem 0; font-weight: 800; color: ${summary.status === 'PASS' ? 'var(--color-success)' : 'var(--color-danger)'};">${summary.status === 'PASS' ? (summary.sgpa >= 8.5 ? 'O' : (summary.sgpa >= 7.5 ? 'A+' : (summary.sgpa >= 6.5 ? 'A' : 'B+'))) : 'F'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 0.5rem 0; color: var(--color-text-muted);">Result</td>
+                  <td style="padding: 0.5rem 0; font-weight: 800; color: ${statusBadgeColor};">${summary.status}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+          
+          <div class="no-print" style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem;">
+            <button class="btn btn-secondary" onclick="window.print()">
+              <i data-lucide="download" style="width:18px; height:18px; margin-right:8px;"></i> Download Result
+            </button>
+            <button class="btn btn-primary" onclick="window.print()">
+              <i data-lucide="printer" style="width:18px; height:18px; margin-right:8px;"></i> Print Result
+            </button>
           </div>
         `}
       </div>
     `;
   },
-
   // =========================================================================
   // FACULTY VIEW (STRICT SUBJECT PRIVACY & ASSIGNED DATA ONLY)
   // =========================================================================

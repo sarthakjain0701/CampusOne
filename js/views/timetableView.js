@@ -207,8 +207,9 @@ const TimetableView = {
 
     if (user.role === 'STUDENT') {
       const studentList = this.timetablesData.students || [];
-      const student = studentList.find(s => s.email === user.email || s.userId === user.uid) || studentList[0];
-      sectionId = student ? (student.classId || 'CLS001') : 'CLS001';
+      const student = studentList.find(s => s.email === user.email || s.userId === user.uid) || { department: 'CSE', semester: 1, section: 'A' };
+      const classObj = classes.find(c => c.department === student.department && Number(c.semester) === Number(student.semester) && c.section === student.section);
+      sectionId = classObj ? classObj.id : (student.classId || 'CLS001');
     }
 
     const rawTimetable = this.timetablesData.weekly || [];
@@ -446,9 +447,9 @@ const TimetableView = {
       <!-- FILTER & SEARCH BAR CONTAINER -->
       <div class="glass-panel" style="margin-bottom:1.5rem; padding:1.25rem; background:#FFFFFF;">
         <!-- SEARCH & PRIMARY FILTER CONTROLS -->
-        <div style="display:grid; grid-template-columns: 2fr repeat(auto-fit, minmax(130px, 1fr)); gap:0.75rem; align-items:center;">
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
           <!-- SEARCH BOX -->
-          <div style="position:relative;">
+          <div style="flex: 2 1 220px; position:relative; min-width:220px;">
             <i data-lucide="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--color-text-muted); width:16px; height:16px;"></i>
             <input 
               type="text" 
@@ -461,8 +462,8 @@ const TimetableView = {
           </div>
 
           <!-- DATE FILTER -->
-          <div>
-            <select class="form-control" style="font-size:0.85rem; font-weight:600;" onchange="TimetableView.handleDateFilterChange(this.value)">
+          <div style="flex: 1 1 110px; min-width:110px;">
+            <select class="form-control" style="font-size:0.85rem; font-weight:600; width:100%;" onchange="TimetableView.handleDateFilterChange(this.value)">
               <option value="ALL" ${this.dateFilter === 'ALL' ? 'selected' : ''}>Date: All</option>
               <option value="TODAY" ${this.dateFilter === 'TODAY' ? 'selected' : ''}>Date: Today</option>
               <option value="THIS_WEEK" ${this.dateFilter === 'THIS_WEEK' ? 'selected' : ''}>Date: This Week</option>
@@ -473,64 +474,69 @@ const TimetableView = {
           </div>
 
           <!-- DAY FILTER -->
-          <div>
-            <select class="form-control" style="font-size:0.85rem; font-weight:600;" onchange="TimetableView.handleFilterChange('selectedDay', this.value)">
-              <option value="ALL" ${this.selectedDay === 'ALL' ? 'selected' : ''}>Day: All Days</option>
-              <option value="Monday" ${this.selectedDay === 'Monday' ? 'selected' : ''}>Monday</option>
-              <option value="Tuesday" ${this.selectedDay === 'Tuesday' ? 'selected' : ''}>Tuesday</option>
-              <option value="Wednesday" ${this.selectedDay === 'Wednesday' ? 'selected' : ''}>Wednesday</option>
-              <option value="Thursday" ${this.selectedDay === 'Thursday' ? 'selected' : ''}>Thursday</option>
-              <option value="Friday" ${this.selectedDay === 'Friday' ? 'selected' : ''}>Friday</option>
-              <option value="Saturday" ${this.selectedDay === 'Saturday' ? 'selected' : ''}>Saturday</option>
-              <option value="Sunday" ${this.selectedDay === 'Sunday' ? 'selected' : ''}>Sunday</option>
+          <div style="flex: 1 1 110px; min-width:110px;">
+            <select class="form-control" style="font-size:0.85rem; font-weight:600; width:100%;" onchange="TimetableView.handleFilterChange('selectedDay', this.value)">
+              <option value="ALL" ${this.selectedDay === 'ALL' ? 'selected' : ''}>Day: All</option>
+              <option value="Monday" ${this.selectedDay === 'Monday' ? 'selected' : ''}>Mon</option>
+              <option value="Tuesday" ${this.selectedDay === 'Tuesday' ? 'selected' : ''}>Tue</option>
+              <option value="Wednesday" ${this.selectedDay === 'Wednesday' ? 'selected' : ''}>Wed</option>
+              <option value="Thursday" ${this.selectedDay === 'Thursday' ? 'selected' : ''}>Thu</option>
+              <option value="Friday" ${this.selectedDay === 'Friday' ? 'selected' : ''}>Fri</option>
+              <option value="Saturday" ${this.selectedDay === 'Saturday' ? 'selected' : ''}>Sat</option>
+              <option value="Sunday" ${this.selectedDay === 'Sunday' ? 'selected' : ''}>Sun</option>
             </select>
           </div>
 
           <!-- DEPARTMENT FILTER -->
-          <div>
-            <select class="form-control" style="font-size:0.85rem; font-weight:600;" onchange="TimetableView.handleFilterChange('selectedDepartment', this.value)">
+          <div style="flex: 1 1 110px; min-width:110px;">
+            <select class="form-control" style="font-size:0.85rem; font-weight:600; width:100%;" onchange="TimetableView.handleFilterChange('selectedDepartment', this.value)">
               <option value="ALL" ${this.selectedDepartment === 'ALL' ? 'selected' : ''}>Dept: All</option>
               ${departments.map(d => `<option value="${d.id}" ${this.selectedDepartment === d.id ? 'selected' : ''}>${d.code || d.name}</option>`).join('')}
             </select>
           </div>
 
           <!-- SECTION FILTER -->
-          <div>
-            <select class="form-control" style="font-size:0.85rem; font-weight:600;" onchange="TimetableView.handleFilterChange('selectedSection', this.value)">
+          <div style="flex: 1 1 110px; min-width:110px;">
+            <select class="form-control" style="font-size:0.85rem; font-weight:600; width:100%;" onchange="TimetableView.handleFilterChange('selectedSection', this.value)">
               <option value="ALL" ${this.selectedSection === 'ALL' ? 'selected' : ''}>Section: All</option>
               ${classes.map(c => `<option value="${c.id}" ${this.selectedSection === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
             </select>
           </div>
 
           <!-- FACULTY FILTER -->
-          <div>
-            <select class="form-control" style="font-size:0.85rem; font-weight:600;" onchange="TimetableView.handleFilterChange('selectedFaculty', this.value)">
+          <div style="flex: 1 1 110px; min-width:110px;">
+            <select class="form-control" style="font-size:0.85rem; font-weight:600; width:100%;" onchange="TimetableView.handleFilterChange('selectedFaculty', this.value)">
               <option value="ALL" ${this.selectedFaculty === 'ALL' ? 'selected' : ''}>Faculty: All</option>
               ${faculty.map(f => `<option value="${f.id}" ${this.selectedFaculty === f.id ? 'selected' : ''}>${f.name}</option>`).join('')}
             </select>
           </div>
 
           <!-- SUBJECT FILTER -->
-          <div>
-            <select class="form-control" style="font-size:0.85rem; font-weight:600;" onchange="TimetableView.handleFilterChange('selectedSubject', this.value)">
+          <div style="flex: 1 1 110px; min-width:110px;">
+            <select class="form-control" style="font-size:0.85rem; font-weight:600; width:100%;" onchange="TimetableView.handleFilterChange('selectedSubject', this.value)">
               <option value="ALL" ${this.selectedSubject === 'ALL' ? 'selected' : ''}>Subject: All</option>
               ${subjects.map(s => `<option value="${s.id}" ${this.selectedSubject === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
             </select>
           </div>
 
           <!-- STATUS FILTER -->
-          <div>
-            <select class="form-control" style="font-size:0.85rem; font-weight:600;" onchange="TimetableView.handleFilterChange('selectedStatus', this.value)">
+          <div style="flex: 1 1 110px; min-width:110px;">
+            <select class="form-control" style="font-size:0.85rem; font-weight:600; width:100%;" onchange="TimetableView.handleFilterChange('selectedStatus', this.value)">
               <option value="ALL" ${this.selectedStatus === 'ALL' ? 'selected' : ''}>Status: All</option>
               <option value="ACTIVE" ${this.selectedStatus === 'ACTIVE' ? 'selected' : ''}>Active</option>
               <option value="INACTIVE" ${this.selectedStatus === 'INACTIVE' ? 'selected' : ''}>Inactive</option>
             </select>
           </div>
+
+          <!-- CLEAR FILTERS -->
+          <div style="flex: 0 1 auto;">
+            <button class="btn-secondary" onclick="TimetableView.clearFilters()" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; height: 100%; color:var(--color-danger); border-color:#FECDD3; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="x-circle" style="width:14px; height:14px;"></i> Clear</button>
+          </div>
         </div>
 
-        <!-- CONDITIONAL CUSTOM DATE INPUTS & CLEAR FILTERS BUTTON -->
-        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-top:0.85rem; pt:0.5rem; gap:0.75rem;">
-          <div>
+        <!-- CONDITIONAL CUSTOM DATE INPUTS -->
+        ${(this.dateFilter === 'SPECIFIC' || this.dateFilter === 'RANGE') ? `
+          <div style="display:flex; flex-wrap:wrap; align-items:center; margin-top:1rem; pt:1rem; border-top:1px solid #E2E8F0; gap:0.75rem;">
             ${this.dateFilter === 'SPECIFIC' ? `
               <div style="display:flex; align-items:center; gap:0.5rem;">
                 <label style="font-size:0.8rem; font-weight:700; color:var(--color-navy-dark);">Pick Date:</label>
@@ -547,13 +553,7 @@ const TimetableView = {
               </div>
             ` : ''}
           </div>
-
-          <div style="margin-left:auto;">
-            <button class="btn-secondary btn-sm" onclick="TimetableView.clearFilters()" style="color:var(--color-danger); border-color:#FECDD3; display:flex; align-items:center; gap:0.3rem;">
-              <i data-lucide="x-circle" style="width:14px; height:14px;"></i> Clear Filters
-            </button>
-          </div>
-        </div>
+        ` : ''}
       </div>
 
       <!-- SCHEDULED SLOTS DATA TABLE CARD -->

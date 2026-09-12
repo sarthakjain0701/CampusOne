@@ -300,10 +300,10 @@ a:hover { color: var(--color-primary-hover); }
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.role-badge.admin { background: rgba(239, 68, 68, 0.2); color: #FCA5A5; border: 1px solid rgba(239, 68, 68, 0.3); }
-.role-badge.faculty { background: rgba(139, 92, 246, 0.2); color: #DDD6FE; border: 1px solid rgba(139, 92, 246, 0.3); }
-.role-badge.student { background: rgba(16, 185, 129, 0.2); color: #A7F3D0; border: 1px solid rgba(16, 185, 129, 0.3); }
-.role-badge.librarian { background: rgba(245, 158, 11, 0.2); color: #FDE68A; border: 1px solid rgba(245, 158, 11, 0.3); }
+.role-badge.admin { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
+.role-badge.faculty { background: #F3E8FF; color: #6D28D9; border: 1px solid #E9D5FF; }
+.role-badge.student { background: #CCFBF1; color: #0F766E; border: 1px solid #99F6E4; }
+.role-badge.librarian { background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
 
 /* Main Content Area */
 .main-wrapper {
