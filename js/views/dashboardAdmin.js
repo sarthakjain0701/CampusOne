@@ -186,16 +186,6 @@ const DashboardAdmin = {
                   <div style="font-size: 0.75rem; color: var(--color-text-muted);">Rahul Sharma (B.Tech CS) • 2 hours ago</div>
                 </div>
               </div>
-
-              <div style="display: flex; gap: 1rem; padding: 1rem; background: #FFF; border-radius: var(--radius-md); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);">
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-warning-bg); color: var(--color-warning); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                  <i data-lucide="book-open" style="width: 18px;"></i>
-                </div>
-                <div>
-                  <div style="font-size: 0.9rem; font-weight: 600; color: var(--color-text-main); margin-bottom: 2px;">Library Fine Outstanding</div>
-                  <div style="font-size: 0.75rem; color: var(--color-text-muted);">14 students have pending fines.</div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

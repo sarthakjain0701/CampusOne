@@ -43,40 +43,45 @@ const ExamResultsView = {
     App.renderCurrentView();
 
     try {
-      this.students = typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : (typeof studentService !== 'undefined' ? studentService.getStudents() : []);
-      this.subjects = typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (typeof subjectService !== 'undefined' ? subjectService.getSubjects() : []);
-      this.departments = typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore ? await departmentService.getDepartmentsFromFirestore() : (typeof departmentService !== 'undefined' ? departmentService.getDepartments() : []);
-      this.classes = typeof classService !== 'undefined' && classService.getClassesFromFirestore ? await classService.getClassesFromFirestore() : (typeof classService !== 'undefined' ? classService.getClasses() : []);
+      const fetchPromise = (async () => {
+        this.students = typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : (typeof studentService !== 'undefined' ? studentService.getStudents() : []);
+        this.subjects = typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (typeof subjectService !== 'undefined' ? subjectService.getSubjects() : []);
+        this.departments = typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore ? await departmentService.getDepartmentsFromFirestore() : (typeof departmentService !== 'undefined' ? departmentService.getDepartments() : []);
+        this.classes = typeof classService !== 'undefined' && classService.getClassesFromFirestore ? await classService.getClassesFromFirestore() : (typeof classService !== 'undefined' ? classService.getClasses() : []);
 
-      const user = authService.getCurrentUser();
-      
-      if (user.role === 'STUDENT') {
-        const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id);
+        const user = authService.getCurrentUser();
         
-        if (!student && !user.name) {
-          this.profileMissing = true;
+        if (user.role === 'STUDENT') {
+          const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id);
+          
+          if (!student && !user.name) {
+            this.profileMissing = true;
+          } else {
+            this.myStudent = student || { id: user.uid || user.id, name: user.name || user.displayName || 'Student', email: user.email, rollNumber: 'N/A' };
+            this.results = await ExamResultService.getPublishedResults(this.myStudent.id, this.selectedSemester, user);
+            this.summary = await ExamResultService.calculateStudentSummary(this.myStudent.id, this.selectedSemester, user);
+          }
+        } else if (AuthorizationService.isAcademicStaff(user)) {
+          this.authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
+          const allResults = await ExamResultService.getAllResults();
+          this.facultyResults = await AuthorizationService.filterStudentResultForRole(user, allResults);
         } else {
-          this.myStudent = student || { id: user.uid || user.id, name: user.name || user.displayName || 'Student', email: user.email, rollNumber: 'N/A' };
-          this.results = await ExamResultService.getPublishedResults(this.myStudent.id, this.selectedSemester, user);
-          this.summary = await ExamResultService.calculateStudentSummary(this.myStudent.id, this.selectedSemester, user);
+          if (this.adminFilterStudent) {
+            this.results = await ExamResultService.getStudentResults(this.adminFilterStudent, null, user);
+          } else {
+            this.results = [];
+          }
         }
-      } else if (AuthorizationService.isAcademicStaff(user)) {
-        this.authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
-        const allResults = await ExamResultService.getAllResults();
-        this.facultyResults = await AuthorizationService.filterStudentResultForRole(user, allResults);
-      } else {
-        if (this.adminFilterStudent) {
-          this.results = await ExamResultService.getStudentResults(this.adminFilterStudent, null, user);
-        } else {
-          this.results = [];
-        }
-      }
+      })();
+
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      await Promise.race([fetchPromise, timeoutPromise]);
       
       this.loading = false;
       this._isFetching = false;
       App.renderCurrentView();
     } catch(e) {
-      console.error(e);
+      console.error("ExamResultsView fetchData Error:", e);
       this.hasError = true;
       this.loading = false;
       this._isFetching = false;
@@ -158,10 +163,10 @@ const ExamResultsView = {
     const subjects = this.subjects || [];
     
     // Resolve Department
-    let deptName = student.department || '—';
-    if (student.departmentId && this.departments) {
+    let deptName = student?.department || '—';
+    if (student?.departmentId && this.departments) {
       const d = this.departments.find(d => d.id === student.departmentId);
-      if (d) deptName = d.name;
+      if (d && d.name) deptName = d.name;
     }
 
     const hasResults = results.length > 0;
@@ -341,7 +346,7 @@ const ExamResultsView = {
             </div>
             <div>
               <div style="font-size: 0.75rem; color: var(--color-text-light);">Academic Year</div>
-              <div style="font-weight: 700; color: var(--color-navy-dark);">${results[0]?.academicYear || '2026-27'}</div>
+              <div style="font-weight: 700; color: var(--color-navy-dark);">${results[0]?.academicYear || '—'}</div>
             </div>
           </div>
         </div>
@@ -399,23 +404,23 @@ const ExamResultsView = {
                 </thead>
                 <tbody>
                   ${results.map((r, i) => {
-                    const sub = subjects.find(s => s.id === r.subjectId);
-                    const code = sub ? sub.code : (r.subjectId || 'N/A');
-                    const name = sub ? sub.name : r.subjectId;
+                    const sub = subjects.find(s => s.id === (r?.subjectId || r?.id));
+                    const code = sub?.code || r?.subjectCode || 'N/A';
+                    const name = sub?.name || r?.subjectName || r?.subjectId || 'N/A';
                     
                     // Derive Pass/Fail at subject level based on 40% mapping
-                    const isPass = r.marks >= (r.maxMarks * 0.4);
+                    const isPass = (r?.marks || 0) >= ((r?.maxMarks || 0) * 0.4);
                     const gradePointMap = { 'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6, 'C': 5, 'P': 4, 'F': 0 };
-                    const point = gradePointMap[r.grade] !== undefined ? gradePointMap[r.grade] : 7;
+                    const point = gradePointMap[r?.grade] !== undefined ? gradePointMap[r?.grade] : 7;
                     
                     return `
                       <tr style="font-size: 0.9rem;">
                         <td style="text-align: center; color: var(--color-text-light);">${i + 1}</td>
                         <td style="font-weight: 600; font-family: monospace; color: var(--color-navy-dark);">${code}</td>
                         <td style="font-weight: 600;">${name}</td>
-                        <td style="text-align: center; color: var(--color-text-light);">${r.maxMarks}</td>
-                        <td style="text-align: center; font-weight: 700; color: var(--color-navy-dark);">${r.marks}</td>
-                        <td style="text-align: center;"><span style="font-weight: 800; color: ${r.grade === 'F' ? 'var(--color-danger)' : 'var(--color-success)'}">${r.grade}</span></td>
+                        <td style="text-align: center; color: var(--color-text-light);">${r?.maxMarks || 0}</td>
+                        <td style="text-align: center; font-weight: 700; color: var(--color-navy-dark);">${r?.marks || 0}</td>
+                        <td style="text-align: center;"><span style="font-weight: 800; color: ${r?.grade === 'F' ? 'var(--color-danger)' : 'var(--color-success)'}">${r?.grade || '—'}</span></td>
                         <td style="text-align: center; font-weight: 700;">${point}</td>
                         <td style="text-align: center;"><span style="font-weight: 700; font-size: 0.8rem; color: ${isPass ? 'var(--color-success)' : 'var(--color-danger)'}">${isPass ? 'PASS' : 'FAIL'}</span></td>
                       </tr>

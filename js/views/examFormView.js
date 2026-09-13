@@ -9,28 +9,113 @@ const ExamFormView = {
   reviewFormData: null,
   viewingSubmissionId: null,
   declarationAgreed: false,
+  initialized: false,
+  loading: true,
+  error: null,
+  _isFetching: false,
+  student: null,
+  examPeriods: [],
+  submissions: [],
+  subjects: [],
 
   render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
 
-    const students = DataStore.get('STUDENTS');
-    const student = students.find(s => s.email === user.email || s.userId === user.uid) || students[0];
+    if (!this.initialized) {
+      return `<div style="padding:3rem; text-align:center;">
+                <div class="spinner" style="border:4px solid #F1F5F9; border-top:4px solid var(--color-primary); border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; margin: 0 auto;"></div>
+                <p style="margin-top:1rem; color:var(--color-text-muted);">Loading examination form...</p>
+              </div>`;
+    }
 
-    if (!student) {
+    if (this.error) {
+      return `<div style="padding:3rem; text-align:center; color:var(--color-danger);">
+                <i data-lucide="alert-circle" style="width:48px; height:48px; margin-bottom:1rem; color:var(--color-danger);"></i>
+                <p>${this.error}</p>
+                <button class="btn-primary" style="margin-top:1rem; margin-left:auto; margin-right:auto;" onclick="ExamFormView.fetchData()">Try Again</button>
+              </div>`;
+    }
+
+    if (!this.student) {
       return `<div class="card" style="padding:2rem; text-align:center; color:var(--color-danger);">Student profile not found.</div>`;
     }
 
     if (this.viewMode === 'fill') {
-      return this.renderFillForm(student);
+      return this.renderFillForm(this.student);
     } else if (this.viewMode === 'review') {
-      return this.renderReviewForm(student);
+      return this.renderReviewForm(this.student);
     } else if (this.viewMode === 'success') {
-      return this.renderSuccessForm(student);
+      return this.renderSuccessState(this.student);
     } else if (this.viewMode === 'view_form') {
-      return this.renderViewFormDetails(student);
+      return this.renderViewFormDetails(this.student);
     } else {
-      return this.renderDashboard(student);
+      return this.renderDashboard(this.student);
+    }
+  },
+
+  async fetchData() {
+    if (this._isFetching) return;
+    this._isFetching = true;
+    this.loading = true;
+    this.error = null;
+    
+    if (this.initialized) App.renderCurrentView();
+
+    try {
+      const user = authService.getCurrentUser();
+      
+      const fetchPromise = (async () => {
+         // Safe Auth State
+         this.student = { 
+           id: user.uid || user.id, 
+           name: user.name || user.displayName || 'Student', 
+           email: user.email, 
+           department: user.department || 'CSE', 
+           semester: user.semester || 1,
+           section: user.section || 'A',
+           rollNumber: user.rollNumber || '—',
+           registrationNumber: user.registrationNumber || '—'
+         };
+
+         // Optimize Data Fetches - use ExamFormService to load all necessary data securely
+         if (typeof ExamFormService !== 'undefined') {
+            this.examPeriods = await ExamFormService.getExamPeriods();
+            this.submissions = await ExamFormService.getStudentExamForms(this.student.id);
+         } else {
+            this.examPeriods = [];
+            this.submissions = [];
+         }
+
+         if (typeof subjectService !== 'undefined') {
+            const allSubjs = subjectService.getSubjects ? subjectService.getSubjects() : [];
+            this.subjects = allSubjs.filter(s => s.department === this.student.department && s.semester === Number(this.student.semester));
+         } else {
+            this.subjects = [];
+         }
+      })();
+
+      // Timeout Protection: 10s
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      await Promise.race([fetchPromise, timeoutPromise]);
+
+      this.loading = false;
+      this.initialized = true;
+      this._isFetching = false;
+      App.renderCurrentView();
+    } catch (e) {
+      console.error("ExamFormView fetchData Error:", e);
+      this.error = "Unable to load examination form. Please try again.";
+      this.loading = false;
+      this.initialized = true;
+      this._isFetching = false;
+      App.renderCurrentView();
+    }
+  },
+
+  afterRender() {
+    if (!this.initialized && !this._isFetching && !this.error) {
+       this.fetchData();
     }
   },
 
@@ -202,8 +287,8 @@ const ExamFormView = {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; padding-top: 1rem; font-size: 0.9rem; line-height: 1.6;">
           <div>
             <div>Student Name: <strong style="color: var(--color-navy-dark);">${student.name}</strong></div>
-            <div>Roll Number: <strong style="color: var(--color-navy-dark);">${student.rollNumber || student.rollNo || 'N/A'}</strong></div>
-            <div>Registration Number: <strong style="color: var(--color-navy-dark);">${student.registrationNumber || 'N/A'}</strong></div>
+            <div>Roll Number: <strong style="color: var(--color-navy-dark);">${student.rollNumber || '—'}</strong></div>
+            <div>Registration Number: <strong style="color: var(--color-navy-dark);">${student.registrationNumber || '—'}</strong></div>
           </div>
           <div>
             <div>Course: <strong style="color: var(--color-navy-dark);">B.Tech</strong></div>
@@ -222,18 +307,43 @@ const ExamFormView = {
         
         <div style="padding-top: 1rem;">
           ${eligibleSubjects.length === 0 ? `
-            <div style="color:var(--color-danger); font-weight:500;">No eligible subjects configured for Semester ${examPeriod.semester}.</div>
+            <div style="color:var(--color-danger); font-weight:500; padding:0.5rem 0;">No subjects are currently available for examination registration.</div>
           ` : `
-            <div class="subject-selection-list" style="display:grid; gap: 0.75rem;">
-              ${eligibleSubjects.map(sub => {
-                const checked = this.selectedSubjectIds.includes(sub.id) ? 'checked' : '';
-                return `
-                  <label class="checkbox-container" style="display:flex; align-items:center; gap: 10px; cursor:pointer; font-weight:500; font-size:0.95rem;">
-                    <input type="checkbox" style="width:18px; height:18px; cursor:pointer;" value="${sub.id}" ${checked} onchange="ExamFormView.toggleSubjectSelection(this)">
-                    <span>${sub.name} (${sub.code}) - ${sub.credits} Credits</span>
-                  </label>
-                `;
-              }).join('')}
+            <div class="subject-selection-list">
+              ${(() => {
+                const theorySubjects = eligibleSubjects.filter(sub => sub.type !== 'PRACTICAL' && !sub.name.toLowerCase().includes('lab'));
+                const practicalSubjects = eligibleSubjects.filter(sub => sub.type === 'PRACTICAL' || sub.name.toLowerCase().includes('lab'));
+                let html = '';
+                
+                if (theorySubjects.length > 0) {
+                  html += `<h4 style="margin-bottom:0.75rem; color:var(--color-navy-dark); font-size:0.95rem; font-weight:800;">THEORY</h4>`;
+                  html += `<div style="display:grid; gap:0.75rem; margin-bottom:1.5rem;">` + theorySubjects.map(sub => {
+                    const checked = this.selectedSubjectIds.includes(sub.id) ? 'checked' : '';
+                    return `
+                      <label class="checkbox-container" style="display:flex; align-items:center; gap: 10px; cursor:pointer; font-weight:500; font-size:0.95rem;">
+                        <input type="checkbox" style="width:18px; height:18px; cursor:pointer;" value="${sub.id}" ${checked} onchange="ExamFormView.toggleSubjectSelection(this)">
+                        <span>${sub.code} — ${sub.name} <span style="color:var(--color-text-muted); font-size:0.8rem;">(${sub.credits} Credits)</span></span>
+                      </label>
+                    `;
+                  }).join('') + `</div>`;
+                }
+                
+                if (practicalSubjects.length > 0) {
+                  html += `<h4 style="margin-bottom:0.75rem; color:var(--color-navy-dark); font-size:0.95rem; font-weight:800;">PRACTICAL</h4>`;
+                  html += `<div style="display:grid; gap:0.75rem;">` + practicalSubjects.map(sub => {
+                    const checked = this.selectedSubjectIds.includes(sub.id) ? 'checked' : '';
+                    const subjectName = !sub.name.toLowerCase().includes('lab') ? `${sub.name} Lab` : sub.name;
+                    return `
+                      <label class="checkbox-container" style="display:flex; align-items:center; gap: 10px; cursor:pointer; font-weight:500; font-size:0.95rem;">
+                        <input type="checkbox" style="width:18px; height:18px; cursor:pointer;" value="${sub.id}" ${checked} onchange="ExamFormView.toggleSubjectSelection(this)">
+                        <span>${sub.code} — ${subjectName} <span style="color:var(--color-text-muted); font-size:0.8rem;">(${sub.credits} Credits)</span></span>
+                      </label>
+                    `;
+                  }).join('') + `</div>`;
+                }
+                
+                return html;
+              })()}
             </div>
           `}
         </div>
@@ -272,8 +382,8 @@ const ExamFormView = {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap:1rem; padding:1rem 0; font-size:0.9rem; line-height:1.6; border-bottom:1px dashed #E2E8F0;">
           <div>
             <div><strong>Student Name:</strong> ${student.name}</div>
-            <div><strong>Roll Number:</strong> ${student.rollNumber || student.rollNo || 'N/A'}</div>
-            <div><strong>Registration Number:</strong> ${student.registrationNumber || 'N/A'}</div>
+            <div><strong>Roll Number:</strong> ${student.rollNumber || '—'}</div>
+            <div><strong>Registration Number:</strong> ${student.registrationNumber || '—'}</div>
             <div><strong>Exam Name:</strong> ${examPeriod.name}</div>
           </div>
           <div>
@@ -395,8 +505,8 @@ const ExamFormView = {
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; padding:1.25rem 0; font-size:0.925rem; line-height:1.7; border-bottom:1px dashed #E2E8F0;">
           <div>
             <div>Student: <strong>${student.name}</strong></div>
-            <div>Roll Number: <strong>${student.rollNumber || student.rollNo || 'N/A'}</strong></div>
-            <div>Registration No: <strong>${student.registrationNumber || 'N/A'}</strong></div>
+            <div>Roll Number: <strong>${student.rollNumber || '—'}</strong></div>
+            <div>Registration No: <strong>${student.registrationNumber || '—'}</strong></div>
             <div>Exam Period: <strong>${examPeriod ? examPeriod.name : 'End Sem Exam'}</strong></div>
           </div>
           <div>

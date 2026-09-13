@@ -336,7 +336,7 @@ const App = {
       { id: 'mid-term-marks', label: 'Mid-Term Marks', icon: 'file-spreadsheet', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'hall-ticket', label: 'Hall Ticket', icon: 'ticket', roles: ['STUDENT'] },
       { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
-      { id: 'library', label: 'Library Portal', icon: 'book', roles: ['ADMIN', 'STUDENT'] },
+      { id: 'library', label: 'Library Portal', icon: 'book', roles: ['STUDENT'] },
       { id: 'exam-form', label: 'Exam Form', icon: 'file-text', roles: ['STUDENT'] },
       { id: 'digital-id', label: 'Digital ID Card', icon: 'id-card', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'exam-form-management', label: 'Exam Form Management', icon: 'check-square', roles: ['ADMIN'] },

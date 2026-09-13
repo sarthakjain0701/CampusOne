@@ -3,111 +3,193 @@
    ========================================================================== */
 
 const DashboardStudent = {
-  loading: true,
-  hasError: false,
-  students: [],
-  subjects: [],
-  libraryStats: { issued: 0, overdue: 0, fine: 0 },
-  attendanceStats: { percentage: 0, total: 0, present: 0, absent: 0, status: 'Unknown' },
-  subjectStats: [],
+  initialized: false,
+  _isFetching: false,
+  
+  loading: {
+    student: true,
+    attendance: true,
+    library: true
+  },
+  
+  errors: {
+    student: false,
+    attendance: false,
+    library: false
+  },
+
   myStudent: null,
-  _hasFetchedLibrary: false,
+  attendanceStats: null,
+  subjectStats: null,
+  libraryStats: null,
 
   afterRender() {
-    if (this.loading) {
+    if (!this.initialized) {
       this.fetchData();
     }
+    // Re-initialize Lucide icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   },
 
   async fetchData() {
     if (this._isFetching) return;
     this._isFetching = true;
-    this.loading = true;
-    this.hasError = false;
+    
+    this.initialized = true;
+    this.loading = { student: true, attendance: true, library: true };
+    this.errors = { student: false, attendance: false, library: false };
+    
+    // Render the skeleton shell immediately
     App.renderCurrentView();
 
+    const user = typeof authService !== 'undefined' ? authService.getCurrentUser() : null;
+    if (!user) {
+      this._isFetching = false;
+      return;
+    }
+
     try {
-      if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
-        this.students = await studentService.getStudentsFromFirestore();
-      } else {
-        this.students = typeof studentService !== 'undefined' ? studentService.getStudents() : [];
-      }
-      
-      if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
-        this.subjects = await subjectService.getSubjectsFromFirestore();
-      } else {
-        this.subjects = typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [];
-      }
-
-      const user = typeof authService !== 'undefined' ? authService.getCurrentUser() : null;
-      if (!user) throw new Error("No authenticated user");
-
-      let studentList = this.students || [];
-      let student = studentList.find(s => (s.email === user.email || s.userId === user.uid || s.id === user.uid));
-      
-      if (!student) {
-        student = { id: user.uid, name: user.name, department: 'N/A', semester: 1, section: 'A' };
-      }
-      this.myStudent = student;
-
-      if (typeof attendanceService !== 'undefined') {
-        const db = attendanceService._getDb();
-        const snapshot = await db.collection('attendance').where('studentId', '==', this.myStudent.id).get();
-        const records = snapshot.docs.map(doc => doc.data());
-        
-        const totalClasses = records.length;
-        const totalPresent = records.filter(a => a.status === 'PRESENT').length;
-        const totalPercentage = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0;
-        
-        this.attendanceStats = { total: totalClasses, present: totalPresent, percentage: totalPercentage, absent: totalClasses - totalPresent, status: totalPercentage >= 75 ? 'Good' : 'Low' };
-
-        const subStats = [];
-        const relevantSubjects = this.subjects.filter(s => s.department === this.myStudent.department && Number(s.semester) === Number(this.myStudent.semester));
-        let subjectsToDisplay = relevantSubjects.length > 0 ? relevantSubjects : this.subjects.filter(s => records.some(r => r.subjectId === s.id));
-        
-        for (const sub of subjectsToDisplay) {
-           const subRecords = records.filter(r => r.subjectId === sub.id);
-           const sTotal = subRecords.length;
-           const sPresent = subRecords.filter(r => r.status === 'PRESENT').length;
-           subStats.push({
-             id: sub.id,
-             name: sub.name,
-             code: sub.code,
-             percentage: sTotal > 0 ? Math.round((sPresent / sTotal) * 100) : 0,
-             status: (sTotal > 0 && Math.round((sPresent / sTotal) * 100) >= 75) ? 'Good' : 'Low',
-             hasData: sTotal > 0
-           });
-        }
-        this.subjectStats = subStats;
-      } else {
-        this.attendanceStats = { percentage: 85, total: 40, present: 34, absent: 6, status: 'Good' };
-        this.subjectStats = this.subjects.map(sub => ({ id: sub.id, name: sub.name, code: sub.code, percentage: 80, status: 'Good', hasData: true }));
-      }
-
-      this.loading = false;
-      this._isFetching = false;
+      // 1. Fetch Student Details First (Required for attendance)
+      await this.fetchStudentData(user);
+    } catch(err) {
+      console.error('Fatal error loading student:', err);
+      this.errors.student = true;
+      this.loading.student = false;
       App.renderCurrentView();
-    } catch (err) {
-      console.error(err);
-      this.hasError = true;
-      this.loading = false;
+    }
+
+    // 2. Fetch parallel modules that depend on student or user
+    Promise.allSettled([
+      this.fetchAttendance(this.myStudent),
+      this.fetchLibrary(user)
+    ]).finally(() => {
       this._isFetching = false;
+    });
+  },
+
+  async fetchStudentData(user) {
+    let student = { 
+      id: user.uid || user.id || 'STU001', 
+      name: user.name || user.displayName || 'Student', 
+      email: user.email, 
+      department: 'N/A', 
+      semester: 1, 
+      section: 'A' 
+    };
+
+    try {
+      const fetchPromise = (async () => {
+        const db = window.FirebaseService ? window.FirebaseService.db : null;
+        if (db && user.email) {
+          // Only query the current student! Do not download the whole collection.
+          let snap = await db.collection('students').where('email', '==', user.email).limit(1).get();
+          if (snap.empty && user.uid) {
+            snap = await db.collection('students').where('userId', '==', user.uid).limit(1).get();
+          }
+          if (!snap.empty) {
+            student = { id: snap.docs[0].id, ...snap.docs[0].data() };
+          }
+        }
+      })();
+      
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      await Promise.race([fetchPromise, timeoutPromise]);
+      
+      this.myStudent = student;
+      this.loading.student = false;
+      App.renderCurrentView();
+    } catch(err) {
+      console.error("Student fetch error", err);
+      this.myStudent = student; // Fallback to basic auth info
+      this.errors.student = true;
+      this.loading.student = false;
       App.renderCurrentView();
     }
   },
 
-  async fetchLibraryStats(user) {
-    if (!user || this._hasFetchedLibrary) return;
-    this._hasFetchedLibrary = true;
-
+  async fetchAttendance(student) {
+    if (!student) return;
     try {
-      if (window.LibraryService) {
-        const db = LibraryService._getDb();
+      const fetchPromise = (async () => {
+        const db = window.FirebaseService ? window.FirebaseService.db : null;
+        if (!db) throw new Error("No Firestore instance");
+
+        // Fetch subjects ONLY for this student's department & semester
+        let subjects = [];
+        if (student.department && student.semester) {
+          const subSnap = await db.collection('subjects')
+            .where('department', '==', student.department)
+            .where('semester', '==', Number(student.semester))
+            .get();
+          subjects = subSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } else {
+          // Fallback fetch all
+          const subSnap = await db.collection('subjects').get();
+          subjects = subSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+
+        // Fetch attendance ONLY for this student
+        const attSnap = await db.collection('attendance').where('studentId', '==', student.id).get();
+        const records = attSnap.docs.map(d => d.data());
+
+        const totalClasses = records.length;
+        const totalPresent = records.filter(a => a.status === 'PRESENT').length;
+        const totalPercentage = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0;
+        
+        this.attendanceStats = { 
+          total: totalClasses, 
+          present: totalPresent, 
+          absent: totalClasses - totalPresent,
+          percentage: totalPercentage, 
+          status: totalPercentage >= 75 ? 'Good' : 'Low' 
+        };
+
+        const subStats = [];
+        let subjectsToDisplay = subjects;
+        if (!student.department) {
+          subjectsToDisplay = subjects.filter(s => records.some(r => r.subjectId === s.id));
+        }
+
+        for (const sub of subjectsToDisplay) {
+          const subRecords = records.filter(r => r.subjectId === sub.id);
+          const sTotal = subRecords.length;
+          const sPresent = subRecords.filter(r => r.status === 'PRESENT').length;
+          subStats.push({
+            id: sub.id, 
+            name: sub.name, 
+            code: sub.code,
+            percentage: sTotal > 0 ? Math.round((sPresent / sTotal) * 100) : 0,
+            status: (sTotal > 0 && Math.round((sPresent / sTotal) * 100) >= 75) ? 'Good' : 'Low',
+            hasData: sTotal > 0
+          });
+        }
+        this.subjectStats = subStats;
+      })();
+      
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      await Promise.race([fetchPromise, timeoutPromise]);
+      
+      this.loading.attendance = false;
+      App.renderCurrentView();
+    } catch(err) {
+      console.error("Attendance fetch error", err);
+      this.errors.attendance = true;
+      this.loading.attendance = false;
+      App.renderCurrentView();
+    }
+  },
+
+  async fetchLibrary(user) {
+    try {
+      const fetchPromise = (async () => {
+        const db = window.FirebaseService ? window.FirebaseService.db : null;
+        if (!db) throw new Error("No Firestore instance");
+        
         const userEmail = (user.email || '').toLowerCase().trim();
         
         const [transSnapshot, fineSnapshot] = await Promise.all([
-          db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get().catch(e => ({ docs: [] })),
-          db.collection('libraryFines').where('memberEmail', '==', userEmail).where('status', '==', 'PENDING').get().catch(e => ({ docs: [] }))
+          db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get().catch(() => ({ docs: [] })),
+          db.collection('libraryFines').where('memberEmail', '==', userEmail).where('status', '==', 'PENDING').get().catch(() => ({ docs: [] }))
         ]);
 
         const transactions = transSnapshot.docs.map(d => d.data());
@@ -118,88 +200,94 @@ const DashboardStudent = {
         const fineTotal = fines.reduce((sum, r) => sum + (r.amount || 0), 0);
 
         this.libraryStats = { issued, overdue, fine: fineTotal };
-        
-        const issuedEl = document.getElementById('stu-dash-lib-issued');
-        if (issuedEl) issuedEl.innerText = `${issued} Books`;
-        const overdueEl = document.getElementById('stu-dash-lib-overdue');
-        if (overdueEl) overdueEl.innerText = `${overdue} Overdue`;
-        const finesEl = document.getElementById('stu-dash-lib-fines');
-        if (finesEl) finesEl.innerText = `₹${fineTotal}`;
-      }
-    } catch (err) {
-      console.warn("Failed to fetch library stats for student dashboard:", err);
+      })();
+      
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      await Promise.race([fetchPromise, timeoutPromise]);
+      
+      this.loading.library = false;
+      App.renderCurrentView();
+    } catch(err) {
+      console.error("Library fetch error", err);
+      this.errors.library = true;
+      this.loading.library = false;
+      App.renderCurrentView();
     }
   },
 
   render() {
-    const user = authService.getCurrentUser() || { name: 'Student', email: '', uid: 'STU001', role: 'STUDENT' };
-
-    if (this.hasError) {
-      return `
-        <div class="page-header" style="margin-bottom: 2rem;">
-          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
-            Welcome, ${user.name || 'Student'}! 👋
-          </h1>
-        </div>
-        <div class="glass-panel" style="padding: 4rem; text-align: center;">
-          <i data-lucide="alert-triangle" style="width: 48px; height: 48px; color: var(--color-danger); margin-bottom: 1rem;"></i>
-          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 0.5rem;">Unable to load dashboard data</h2>
-          <p style="color: var(--color-text-muted); margin-bottom: 1.5rem;">There was an error connecting to the server. Please try again.</p>
-          <button class="btn btn-primary" onclick="DashboardStudent.fetchData()">
-            <i data-lucide="refresh-cw" style="width: 18px; height: 18px; margin-right: 8px;"></i> Try Again
-          </button>
-        </div>
-      `;
+    const user = typeof authService !== 'undefined' ? authService.getCurrentUser() : null;
+    if (!user) {
+      return `<div class="card" style="padding:2rem; text-align:center;">Please log in to view the dashboard.</div>`;
     }
 
-    if (this.loading) {
-      return `
-        <div class="page-header" style="margin-bottom: 2rem;">
-          <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
-            Welcome, ${user.name || 'Student'}! 👋
-          </h1>
-          <p style="color: var(--color-text-muted); font-size: 0.95rem;">
-            Loading dashboard data...
-          </p>
-        </div>
-        <div class="glass-panel" style="padding: 4rem; text-align: center;">
-          <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid var(--glass-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s infinite linear;"></div>
-          <p style="margin-top: 1.5rem; color: var(--color-text-muted); font-weight: 600;">Fetching analytics...</p>
-        </div>
-      `;
-    }
-
-    const myStudent = this.myStudent || { id: user.uid, name: user.name, semester: 1, section: 'A' };
-    const studentRoll = myStudent.rollNo || myStudent.rollNumber || '—';
-    
-    setTimeout(() => this.fetchLibraryStats(user), 0);
-    
-    const stats = this.attendanceStats || { percentage: 85, total: 40, present: 34, absent: 6, status: 'Good' };
-    const strokeOffset = 364 - (364 * (stats.percentage / 100));
-
-    const subjectStats = this.subjectStats || [];
-
-    const learningResources = window.MOCK_DATA && MOCK_DATA.learningResources ? MOCK_DATA.learningResources.length : 0;
-    const holidays = window.MOCK_DATA && MOCK_DATA.holidays ? MOCK_DATA.holidays : [];
-    const today = new Date().toISOString().split('T')[0];
-    const nextHoliday = holidays.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
-
-    return `
-      <div class="page-header" style="margin-bottom: 2rem;">
-        <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
-          Welcome, ${user.name || myStudent.name}! 👋
-        </h1>
-        <p style="color: var(--color-text-muted); font-size: 0.95rem;">
-          Roll Number: <strong>${studentRoll}</strong> | Class: <strong>${myStudent.department || 'CSE'}-${myStudent.section || 'A'}</strong> (Semester ${myStudent.semester || '1'})
-        </p>
+    // Skeletons
+    const renderAttendanceSkeleton = () => `
+      <div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: space-between; min-height: 200px;">
+         <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+            <div style="height:28px; width:200px; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+            <div style="height:14px; width:250px; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+            <div style="display:flex; gap:2rem; margin-top:20px;">
+               <div style="height:48px; width:80px; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+               <div style="height:48px; width:80px; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+               <div style="height:48px; width:80px; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+            </div>
+         </div>
       </div>
+    `;
 
-      <!-- MAIN LAYOUT GRID -->
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
-        
-        <!-- LEFT COLUMN: GAUGE & SUBJECTS -->
-        <div style="display: flex; flex-direction: column; gap: 2rem;">
-          
+    const renderSubjectSkeleton = () => `
+      <div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7); min-height: 250px;">
+        <div style="height:24px; width:180px; background:rgba(0,0,0,0.05); border-radius:4px; margin-bottom:2rem; animation: pulse 1.5s infinite;"></div>
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+           <div style="height:16px; width:100%; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+           <div style="height:16px; width:100%; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+           <div style="height:16px; width:100%; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>
+        </div>
+      </div>
+    `;
+
+    const renderError = (module) => `
+      <div style="text-align:center; padding:3rem 0;">
+        <i data-lucide="alert-triangle" style="width:32px; height:32px; color:var(--color-danger); margin-bottom:0.75rem;"></i>
+        <h4 style="color:var(--color-navy-dark); font-weight:700; margin-bottom:0.25rem;">Unable to load data</h4>
+        <p style="color:var(--color-text-muted); font-size:0.9rem; margin-bottom:1rem;">Failed to fetch ${module} data.</p>
+        <button class="btn btn-secondary btn-sm" onclick="DashboardStudent.fetchData()">
+           <i data-lucide="refresh-cw" style="width:14px; height:14px; margin-right:6px;"></i> Retry
+        </button>
+      </div>
+    `;
+
+    // 1. HEADER
+    let headerName = (user.name || user.displayName || 'Student').split(' ')[0];
+    let headerDetails = `<span style="opacity:0.6;"><i data-lucide="loader" style="width:14px; height:14px; animation:spin 1s linear infinite; margin-right:4px;"></i> Loading student profile...</span>`;
+    
+    if (!this.loading.student && !this.errors.student && this.myStudent) {
+       headerName = (this.myStudent.name || headerName).split(' ')[0];
+       const studentRoll = this.myStudent.rollNo || this.myStudent.rollNumber || '—';
+       const dept = this.myStudent.department || '—';
+       const sec = this.myStudent.section || '—';
+       const sem = this.myStudent.semester || '—';
+       headerDetails = `Roll Number: <strong>${studentRoll}</strong> | Class: <strong>${dept}-${sec}</strong> (Semester ${sem})`;
+    } else if (this.errors.student) {
+       headerDetails = `<span style="color:var(--color-danger);"><i data-lucide="alert-circle" style="width:14px; height:14px;"></i> Unable to load profile details.</span>`;
+    }
+
+    // 2. ATTENDANCE & SUBJECTS
+    let attendanceHtml = '';
+    let subjectHtml = '';
+    
+    if (this.loading.attendance) {
+       attendanceHtml = renderAttendanceSkeleton();
+       subjectHtml = renderSubjectSkeleton();
+    } else if (this.errors.attendance) {
+       attendanceHtml = `<div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7);">${renderError('attendance')}</div>`;
+       subjectHtml = `<div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7);">${renderError('subjects')}</div>`;
+    } else {
+       const stats = this.attendanceStats || { percentage: 0, total: 0, present: 0, absent: 0, status: 'Unknown' };
+       const strokeOffset = 364 - (364 * (stats.percentage / 100));
+       
+       attendanceHtml = `
           <!-- OVERALL ATTENDANCE -->
           <div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: space-between;">
             <div>
@@ -236,7 +324,10 @@ const DashboardStudent = {
               </div>
             </div>
           </div>
+       `;
 
+       const subjectStats = this.subjectStats || [];
+       subjectHtml = `
           <!-- SUBJECT PROGRESS -->
           <div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7);">
             <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
@@ -251,7 +342,7 @@ const DashboardStudent = {
               ` : subjectStats.map(s => `
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <div style="font-size: 0.95rem; font-weight: 600; color: var(--color-navy-dark);">${s.name} <span style="color: var(--color-text-muted); font-size: 0.8rem; font-weight: 500;">(${s.code})</span></div>
+                    <div style="font-size: 0.95rem; font-weight: 600; color: var(--color-navy-dark);">${s.name || '—'} <span style="color: var(--color-text-muted); font-size: 0.8rem; font-weight: 500;">(${s.code || '—'})</span></div>
                     <div style="font-size: 0.95rem; font-weight: 800; color: ${s.percentage >= 75 ? 'var(--color-success)' : 'var(--color-warning)'};">${s.percentage}%</div>
                   </div>
                   <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.05); border-radius: 4px; overflow: hidden;">
@@ -261,6 +352,49 @@ const DashboardStudent = {
               `).join('')}
             </div>
           </div>
+       `;
+    }
+
+    // 3. LIBRARY & STATIC INFO
+    const learningResources = window.MOCK_DATA && MOCK_DATA.learningResources ? MOCK_DATA.learningResources.length : 0;
+    const holidays = window.MOCK_DATA && MOCK_DATA.holidays ? MOCK_DATA.holidays : [];
+    const today = new Date().toISOString().split('T')[0];
+    const nextHoliday = holidays.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
+
+    let libraryHtml = '';
+    if (this.loading.library) {
+       libraryHtml = `<div style="height:14px; width:150px; background:rgba(0,0,0,0.05); border-radius:4px; animation: pulse 1.5s infinite;"></div>`;
+    } else if (this.errors.library) {
+       libraryHtml = `<span style="color:var(--color-danger); font-size:0.8rem;">Unable to load library dues</span>`;
+    } else {
+       const l = this.libraryStats || { issued: 0, overdue: 0, fine: 0 };
+       libraryHtml = `<span id="stu-dash-lib-fines" style="font-weight:600; color:var(--color-danger);">₹${l.fine}</span> Pending | <span id="stu-dash-lib-overdue" style="font-weight:600;">${l.overdue} Overdue</span>`;
+    }
+
+    return `
+      <style>
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.4; }
+          100% { opacity: 1; }
+        }
+      </style>
+      <div class="page-header" style="margin-bottom: 2rem;">
+        <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">
+          Welcome, ${headerName}! 👋
+        </h1>
+        <p style="color: var(--color-text-muted); font-size: 0.95rem;">
+          ${headerDetails}
+        </p>
+      </div>
+
+      <!-- MAIN LAYOUT GRID -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+        
+        <!-- LEFT COLUMN: GAUGE & SUBJECTS -->
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+          ${attendanceHtml}
+          ${subjectHtml}
         </div>
 
         <!-- RIGHT COLUMN: NOTIFICATIONS & QUICK WIDGETS -->
@@ -290,7 +424,7 @@ const DashboardStudent = {
               <div style="display: flex; gap: 0.75rem; padding: 1rem; background: #FFF; border-radius: var(--radius-md); border: 1px solid var(--glass-border);">
                 <div style="color: var(--color-warning); margin-top: 2px;"><i data-lucide="alert-triangle" style="width: 18px;"></i></div>
                 <div>
-                  <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-main);">Next Holiday: ${nextHoliday ? nextHoliday.name : 'None'}</div>
+                  <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-main);">Next Holiday: ${nextHoliday ? nextHoliday.name : '—'}</div>
                   <div style="font-size: 0.75rem; color: var(--color-text-muted);">${nextHoliday ? new Date(nextHoliday.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}</div>
                 </div>
               </div>
@@ -299,7 +433,7 @@ const DashboardStudent = {
                 <div style="color: var(--color-success); margin-top: 2px;"><i data-lucide="check-circle" style="width: 18px;"></i></div>
                 <div>
                   <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-main);">Library Dues</div>
-                  <div style="font-size: 0.75rem; color: var(--color-text-muted);"><span id="stu-dash-lib-fines">₹0</span> Pending | <span id="stu-dash-lib-overdue">0 Overdue</span></div>
+                  <div style="font-size: 0.75rem; color: var(--color-text-muted);">${libraryHtml}</div>
                 </div>
               </div>
             </div>

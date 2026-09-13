@@ -42,77 +42,85 @@ const TimetableView = {
 
   async fetchData() {
     try {
-      if (!this.timetablesData.faculty) {
-        if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
-          try { this.timetablesData.faculty = await facultyService.getFacultyFromFirestore(); }
-          catch(e) { this.timetablesData.faculty = (this.timetablesData && this.timetablesData.faculty) || []; }
-        } else {
-          this.timetablesData.faculty = (this.timetablesData && this.timetablesData.faculty) || [];
+      const fetchPromise = (async () => {
+        if (!this.timetablesData.faculty) {
+          if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
+            try { this.timetablesData.faculty = await facultyService.getFacultyFromFirestore(); }
+            catch(e) { this.timetablesData.faculty = (this.timetablesData && this.timetablesData.faculty) || []; }
+          } else {
+            this.timetablesData.faculty = (this.timetablesData && this.timetablesData.faculty) || [];
+          }
         }
-      }
-      if (!this.timetablesData.students) {
-        if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
-          try { this.timetablesData.students = await studentService.getStudentsFromFirestore(); }
-          catch(e) { this.timetablesData.students = typeof studentService !== 'undefined' ? studentService.getStudents() : []; }
-        } else {
-          this.timetablesData.students = typeof studentService !== 'undefined' ? studentService.getStudents() : [];
+        if (!this.timetablesData.students) {
+          if (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore) {
+            try { this.timetablesData.students = await studentService.getStudentsFromFirestore(); }
+            catch(e) { this.timetablesData.students = typeof studentService !== 'undefined' ? studentService.getStudents() : []; }
+          } else {
+            this.timetablesData.students = typeof studentService !== 'undefined' ? studentService.getStudents() : [];
+          }
         }
-      }
 
-      if (!this.timetablesData.subjects) {
-        if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
-          try { this.timetablesData.subjects = await subjectService.getSubjectsFromFirestore(); }
-          catch(e) { this.timetablesData.subjects = (this.timetablesData && this.timetablesData.subjects) || []; }
-        } else {
-          this.timetablesData.subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+        if (!this.timetablesData.subjects) {
+          if (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore) {
+            try { this.timetablesData.subjects = await subjectService.getSubjectsFromFirestore(); }
+            catch(e) { this.timetablesData.subjects = (this.timetablesData && this.timetablesData.subjects) || []; }
+          } else {
+            this.timetablesData.subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+          }
         }
-      }
 
-      if (!this.timetablesData.classes) {
-        if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
-          try { this.timetablesData.classes = await classService.getClassesFromFirestore(); }
-          catch(e) { this.timetablesData.classes = (this.timetablesData && this.timetablesData.classes) || []; }
-        } else {
-          this.timetablesData.classes = (this.timetablesData && this.timetablesData.classes) || [];
+        if (!this.timetablesData.classes) {
+          if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
+            try { this.timetablesData.classes = await classService.getClassesFromFirestore(); }
+            catch(e) { this.timetablesData.classes = (this.timetablesData && this.timetablesData.classes) || []; }
+          } else {
+            this.timetablesData.classes = (this.timetablesData && this.timetablesData.classes) || [];
+          }
         }
-      }
 
-      if (!this.timetablesData.departments) {
-        if (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore) {
-          try { this.timetablesData.departments = await departmentService.getDepartmentsFromFirestore(); }
-          catch(e) { this.timetablesData.departments = (this.timetablesData && this.timetablesData.departments) || []; }
-        } else {
-          this.timetablesData.departments = (this.timetablesData && this.timetablesData.departments) || [];
+        if (!this.timetablesData.departments) {
+          if (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore) {
+            try { this.timetablesData.departments = await departmentService.getDepartmentsFromFirestore(); }
+            catch(e) { this.timetablesData.departments = (this.timetablesData && this.timetablesData.departments) || []; }
+          } else {
+            this.timetablesData.departments = (this.timetablesData && this.timetablesData.departments) || [];
+          }
         }
-      }
 
-      if (this.activeTab === 'weekly') {
-        this.timetablesData.weekly = await TimetableService.getAllTimetables();
-      } else {
-        const queryOptions = {
-          search: this.searchQuery,
-          dateFilter: this.dateFilter,
-          specificDate: this.specificDate,
-          startDate: this.startDate,
-          endDate: this.endDate,
-          day: this.selectedDay,
-          department: this.selectedDepartment,
-          section: this.selectedSection,
-          facultyId: this.selectedFaculty,
-          subjectId: this.selectedSubject,
-          status: this.selectedStatus,
-          sortBy: this.sortBy,
-          sortOrder: this.sortOrder,
-          page: this.page,
-          pageSize: this.pageSize
-        };
-        this.timetablesData.stats = await TimetableService.getSummaryStats();
-        this.timetablesData.scheduledSlots = await TimetableService.getScheduledSlots(queryOptions);
-      }
+        if (this.activeTab === 'weekly') {
+          this.timetablesData.weekly = await TimetableService.getAllTimetables();
+        } else {
+          const queryOptions = {
+            search: this.searchQuery,
+            dateFilter: this.dateFilter,
+            specificDate: this.specificDate,
+            startDate: this.startDate,
+            endDate: this.endDate,
+            day: this.selectedDay,
+            department: this.selectedDepartment,
+            section: this.selectedSection,
+            facultyId: this.selectedFaculty,
+            subjectId: this.selectedSubject,
+            status: this.selectedStatus,
+            sortBy: this.sortBy,
+            sortOrder: this.sortOrder,
+            page: this.page,
+            pageSize: this.pageSize
+          };
+          this.timetablesData.stats = await TimetableService.getSummaryStats();
+          this.timetablesData.scheduledSlots = await TimetableService.getScheduledSlots(queryOptions);
+        }
+      })();
+      
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      await Promise.race([fetchPromise, timeoutPromise]);
+
       this.loading = false;
+      this.error = null;
       App.renderCurrentView();
     } catch (err) {
       this.loading = false;
+      this.error = "Unable to load timetable.";
       console.error("Failed to load timetables:", err);
       App.renderCurrentView();
     }
@@ -145,6 +153,23 @@ const TimetableView = {
         <div class="glass-panel" style="padding: 3rem; text-align: center;">
           <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #2563EB; border-radius: 50%; animation: spin 1s infinite linear;"></div>
           <p style="margin-top: 1rem; color: var(--color-text-muted);">Loading timetable data...</p>
+        </div>
+      `;
+    }
+
+    if (this.error) {
+      return `
+        <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem;">
+          <div>
+            <h1 style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0; display:flex; align-items:center; gap:0.6rem;">
+              <i data-lucide="calendar" style="color:var(--color-primary); width:28px; height:28px;"></i> TIMETABLE
+            </h1>
+          </div>
+        </div>
+        <div class="glass-panel" style="padding: 3rem; text-align: center; color: var(--color-danger);">
+          <i data-lucide="alert-circle" style="width:48px; height:48px; margin-bottom:1rem; color:var(--color-danger);"></i>
+          <p>${this.error}</p>
+          <button class="btn-primary" style="margin-top:1rem; margin-left:auto; margin-right:auto;" onclick="TimetableView.loading = true; TimetableView.error = null; App.renderCurrentView(); TimetableView.fetchData();">Try Again</button>
         </div>
       `;
     }
@@ -266,7 +291,7 @@ const TimetableView = {
         <div class="glass-panel" style="padding:3.5rem; text-align:center; color:var(--color-text-muted);">
           <i data-lucide="calendar-x" style="width:54px; height:54px; stroke-width:1.5; margin-bottom:1rem; color:#94A3B8;"></i>
           <h3 style="font-weight:700; color:var(--color-navy-dark);">No Timetable Slots Found</h3>
-          <p style="font-size:0.9rem; max-width:400px; margin:0.5rem auto 0 auto;">There are no active scheduled classes for the selected criteria in the Weekly Timetable.</p>
+          <p style="font-size:0.9rem; max-width:400px; margin:0.5rem auto 0 auto;">No timetable has been scheduled for your class yet.</p>
         </div>
       ` : this.viewMode === 'grid' ? this.renderTimetableGrid(filtered, user) : this.renderTimetableList(filtered, user)}
     `;
@@ -307,18 +332,19 @@ const TimetableView = {
                     }
                     const sub = subjects.find(s => s.id === entry.subjectId);
                     const fac = faculty.find(f => f.id === entry.facultyId);
-                    const formattedDate = entry.date && typeof AcademicCalendarService !== 'undefined' ? AcademicCalendarService.formatDate(entry.date) : '';
+                    const isPractical = sub && (sub.type === 'PRACTICAL' || sub.name.toLowerCase().includes('lab'));
+                    const roomLabel = isPractical ? `Lab ${entry.room || '—'}` : `Room ${entry.room || '—'}`;
+                    const subjectName = isPractical && sub && !sub.name.toLowerCase().includes('lab') ? `${sub.name} Lab` : (sub ? sub.name : entry.subjectId);
+
                     return `
                       <td style="text-align:left; border-radius:6px; transition:all 0.2s;">
-                        <div style="font-weight:800; font-size:0.85rem; color:#1E40AF;">${sub ? sub.name : entry.subjectId}</div>
-                        <div style="font-size:0.75rem; font-weight:700; color:#3B82F6; margin-top:0.25rem;">${sub ? sub.code : ''}</div>
+                        <div style="font-weight:800; font-size:0.85rem; color:#1E40AF;">${subjectName}</div>
                         <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.4rem; display:flex; align-items:center; gap:0.25rem;">
-                          <i data-lucide="user" style="width:12px; height:12px;"></i> ${fac ? fac.name : 'Faculty'}
+                          <i data-lucide="user" style="width:12px; height:12px;"></i> ${fac ? fac.name : '—'}
                         </div>
                         <div style="font-size:0.75rem; color:var(--color-text-muted); display:flex; align-items:center; gap:0.25rem;">
-                          <i data-lucide="map-pin" style="width:12px; height:12px;"></i> Room ${entry.room || '301'}
+                          <i data-lucide="map-pin" style="width:12px; height:12px;"></i> ${roomLabel}
                         </div>
-                        ${formattedDate ? `<div style="font-size:0.7rem; color:#64748B; margin-top:0.3rem; font-weight:600;"><i data-lucide="calendar" style="width:10px; height:10px;"></i> ${formattedDate}</div>` : ''}
                       </td>
                     `;
                   }).join('')}
@@ -340,19 +366,22 @@ const TimetableView = {
         ${entries.map(t => {
           const sub = subjects.find(s => s.id === t.subjectId);
           const fac = faculty.find(f => f.id === t.facultyId);
-          const dateStr = t.date && typeof AcademicCalendarService !== 'undefined' ? AcademicCalendarService.formatDate(t.date) : '';
+          const isPractical = sub && (sub.type === 'PRACTICAL' || sub.name.toLowerCase().includes('lab'));
+          const roomLabel = isPractical ? `Lab ${t.room || '—'}` : `Room ${t.room || '—'}`;
+          const subjectName = isPractical && sub && !sub.name.toLowerCase().includes('lab') ? `${sub.name} Lab` : (sub ? sub.name : t.subjectId);
+
           return `
             <div class="glass-panel" style="border-left:4px solid #2563EB; transition:transform 0.2s; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                <span class="status-badge active" style="font-weight:700;">${t.day} ${dateStr ? '• ' + dateStr : ''}</span>
+                <span class="status-badge active" style="font-weight:700;">${t.day}</span>
                 <span style="font-size:0.8rem; font-weight:700; color:#2563EB;"><i data-lucide="clock" style="width:12px; height:12px; display:inline;"></i> ${t.startTime} – ${t.endTime}</span>
               </div>
-              <h4 style="font-size:1.05rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">${sub ? sub.name : t.subjectId}</h4>
-              <p style="font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.75rem;">Subject Code: <strong>${sub ? sub.code : 'CS'}</strong></p>
+              <h4 style="font-size:1.05rem; font-weight:800; color:var(--color-navy-dark); margin:0 0 0.25rem 0;">${subjectName}</h4>
+              <p style="font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.75rem;">Subject Code: <strong>${sub ? sub.code : '—'}</strong></p>
               
               <div style="display:flex; justify-content:space-between; font-size:0.8rem; border-top:1px solid #F1F5F9; padding-top:0.6rem;">
-                <span><i data-lucide="user" style="width:14px; height:14px; display:inline;"></i> ${fac ? fac.name : 'Faculty'}</span>
-                <span><i data-lucide="map-pin" style="width:14px; height:14px; display:inline;"></i> Room ${t.room || '301'}</span>
+                <span><i data-lucide="user" style="width:14px; height:14px; display:inline;"></i> ${fac ? fac.name : '—'}</span>
+                <span><i data-lucide="map-pin" style="width:14px; height:14px; display:inline;"></i> ${roomLabel}</span>
               </div>
             </div>
           `;

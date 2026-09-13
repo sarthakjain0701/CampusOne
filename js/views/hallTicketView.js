@@ -29,56 +29,66 @@ const HallTicketView = {
     App.renderCurrentView();
 
     try {
-      const user = authService.getCurrentUser();
-      if (!user || user.role !== 'STUDENT') {
+      const fetchPromise = (async () => {
+        const user = authService.getCurrentUser();
+        if (!user || user.role !== 'STUDENT') {
+          return false;
+        }
+
+        // Fetch all needed data in parallel
+        const [students, departments, allSubjects] = await Promise.all([
+          (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore)
+            ? studentService.getStudentsFromFirestore()
+            : (typeof studentService !== 'undefined' ? studentService.getStudents() : []),
+          (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore)
+            ? departmentService.getDepartmentsFromFirestore()
+            : (typeof departmentService !== 'undefined' ? departmentService.getDepartments() : []),
+          (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore)
+            ? subjectService.getSubjectsFromFirestore()
+            : (typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [])
+        ]);
+
+        // Map student by auth uid/email fallback chain
+        this.studentInfo = students.find(s =>
+          s.id === user.id ||
+          s.id === user.uid ||
+          s.email === user.email ||
+          s.userId === user.uid
+        ) || null;
+
+        this.departments = departments;
+        this.allSubjects = allSubjects;
+
+        // Fetch hall ticket
+        this.ticket = (typeof hallTicketService !== 'undefined')
+          ? await hallTicketService.getHallTicket(this.studentInfo?.id || user.id)
+          : null;
+
+        // Fetch exam form & period if ticket exists
+        if (this.ticket && typeof ExamFormService !== 'undefined') {
+          try {
+            if (this.ticket.examFormId) {
+              this.examForm = await ExamFormService.getExamFormById(this.ticket.examFormId);
+            }
+            if (this.ticket.examId) {
+              const periods = await ExamFormService.getExamPeriods();
+              this.examPeriod = periods.find(p => p.id === this.ticket.examId) || null;
+            }
+          } catch (e) {
+            console.warn('Could not fetch exam form/period:', e);
+          }
+        }
+        return true;
+      })();
+      
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      const shouldContinue = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      if (shouldContinue === false) {
         this.loading = false;
         this._isFetching = false;
         App.renderCurrentView();
         return;
-      }
-
-      // Fetch all needed data in parallel
-      const [students, departments, allSubjects] = await Promise.all([
-        (typeof studentService !== 'undefined' && studentService.getStudentsFromFirestore)
-          ? studentService.getStudentsFromFirestore()
-          : (typeof studentService !== 'undefined' ? studentService.getStudents() : []),
-        (typeof departmentService !== 'undefined' && departmentService.getDepartmentsFromFirestore)
-          ? departmentService.getDepartmentsFromFirestore()
-          : (typeof departmentService !== 'undefined' ? departmentService.getDepartments() : []),
-        (typeof subjectService !== 'undefined' && subjectService.getSubjectsFromFirestore)
-          ? subjectService.getSubjectsFromFirestore()
-          : (typeof subjectService !== 'undefined' ? subjectService.getSubjects() : [])
-      ]);
-
-      // Map student by auth uid/email fallback chain
-      this.studentInfo = students.find(s =>
-        s.id === user.id ||
-        s.id === user.uid ||
-        s.email === user.email ||
-        s.userId === user.uid
-      ) || null;
-
-      this.departments = departments;
-      this.allSubjects = allSubjects;
-
-      // Fetch hall ticket
-      this.ticket = (typeof hallTicketService !== 'undefined')
-        ? await hallTicketService.getHallTicket(this.studentInfo?.id || user.id)
-        : null;
-
-      // Fetch exam form & period if ticket exists
-      if (this.ticket && typeof ExamFormService !== 'undefined') {
-        try {
-          if (this.ticket.examFormId) {
-            this.examForm = await ExamFormService.getExamFormById(this.ticket.examFormId);
-          }
-          if (this.ticket.examId) {
-            const periods = await ExamFormService.getExamPeriods();
-            this.examPeriod = periods.find(p => p.id === this.ticket.examId) || null;
-          }
-        } catch (e) {
-          console.warn('Could not fetch exam form/period:', e);
-        }
       }
 
       this.loading = false;

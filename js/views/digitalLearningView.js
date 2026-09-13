@@ -15,12 +15,14 @@ const DigitalLearningView = {
   myResources: [],
   assignments: [],
   selectedSemester: 'ALL',
+  _isFetching: false,
+  initialized: false,
 
   render(params = {}) {
     const user = authService.getCurrentUser();
     if (!user) return `<div>Please log in.</div>`;
 
-    if (this.loading) {
+    if (!this.initialized) {
       return `<div style="padding:3rem; text-align:center;">
                 <div class="spinner" style="border:4px solid #F1F5F9; border-top:4px solid var(--color-primary); border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; margin: 0 auto;"></div>
                 <p style="margin-top:1rem; color:var(--color-text-muted);">Loading learning resources...</p>
@@ -177,7 +179,13 @@ const DigitalLearningView = {
 
       <!-- SUBJECT CARDS GRID -->
       <div class="subject-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem;">
-        ${subjects.map(sub => {
+        ${subjects.length === 0 ? `
+          <div style="grid-column: 1 / -1; padding: 4rem; text-align: center; background: white; border: 1px solid var(--color-border); border-radius: 8px;">
+            <i data-lucide="folder-open" style="width:48px; height:48px; color:var(--color-text-light); margin-bottom:1rem;"></i>
+            <h2 style="font-size:1.25rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">No learning resources available yet.</h2>
+            <p style="color:var(--color-text-muted);">There are currently no subjects or materials assigned to your semester.</p>
+          </div>
+        ` : subjects.map(sub => {
           const subRes = allResources.filter(r => r.subjectId === sub.id);
           const notesCount = subRes.filter(r => r.resourceType === 'NOTES').length;
           const assignCount = subRes.filter(r => r.resourceType === 'ASSIGNMENT').length;
@@ -626,53 +634,122 @@ const DigitalLearningView = {
   },
 
   async fetchData() {
+    if (this._isFetching) return;
+    this._isFetching = true;
     this.loading = true;
     this.error = null;
-    App.renderCurrentView();
+
+    if (this.initialized) {
+      App.renderCurrentView();
+    }
 
     try {
-      if (typeof studentService !== 'undefined') {
-         this.students = studentService.getStudentsFromFirestore ? await studentService.getStudentsFromFirestore() : studentService.getStudents();
-      } else {
-         this.students = [];
-      }
-      
-      if (typeof subjectService !== 'undefined') {
-         this.subjects = subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (subjectService.getSubjects ? subjectService.getSubjects() : []);
-      } else {
-         this.subjects = [];
-      }
-
-      this.allResources = await LearningResourceService.getAllResources();
-
       const user = authService.getCurrentUser();
-      if (user && AuthorizationService.isAcademicStaff(user)) {
-         if (typeof facultyService !== 'undefined') {
-           this.faculty = facultyService.getFacultyFromFirestore ? await facultyService.getFacultyFromFirestore() : facultyService.getFaculty();
-         } else {
-           this.faculty = [];
-         }
-         
-         if (typeof assignmentService !== 'undefined') {
-           const allAssignments = await assignmentService.getAssignments();
-           this.assignments = allAssignments.filter(a => a.facultyId === (user.uid || user.id));
-         } else {
-           this.assignments = [];
-         }
-         this.myResources = this.allResources.filter(r => r.facultyId === (user.uid || user.id) || r.uploadedBy === user.email);
-      }
+      
+      const fetchPromise = (async () => {
+        if (user && user.role && user.role.toUpperCase() === 'STUDENT') {
+          // 1. Safe Auth State: Use existing user profile rather than querying all students
+          this.students = [{ 
+            id: user.uid || user.id, 
+            name: user.name || user.displayName || 'Student', 
+            email: user.email, 
+            department: user.department || 'CSE', 
+            semester: user.semester || 1 
+          }];
+          const student = this.students[0];
+          
+          // 2. Optimized Subjects: Only fetch subjects for this department/semester
+          if (typeof subjectService !== 'undefined') {
+             const allSubjs = subjectService.getSubjects ? subjectService.getSubjects() : [];
+             if (window.FirebaseService && window.FirebaseService.db) {
+               try {
+                 const snap = await window.FirebaseService.db.collection('subjects')
+                    .where('department', '==', student.department)
+                    .where('semester', '==', Number(student.semester))
+                    .get();
+                 this.subjects = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                 if (this.subjects.length === 0) {
+                   this.subjects = allSubjs.filter(s => s.department === student.department && s.semester === Number(student.semester));
+                 }
+               } catch (err) {
+                 this.subjects = allSubjs.filter(s => s.department === student.department && s.semester === Number(student.semester));
+               }
+             } else {
+               this.subjects = allSubjs.filter(s => s.department === student.department && s.semester === Number(student.semester));
+             }
+          }
+          
+          // 3. Optimized Learning Resources: Only fetch resources for the relevant subjects
+          if (window.FirebaseService && window.FirebaseService.db && this.subjects.length > 0) {
+              const subjectIds = this.subjects.map(s => s.id);
+              if (subjectIds.length <= 10) {
+                 const snap = await window.FirebaseService.db.collection('learningResources')
+                    .where('subjectId', 'in', subjectIds)
+                    .where('status', '==', 'ACTIVE')
+                    .get();
+                 this.allResources = snap.docs.map(d => ({id: d.id, ...d.data()}));
+              } else {
+                 this.allResources = await LearningResourceService.getAllResources();
+              }
+          } else {
+              this.allResources = await LearningResourceService.getAllResources();
+          }
+
+        } else if (user && AuthorizationService.isAcademicStaff(user)) {
+           // Faculty logic
+           if (typeof facultyService !== 'undefined') {
+             if (window.FirebaseService && window.FirebaseService.db) {
+                try {
+                  const snap = await window.FirebaseService.db.collection('faculty').where('email', '==', user.email).limit(1).get();
+                  this.faculty = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                } catch (err) {
+                  this.faculty = facultyService.getFaculty ? facultyService.getFaculty() : [];
+                }
+             } else {
+                this.faculty = facultyService.getFaculty ? facultyService.getFaculty() : [];
+             }
+           }
+           
+           if (typeof subjectService !== 'undefined') {
+              this.subjects = subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (subjectService.getSubjects ? subjectService.getSubjects() : []);
+           }
+           
+           if (typeof assignmentService !== 'undefined') {
+             const allAssignments = await assignmentService.getAssignments();
+             this.assignments = allAssignments.filter(a => a.facultyId === (user.uid || user.id));
+           }
+           
+           this.allResources = await LearningResourceService.getAllResources();
+           this.myResources = this.allResources.filter(r => r.facultyId === (user.uid || user.id) || r.uploadedBy === user.email);
+        } else {
+           // Admin logic
+           if (typeof subjectService !== 'undefined') {
+              this.subjects = subjectService.getSubjectsFromFirestore ? await subjectService.getSubjectsFromFirestore() : (subjectService.getSubjects ? subjectService.getSubjects() : []);
+           }
+           this.allResources = await LearningResourceService.getAllResources();
+        }
+      })();
+
+      // 4. Timeout Protection: Stop waiting after 10 seconds to prevent permanent freezing
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000));
+      await Promise.race([fetchPromise, timeoutPromise]);
+
       this.loading = false;
+      this.initialized = true;
+      this._isFetching = false;
       App.renderCurrentView();
     } catch (e) {
-      console.error(e);
+      console.error("DigitalLearningView fetchData Error:", e);
       this.error = "Unable to load learning resources. Please try again.";
       this.loading = false;
+      this.initialized = true;
+      this._isFetching = false;
       App.renderCurrentView();
     }
   },
 
   afterRender() {
-    if (this.loading) {
+    if (!this.initialized && !this._isFetching && !this.error) {
        this.fetchData();
     }
   }
