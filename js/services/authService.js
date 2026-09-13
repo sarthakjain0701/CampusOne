@@ -39,20 +39,24 @@ const authService = {
   },
 
   getCurrentUser() {
+    let user = null;
     if (window.FirebaseService && window.FirebaseService.currentUser) {
-      return window.FirebaseService.currentUser;
-    }
-    const data = localStorage.getItem(this.STORAGE_KEY);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        if (window.FirebaseService) window.FirebaseService.currentUser = parsed;
-        return parsed;
-      } catch (e) {
-        return null;
+      user = window.FirebaseService.currentUser;
+    } else {
+      const data = localStorage.getItem(this.STORAGE_KEY);
+      if (data) {
+        try {
+          user = JSON.parse(data);
+          if (window.FirebaseService) window.FirebaseService.currentUser = user;
+        } catch (e) {
+          return null;
+        }
       }
     }
-    return null;
+    if (user && user.role) {
+      user.role = String(user.role).trim().toUpperCase();
+    }
+    return user;
   },
 
   getCurrentRole() {

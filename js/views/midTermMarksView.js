@@ -65,7 +65,14 @@ const MidTermMarksView = {
       }
 
       if (user && user.role === 'STUDENT') {
-        const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || this.students[0];
+        let student = null;
+        if (typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+          student = await studentService.resolveStudentProfile(user);
+        }
+        if (!student) {
+          student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || this.students[0];
+        }
+        this.myStudent = student;
         this.marksData = await midTermMarksService.getMarksForStudent(student ? student.id : user.id);
       }
 
@@ -95,7 +102,7 @@ const MidTermMarksView = {
   // =========================================================================
   renderStudentSelfView(user) {
     const students = this.students || [];
-    const student = students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || students[0];
+    const student = this.myStudent || students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id) || students[0];
 
     const marks = this.marksData || [];
     const published = marks.filter(m => m.status === 'PUBLISHED');

@@ -52,12 +52,17 @@ const ExamResultsView = {
         const user = authService.getCurrentUser();
         
         if (user.role === 'STUDENT') {
-          const student = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id);
+          let resolvedStudent = null;
+          if (typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+            resolvedStudent = await studentService.resolveStudentProfile(user);
+          } else {
+            resolvedStudent = this.students.find(s => s.email === user.email || s.userId === user.uid || s.id === user.id);
+          }
           
-          if (!student && !user.name) {
+          if (!resolvedStudent && !user.name) {
             this.profileMissing = true;
           } else {
-            this.myStudent = student || { id: user.uid || user.id, name: user.name || user.displayName || 'Student', email: user.email, rollNumber: 'N/A' };
+            this.myStudent = resolvedStudent || { id: user.uid || user.id, name: user.name || user.displayName || 'Student', email: user.email, rollNumber: 'N/A' };
             this.results = await ExamResultService.getPublishedResults(this.myStudent.id, this.selectedSemester, user);
             this.summary = await ExamResultService.calculateStudentSummary(this.myStudent.id, this.selectedSemester, user);
           }
@@ -406,7 +411,7 @@ const ExamResultsView = {
                   ${results.map((r, i) => {
                     const sub = subjects.find(s => s.id === (r?.subjectId || r?.id));
                     const code = sub?.code || r?.subjectCode || 'N/A';
-                    const name = sub?.name || r?.subjectName || r?.subjectId || 'N/A';
+                    const name = sub?.name || r?.subjectName || r?.subjectId || 'Subject information unavailable';
                     
                     // Derive Pass/Fail at subject level based on 40% mapping
                     const isPass = (r?.marks || 0) >= ((r?.maxMarks || 0) * 0.4);
@@ -549,7 +554,7 @@ const ExamResultsView = {
                           <strong style="color:var(--color-navy-dark);">${stu ? stu.name : r.studentId}</strong>
                           <div style="font-size:0.75rem; color:var(--color-text-muted); font-family:monospace;">${stu ? stu.registrationNumber || stu.rollNumber : ''}</div>
                         </td>
-                        <td >${sub ? sub.name : r.subjectId}</td>
+                        <td >${sub ? sub.name : (r.subjectId || 'Subject information unavailable')}</td>
                         <td style="text-align:center;">Sem ${r.semester}</td>
                         <td style="text-align:center;">
                           <strong style="color:#2563EB;">${r.marks}</strong> / ${r.maxMarks}
@@ -733,7 +738,7 @@ const ExamResultsView = {
                         <div style="font-size:0.75rem; color:var(--color-text-muted); font-family:monospace;">${stu ? stu.registrationNumber || stu.rollNumber : ''}</div>
                       </td>
                       <td style="text-align:center;">Sem ${r.semester}</td>
-                      <td >${sub ? sub.name : r.subjectId}</td>
+                      <td >${sub ? sub.name : (r.subjectId || 'Subject information unavailable')}</td>
                       <td style="text-align:center;"><strong>${r.marks}</strong> / ${r.maxMarks}</td>
                       <td style="text-align:center;"><span class="status-badge active" style="font-weight:700;">${r.grade}</span></td>
                       <td style="text-align:center;">

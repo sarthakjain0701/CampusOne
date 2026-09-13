@@ -11,6 +11,7 @@ const HolidayCalendarView = {
   isLoading: false,
   hasLoadedGoogleEvents: false,
   errorLoadingGoogleEvents: null,
+  infoLoadingGoogleEvents: null,
 
   async fetchGoogleEvents() {
     this.isLoading = true;
@@ -19,11 +20,21 @@ const HolidayCalendarView = {
     try {
       if (window.GoogleCalendarService) {
         await window.GoogleCalendarService.syncEventsToMemory();
+        if (window.GoogleCalendarService.isConfigured === false) {
+          this.infoLoadingGoogleEvents = "Google Calendar integration is not configured.";
+          this.errorLoadingGoogleEvents = null;
+        } else {
+          this.infoLoadingGoogleEvents = null;
+          this.errorLoadingGoogleEvents = null;
+        }
+      } else {
+        this.infoLoadingGoogleEvents = null;
+        this.errorLoadingGoogleEvents = null;
       }
       this.hasLoadedGoogleEvents = true;
-      this.errorLoadingGoogleEvents = null;
     } catch (e) {
       this.hasLoadedGoogleEvents = true;
+      this.infoLoadingGoogleEvents = null;
       this.errorLoadingGoogleEvents = "Unable to load external calendar events. Please try again later.";
     }
 
@@ -108,6 +119,13 @@ const HolidayCalendarView = {
         <div style="background:#FEE2E2; color:#B91C1C; padding:1rem; border-radius:8px; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.5rem; font-weight:600;">
           <i data-lucide="alert-triangle"></i>
           ${this.errorLoadingGoogleEvents}
+        </div>
+      ` : ''}
+
+      ${this.infoLoadingGoogleEvents ? `
+        <div style="background:#EFF6FF; color:#1E3A8A; padding:1rem; border-radius:8px; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.5rem; font-weight:600;">
+          <i data-lucide="info"></i>
+          ${this.infoLoadingGoogleEvents}
         </div>
       ` : ''}
 

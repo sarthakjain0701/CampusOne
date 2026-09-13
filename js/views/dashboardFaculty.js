@@ -27,11 +27,14 @@ const DashboardFaculty = {
       this.myFaculty = facultyList.find(f => f.email === user.email || f.userId === user.uid) || { id: user.uid || user.id, name: user.name || user.displayName || 'Faculty', email: user.email };
       
       this.assignments = typeof assignmentService !== 'undefined' ? await assignmentService.getAssignments() : [];
-      if (typeof AttendanceAssignmentService !== 'undefined' && this.myFaculty) {
-        this.attendanceAssignments = await AttendanceAssignmentService.getFacultyAssignments(this.myFaculty.id);
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (typeof window.MasterTimetableService !== 'undefined' && this.myFaculty) {
+        this.todaySchedule = await window.MasterTimetableService.getFacultyScheduleForDate(this.myFaculty.id, todayStr);
       } else {
-        this.attendanceAssignments = [];
+        this.todaySchedule = [];
       }
+
 
             if (typeof classService !== 'undefined' && classService.getClassesFromFirestore) {
         this.classes = await classService.getClassesFromFirestore();
@@ -140,25 +143,16 @@ const DashboardFaculty = {
 
           <div style="display: flex; flex-direction: column; gap: 1rem;">
             ${(() => {
-              if (typeof AttendanceAssignmentService === 'undefined' || typeof TimetableService === 'undefined') {
-                return '<div style="padding:1rem; color:var(--color-text-muted);">Services not fully loaded.</div>';
+              if (typeof window.MasterTimetableService === 'undefined') {
+                return '<div style="padding:1rem; color:var(--color-text-muted);">MasterTimetableService not fully loaded.</div>';
               }
               
-              const todayAssignments = [];
               const todayStr = new Date().toISOString().split('T')[0];
-              const todayName = typeof AcademicCalendarService !== 'undefined' ? AcademicCalendarService.getDayName(todayStr) : new Date().toLocaleDateString('en-US', { weekday: 'long' });
-              
-              const allMyAssignments = this.attendanceAssignments || [];
+              const todayAssignments = this.todaySchedule || [];
               const classes = this.classes;
               const subjects = this.subjects;
               const students = this.students;
-              
-              for (const assign of allMyAssignments) {
-                const tt = this.timetablesMap ? this.timetablesMap[assign.timetableId] : null;
-                if (tt && tt.day === todayName) {
-                  todayAssignments.push({ assign, tt });
-                }
-              }
+
 
               if (todayAssignments.length === 0) {
                 return `
@@ -173,18 +167,19 @@ const DashboardFaculty = {
               }
 
               return todayAssignments.map(data => {
-                const cls = classes.find(c => c.id === data.assign.classId);
-                const sub = subjects.find(s => s.id === data.assign.subjectId);
-                const clsName = cls ? cls.name : data.assign.classId;
-                const subName = sub ? sub.name : data.assign.subjectId;
-                const subCode = sub ? sub.code : '';
-                const numStudents = students.filter(s => s.classId === data.assign.classId).length;
+                const classId = data.sectionId || data.classId;
+                const subjectId = data.subjectId;
+                const cls = classes.find(c => c.id === classId);
+                const sub = subjects.find(s => s.id === subjectId);
+                const clsName = cls ? cls.name : classId;
+                const subName = sub ? sub.name : subjectId;
+                const numStudents = students.filter(s => s.classId === classId).length;
                 
                 return `
                   <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; background: #FFF; padding: 1.25rem;">
                     <div>
                       <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-                        <span class="status-badge pending" style="background: rgba(99, 102, 241, 0.15); color: var(--color-secondary); border: none;">${data.tt.startTime} – ${data.tt.endTime}</span>
+                        <span class="status-badge pending" style="background: rgba(99, 102, 241, 0.15); color: var(--color-secondary); border: none;">${data.startTime} – ${data.endTime}</span>
                         <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-muted);">${clsName}</span>
                       </div>
                       <h4 style="font-size: 1.15rem; font-weight: 800; color: var(--color-navy-dark); margin-bottom: 0.25rem;">${subName}</h4>
@@ -193,7 +188,7 @@ const DashboardFaculty = {
                       </p>
                     </div>
                     <div>
-                      <button class="btn-primary" onclick="App.navigateTo('mark-attendance', { classId: '${data.assign.classId}', subjectId: '${data.assign.subjectId}', date: '${todayStr}', timetableId: '${data.assign.timetableId}' })" >
+                      <button class="btn-primary" onclick="App.navigateTo('mark-attendance', { classId: '${classId}', subjectId: '${subjectId}', date: '${todayStr}' })" >
                         <i data-lucide="check-square" style="width: 18px;"></i> Mark Attendance
                       </button>
                     </div>

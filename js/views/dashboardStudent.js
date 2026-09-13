@@ -22,6 +22,7 @@ const DashboardStudent = {
   attendanceStats: null,
   subjectStats: null,
   libraryStats: null,
+  profileMissing: false,
 
   afterRender() {
     if (!this.initialized) {
@@ -79,15 +80,37 @@ const DashboardStudent = {
 
     try {
       const fetchPromise = (async () => {
-        const db = window.FirebaseService ? window.FirebaseService.db : null;
-        if (db && user.email) {
-          // Only query the current student! Do not download the whole collection.
-          let snap = await db.collection('students').where('email', '==', user.email).limit(1).get();
-          if (snap.empty && user.uid) {
-            snap = await db.collection('students').where('userId', '==', user.uid).limit(1).get();
+        if (typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+          const resolvedStudent = await studentService.resolveStudentProfile(user);
+          if (resolvedStudent) {
+            student = resolvedStudent;
+            this.profileMissing = false;
+          } else {
+            this.profileMissing = true;
           }
-          if (!snap.empty) {
-            student = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        } else {
+          // Fallback if studentService is not loaded — query authorizedUsers directly
+          const db = window.FirebaseService ? window.FirebaseService.db : null;
+          if (db) {
+            let found = false;
+            // authorizedUsers documents are keyed by email
+            if (user.email) {
+              try {
+                const authDoc = await db.collection('authorizedUsers').doc(user.email.toLowerCase().trim()).get();
+                if (authDoc.exists) {
+                  student = { id: authDoc.id, email: authDoc.id, ...authDoc.data() };
+                  this.profileMissing = false;
+                  found = true;
+                }
+              } catch(e) {
+                console.warn('Dashboard fallback: authorizedUsers lookup failed', e);
+              }
+            }
+            if (!found) {
+              this.profileMissing = true;
+            }
+          } else {
+            this.profileMissing = true;
           }
         }
       })();
@@ -108,7 +131,13 @@ const DashboardStudent = {
   },
 
   async fetchAttendance(student) {
-    if (!student) return;
+    if (!student || this.profileMissing) {
+       this.attendanceStats = { percentage: 0, total: 0, present: 0, absent: 0, status: 'N/A' };
+       this.subjectStats = [];
+       this.loading.attendance = false;
+       App.renderCurrentView();
+       return;
+    }
     try {
       const fetchPromise = (async () => {
         const db = window.FirebaseService ? window.FirebaseService.db : null;
@@ -263,12 +292,16 @@ const DashboardStudent = {
     let headerDetails = `<span style="opacity:0.6;"><i data-lucide="loader" style="width:14px; height:14px; animation:spin 1s linear infinite; margin-right:4px;"></i> Loading student profile...</span>`;
     
     if (!this.loading.student && !this.errors.student && this.myStudent) {
-       headerName = (this.myStudent.name || headerName).split(' ')[0];
-       const studentRoll = this.myStudent.rollNo || this.myStudent.rollNumber || '—';
-       const dept = this.myStudent.department || '—';
-       const sec = this.myStudent.section || '—';
-       const sem = this.myStudent.semester || '—';
-       headerDetails = `Roll Number: <strong>${studentRoll}</strong> | Class: <strong>${dept}-${sec}</strong> (Semester ${sem})`;
+       if (this.profileMissing) {
+           headerDetails = `<span style="color:var(--color-warning); font-weight:600;"><i data-lucide="alert-circle" style="width:14px; height:14px;"></i> Student profile not available. Account authenticated, but profile could not be loaded.</span>`;
+       } else {
+           headerName = (this.myStudent.name || headerName).split(' ')[0];
+           const studentRoll = this.myStudent.rollNo || this.myStudent.rollNumber || '—';
+           const dept = this.myStudent.department || '—';
+           const sec = this.myStudent.section || '—';
+           const sem = this.myStudent.semester || '—';
+           headerDetails = `Roll Number: <strong>${studentRoll}</strong> | Class: <strong>${dept}-${sec}</strong> (Semester ${sem})`;
+       }
     } else if (this.errors.student) {
        headerDetails = `<span style="color:var(--color-danger);"><i data-lucide="alert-circle" style="width:14px; height:14px;"></i> Unable to load profile details.</span>`;
     }
@@ -283,6 +316,15 @@ const DashboardStudent = {
     } else if (this.errors.attendance) {
        attendanceHtml = `<div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7);">${renderError('attendance')}</div>`;
        subjectHtml = `<div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7);">${renderError('subjects')}</div>`;
+    } else if (this.profileMissing) {
+       attendanceHtml = `
+          <div class="glass-panel" style="padding: 2rem; background: rgba(255,255,255,0.7); text-align:center;">
+             <i data-lucide="user-x" style="width:40px; height:40px; color:var(--color-warning); margin-bottom:1rem;"></i>
+             <h3 style="font-size:1.25rem; font-weight:700; color:var(--color-navy-dark);">No Profile Linked</h3>
+             <p style="color:var(--color-text-muted); font-size:0.9rem;">Your account is missing an associated student profile, so academic data cannot be displayed.</p>
+          </div>
+       `;
+       subjectHtml = '';
     } else {
        const stats = this.attendanceStats || { percentage: 0, total: 0, present: 0, absent: 0, status: 'Unknown' };
        const strokeOffset = 364 - (364 * (stats.percentage / 100));

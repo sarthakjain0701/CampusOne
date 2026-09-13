@@ -25,6 +25,9 @@ const App = {
           if (authService.getCurrentUser() === null) {
             this.renderLogin();
           }
+        } else if (user && this.currentView === 'login') {
+          // Firebase restored session while on login screen
+          this.onLoginSuccess(user);
         }
       });
     }
@@ -329,7 +332,6 @@ const App = {
       { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'mark-attendance', label: 'Attendance', icon: 'check-square', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT'] },
       { id: 'attendance-history', label: 'Attendance History', icon: 'history', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
-      { id: 'attendance-assignments', label: 'Faculty Attendance Assignments', icon: 'calendar-check', roles: ['ADMIN'] },
       { id: 'digital-learning', label: 'Digital Learning', icon: 'book-open', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'timetable', label: 'Timetable', icon: 'calendar', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'exam-results', label: 'Exam Results', icon: 'award', roles: ['ADMIN', 'STUDENT'] },
@@ -507,6 +509,9 @@ const App = {
       if (user && (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT')) {
         if (window.DashboardFaculty.afterRender) window.DashboardFaculty.afterRender();
         if (window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
+      }
+      if (user && user.role === 'STUDENT') {
+        if (window.DashboardStudent && window.DashboardStudent.afterRender) window.DashboardStudent.afterRender();
       }
     } else if (this.currentView === 'reports') {
       if (window.ReportsView && window.ReportsView.afterRender) window.ReportsView.afterRender();

@@ -42,8 +42,9 @@ const MarkAttendanceView = {
       }
 
       if (AuthorizationService.isAcademicStaff(user)) {
-        if (typeof AttendanceAssignmentService !== 'undefined') {
-          this.hasAccess = await AttendanceAssignmentService.canMarkAttendance(user.id, this.selectedClassId, this.selectedSubjectId, this.selectedDate);
+        if (window.MasterTimetableService) {
+          const schedule = await window.MasterTimetableService.getFacultyScheduleForDate(user.id, this.selectedDate);
+          this.hasAccess = schedule.some(s => (s.sectionId === this.selectedClassId || s.classId === this.selectedClassId) && s.subjectId === this.selectedSubjectId);
         } else {
           this.hasAccess = true;
         }
@@ -123,7 +124,7 @@ const MarkAttendanceView = {
     let subjects = subjectService.getSubjects();
 
     if (AuthorizationService.isAcademicStaff(user)) {
-      if (typeof AttendanceAssignmentService !== 'undefined') {
+      if (window.MasterTimetableService) {
         if (!this.hasAccess && this.selectedClassId && this.selectedSubjectId) {
           return AuthorizationService.renderAccessDeniedBanner("You are not assigned to take attendance for this specific class, subject, and date.");
         } else if (!this.selectedClassId) {

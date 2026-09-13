@@ -99,7 +99,7 @@ const DashboardAdmin = {
       </div>
 
       <!-- POORNIMA HERO BANNER -->
-      <div class="glass-panel" style="background-image: linear-gradient(to right, rgba(8, 25, 55, 0.9), rgba(8, 25, 55, 0.4)), url('https://encrypted-tbn0.gstatic.com/images?q=tbm0.gstatic.com/images?q=tbn:ANd9GcQN7_9-FyE5OVqVhdW07dipp8COHU3ch2yIvwRyzkROUFys8KdtinCr-Pvd&s=10'); background-size: cover; background-position: center; border-radius: var(--radius-xl); padding: 2.5rem; margin-bottom: 2rem; color: #FFF; box-shadow: var(--glass-shadow);">
+      <div class="glass-panel" style="background-image: linear-gradient(135deg, rgba(8, 25, 55, 0.95) 0%, rgba(30, 64, 130, 0.9) 50%, rgba(37, 99, 235, 0.85) 100%); background-size: cover; background-position: center; border-radius: var(--radius-xl); padding: 2.5rem; margin-bottom: 2rem; color: #FFF; box-shadow: var(--glass-shadow);">
         <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">Welcome to Poornima Group Of College</h2>
         <p style="font-size: 1rem; color: rgba(255,255,255,0.85); max-width: 600px; margin-bottom: 1.5rem;">Smart Attendance. Better Management. Better Education. Manage attendance, academics, library and campus operations from one centralized platform.</p>
         <div style="display: flex; gap: 12px; margin-top: 1.5rem;">

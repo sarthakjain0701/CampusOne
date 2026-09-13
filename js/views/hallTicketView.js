@@ -49,12 +49,17 @@ const HallTicketView = {
         ]);
 
         // Map student by auth uid/email fallback chain
-        this.studentInfo = students.find(s =>
-          s.id === user.id ||
-          s.id === user.uid ||
-          s.email === user.email ||
-          s.userId === user.uid
-        ) || null;
+        if (typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+          this.studentInfo = await studentService.resolveStudentProfile(user);
+        }
+        if (!this.studentInfo) {
+          this.studentInfo = students.find(s =>
+            s.id === user.id ||
+            s.id === user.uid ||
+            s.email === user.email ||
+            s.userId === user.uid
+          ) || null;
+        }
 
         this.departments = departments;
         this.allSubjects = allSubjects;
@@ -63,6 +68,11 @@ const HallTicketView = {
         this.ticket = (typeof hallTicketService !== 'undefined')
           ? await hallTicketService.getHallTicket(this.studentInfo?.id || user.id)
           : null;
+
+        if (this.ticket && this.ticket.isMockData) {
+          // If we fell back to a mock ticket, map the mock student data
+          this.studentInfo = students.find(s => s.id === this.ticket.studentId) || this.studentInfo;
+        }
 
         // Fetch exam form & period if ticket exists
         if (this.ticket && typeof ExamFormService !== 'undefined') {
@@ -154,7 +164,7 @@ const HallTicketView = {
         </div>
         <div class="card" style="text-align:center; padding:4rem 2rem;">
           <div style="font-size:3rem; margin-bottom:1rem;">📄</div>
-          <h2 style="font-size:1.4rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">Hall ticket is not available yet.</h2>
+          <h2 style="font-size:1.4rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">No hall ticket has been generated for this examination.</h2>
           <p style="color:var(--color-text-muted); max-width:420px; margin:0 auto;">Please check back later or wait for a notification from the administration.</p>
         </div>
       `;
@@ -216,8 +226,8 @@ const HallTicketView = {
           <td style="border:1px solid #ccc; padding:4px 5px; text-align:center; font-size:10px;">${i + 1}</td>
           <td style="border:1px solid #ccc; padding:4px 6px; font-size:10px; font-weight:700; font-family:monospace; white-space:nowrap;">${s.code || '—'}</td>
           <td style="border:1px solid #ccc; padding:4px 6px; font-size:10px;">${s.name || '—'}</td>
-          <td style="border:1px solid #ccc; padding:4px 5px; text-align:center; font-size:10px; white-space:nowrap;">${examStartDate}</td>
-          <td style="border:1px solid #ccc; padding:4px 5px; text-align:center; font-size:10px; white-space:nowrap;">10:00 AM</td>
+          <td style="border:1px solid #ccc; padding:4px 5px; text-align:center; font-size:10px; white-space:nowrap;">${s.date || examStartDate}</td>
+          <td style="border:1px solid #ccc; padding:4px 5px; text-align:center; font-size:10px; white-space:nowrap;">${s.time || '10:00 AM'}</td>
         </tr>`).join('');
     };
 
@@ -700,13 +710,13 @@ const HallTicketView = {
               <div>&nbsp;</div>
               Candidate Signature
             </div>
-            <div class="ht-seal">
-              <div class="ht-seal-circle">SEAL</div>
-              College Seal
-            </div>
             <div class="ht-sig-line">
               <div>&nbsp;</div>
               Controller of Examination
+            </div>
+            <div class="ht-sig-line">
+              <div>&nbsp;</div>
+              Principal
             </div>
           </div>
 

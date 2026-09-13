@@ -6,6 +6,7 @@ const GoogleCalendarService = {
   events: [],
   hasSynced: false,
   isSyncing: false,
+  isConfigured: true,
 
   /**
    * Fetches events from Google Calendar API
@@ -16,10 +17,12 @@ const GoogleCalendarService = {
     
     // Check if configuration exists
     if (!window.ENV || !window.ENV.GOOGLE_CALENDAR_API_KEY || !window.ENV.GOOGLE_CALENDAR_ID) {
-      console.warn("Google Calendar API is not configured. Missing ENV variables.");
+      this.isConfigured = false;
       this.hasSynced = true; // Mark as synced so we don't keep retrying
       return;
     }
+    
+    this.isConfigured = true;
 
     this.isSyncing = true;
     

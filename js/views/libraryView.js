@@ -23,21 +23,38 @@ const LibraryView = {
 
     try {
       const db = LibraryService._getDb();
-      const userEmail = (user.email || '').toLowerCase().trim();
+      let userEmail = (user.email || '').toLowerCase().trim();
+      let studentId = user.uid || user.id;
+
+      if (user.role === 'STUDENT' && typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+        const profile = await studentService.resolveStudentProfile(user);
+        if (profile) {
+          studentId = profile.id;
+          if (profile.email) userEmail = profile.email.toLowerCase().trim();
+        }
+      }
 
       // Parallelize queries aligning with Firestore security rules
-      const [transSnapshot, fineSnapshot] = await Promise.all([
-        db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get(),
-        db.collection('libraryFines').where('memberEmail', '==', userEmail).get()
+      const fetchPromise = Promise.all([
+        db.collection('libraryTransactions').where('userId', '==', studentId).get().then(snap => {
+          if (!snap.empty) return snap;
+          return userEmail ? db.collection('libraryTransactions').where('memberEmail', '==', userEmail).get() : snap;
+        }),
+        db.collection('libraryFines').where('userId', '==', studentId).get().then(snap => {
+          if (!snap.empty) return snap;
+          return userEmail ? db.collection('libraryFines').where('memberEmail', '==', userEmail).get() : snap;
+        })
       ]);
+
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out after 8 seconds')), 8000));
+      const [transSnapshot, fineSnapshot] = await Promise.race([fetchPromise, timeoutPromise]);
 
       this.transactions = transSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       this.fines = fineSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      this.loading = false;
-      App.renderCurrentView();
     } catch (err) {
       console.error("LibraryView fetch error:", err);
       this.errorMessage = err.message || "Failed to load library records.";
+    } finally {
       this.loading = false;
       App.renderCurrentView();
     }

@@ -41,7 +41,21 @@ const TimetableView = {
   },
 
   async fetchData() {
+    // Prevent duplicate concurrent fetches
+    if (this._isFetching) return;
+    this._isFetching = true;
+
     try {
+      // ── Get authenticated user using the project's standard pattern ──
+      const user = (typeof authService !== 'undefined') ? authService.getCurrentUser() : null;
+      if (!user) {
+        this.loading = false;
+        this.error = "Authentication required. Please log in.";
+        this._isFetching = false;
+        App.renderCurrentView();
+        return;
+      }
+
       const fetchPromise = (async () => {
         if (!this.timetablesData.faculty) {
           if (typeof facultyService !== 'undefined' && facultyService.getFacultyFromFirestore) {
@@ -87,7 +101,16 @@ const TimetableView = {
           }
         }
 
+        // ── Resolve student profile for STUDENT role using centralized resolver ──
         if (this.activeTab === 'weekly') {
+          if (user.role === 'STUDENT' && typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+            try {
+              this.myStudent = await studentService.resolveStudentProfile(user);
+            } catch (resolveErr) {
+              console.warn('TimetableView: Could not resolve student profile:', resolveErr);
+              this.myStudent = null;
+            }
+          }
           this.timetablesData.weekly = await TimetableService.getAllTimetables();
         } else {
           const queryOptions = {
@@ -117,10 +140,12 @@ const TimetableView = {
 
       this.loading = false;
       this.error = null;
+      this._isFetching = false;
       App.renderCurrentView();
     } catch (err) {
       this.loading = false;
       this.error = "Unable to load timetable.";
+      this._isFetching = false;
       console.error("Failed to load timetables:", err);
       App.renderCurrentView();
     }
@@ -232,7 +257,7 @@ const TimetableView = {
 
     if (user.role === 'STUDENT') {
       const studentList = this.timetablesData.students || [];
-      const student = studentList.find(s => s.email === user.email || s.userId === user.uid) || { department: 'CSE', semester: 1, section: 'A' };
+      const student = this.myStudent || studentList.find(s => s.email === user.email || s.userId === user.uid) || {};
       const classObj = classes.find(c => c.department === student.department && Number(c.semester) === Number(student.semester) && c.section === student.section);
       sectionId = classObj ? classObj.id : (student.classId || 'CLS001');
     }
@@ -275,7 +300,19 @@ const TimetableView = {
             </div>
           </div>
 
-          <div style="display:flex; gap:0.5rem;">
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            ${isAdmin ? `
+              <button class="btn-sm btn-primary" onclick="TimetableView.openAddMasterModal()">
+                <i data-lucide="plus" style="width:14px; height:14px;"></i> Add Master Slot
+              </button>
+            ` : ''}
+            <button class="btn-sm btn-secondary" onclick="TimetableView.exportToPDF()" style="color:#DC2626; border-color:#FECACA;">
+              <i data-lucide="download" style="width:14px; height:14px;"></i> PDF
+            </button>
+            <button class="btn-sm btn-secondary" onclick="TimetableView.exportToWord()" style="color:#2563EB; border-color:#BFDBFE;">
+              <i data-lucide="file-text" style="width:14px; height:14px;"></i> Word
+            </button>
+
             <button class="btn-sm ${this.viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}" onclick="TimetableView.setWeeklyViewMode('grid')">
               <i data-lucide="grid" style="width:14px; height:14px;"></i> Grid
             </button>
@@ -406,6 +443,474 @@ const TimetableView = {
   },
 
   // =========================================================================
+  // EXPORT LOGIC
+  // =========================================================================
+  
+  exportToPDF() {
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
+    const departments = (this.timetablesData && this.timetablesData.departments) || [];
+    const sectionId = this.selectedSection !== 'ALL' ? this.selectedSection : (classes[0] ? classes[0].id : 'CLS001');
+    const selectedClass = classes.find(c => c.id === sectionId);
+    const departmentName = selectedClass ? (departments.find(d => d.id === selectedClass.departmentId)?.name || selectedClass.department || 'Computer Science & Engineering') : 'Computer Science & Engineering';
+
+    const rawTimetable = this.timetablesData.weekly || [];
+    let filtered = rawTimetable.filter(t => (t.sectionId === sectionId || t.classId === sectionId) && t.status === 'ACTIVE');
+    
+    if(filtered.length === 0) {
+      UIService.showToast("No timetable available for the selected section.", "warning");
+      return;
+    }
+
+    const htmlContent = `
+      <div id="pdf-export-container" style="padding: 20px; font-family: 'Inter', sans-serif; color: #000; background: #fff;">
+        <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+          <h1 style="font-size: 24px; font-weight: bold; margin: 0; text-transform: uppercase;">POORNIMA GROUP OF COLLEGE</h1>
+          <h2 style="font-size: 18px; margin: 5px 0;">WEEKLY CLASS TIMETABLE</h2>
+        </div>
+        <div style="margin-bottom: 20px; font-size: 14px;">
+          <div><strong>Department:</strong> ${departmentName}</div>
+          <div><strong>Program:</strong> B.Tech</div>
+          <div><strong>Semester:</strong> ${selectedClass ? selectedClass.semester : ''}</div>
+          <div><strong>Section:</strong> ${selectedClass ? selectedClass.name : ''}</div>
+          <div><strong>Academic Year:</strong> 2025-26</div>
+        </div>
+        ${this.getExportTableHtml(filtered)}
+        <div style="margin-top: 30px; font-size: 10px; color: #555; text-align: center;">
+          Generated from CampusOne ERP | Generated On: ${new Date().toLocaleString()}
+        </div>
+      </div>
+    `;
+
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
+
+    const opt = {
+      margin:       0.5,
+      filename:     `CampusOne_Timetable_${departmentName}_${selectedClass ? selectedClass.semester : ''}_${selectedClass ? selectedClass.name : ''}_2025-26.pdf`.replace(/\\s+/g, '_'),
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+    };
+
+    html2pdf().set(opt).from(container).save().then(() => {
+      document.body.removeChild(container);
+    });
+  },
+
+  exportToWord() {
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
+    const departments = (this.timetablesData && this.timetablesData.departments) || [];
+    const sectionId = this.selectedSection !== 'ALL' ? this.selectedSection : (classes[0] ? classes[0].id : 'CLS001');
+    const selectedClass = classes.find(c => c.id === sectionId);
+    const departmentName = selectedClass ? (departments.find(d => d.id === selectedClass.departmentId)?.name || selectedClass.department || 'Computer Science & Engineering') : 'Computer Science & Engineering';
+
+    const rawTimetable = this.timetablesData.weekly || [];
+    let filtered = rawTimetable.filter(t => (t.sectionId === sectionId || t.classId === sectionId) && t.status === 'ACTIVE');
+    
+    if(filtered.length === 0) {
+      UIService.showToast("No timetable available for the selected section.", "warning");
+      return;
+    }
+
+    if(typeof docx === 'undefined') {
+      UIService.showToast("DOCX library not loaded.", "danger");
+      return;
+    }
+
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } = docx;
+
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const timeSlots = [
+      { label: '09:00 AM – 10:00 AM', start: '09:00' },
+      { label: '10:00 AM – 11:00 AM', start: '10:00' },
+      { label: '11:00 AM – 12:00 PM', start: '11:00' },
+      { label: '12:00 PM – 01:00 PM', start: '12:00' }
+    ];
+
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = this.timetablesData.faculty || [];
+
+    const tableRows = [];
+    
+    // Header Row
+    const headerCells = [new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "TIME / DAY", bold: true })], alignment: AlignmentType.CENTER })] })];
+    days.forEach(d => {
+      headerCells.push(new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: d.toUpperCase(), bold: true })], alignment: AlignmentType.CENTER })] }));
+    });
+    tableRows.push(new TableRow({ children: headerCells }));
+
+    // Data Rows
+    timeSlots.forEach(slot => {
+      const rowCells = [new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: slot.label, size: 20 })], alignment: AlignmentType.CENTER })] })];
+      
+      days.forEach(day => {
+        const entry = filtered.find(e => e.day && e.day.toLowerCase() === day.toLowerCase() && e.startTime === slot.start);
+        if (!entry) {
+          rowCells.push(new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "— Free —", size: 20 })], alignment: AlignmentType.CENTER })] }));
+        } else {
+          const sub = subjects.find(s => s.id === entry.subjectId);
+          const fac = faculty.find(f => f.id === entry.facultyId);
+          const isPractical = sub && (sub.type === 'PRACTICAL' || sub.name.toLowerCase().includes('lab'));
+          const roomLabel = isPractical ? `Lab ${entry.room || '—'}` : `Room ${entry.room || '—'}`;
+          let subjectName = isPractical && sub && !sub.name.toLowerCase().includes('lab') ? `${sub.name} Lab` : (sub ? sub.name : entry.subjectId);
+          if (isPractical) subjectName += " (Practical)";
+          
+          rowCells.push(new TableCell({
+            children: [
+              new Paragraph({ children: [new TextRun({ text: subjectName, bold: true, size: 22 })] }),
+              new Paragraph({ children: [new TextRun({ text: sub ? sub.code : '', size: 18 })] }),
+              new Paragraph({ children: [new TextRun({ text: fac ? fac.name : '—', size: 18 })] }),
+              new Paragraph({ children: [new TextRun({ text: roomLabel, size: 18 })] })
+            ]
+          }));
+        }
+      });
+      tableRows.push(new TableRow({ children: rowCells }));
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({ children: [new TextRun({ text: "POORNIMA GROUP OF COLLEGE", bold: true, size: 32 })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ children: [new TextRun({ text: "WEEKLY CLASS TIMETABLE", bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ text: "" }),
+          new Paragraph({ children: [new TextRun({ text: `Department: ${departmentName}`, size: 24 })] }),
+          new Paragraph({ children: [new TextRun({ text: `Program: B.Tech`, size: 24 })] }),
+          new Paragraph({ children: [new TextRun({ text: `Semester: ${selectedClass ? selectedClass.semester : ''}`, size: 24 })] }),
+          new Paragraph({ children: [new TextRun({ text: `Section: ${selectedClass ? selectedClass.name : ''}`, size: 24 })] }),
+          new Paragraph({ children: [new TextRun({ text: `Academic Year: 2025-26`, size: 24 })] }),
+          new Paragraph({ text: "" }),
+          new Table({
+            rows: tableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          }),
+          new Paragraph({ text: "" }),
+          new Paragraph({ children: [new TextRun({ text: `Generated from CampusOne ERP | Generated On: ${new Date().toLocaleString()}`, size: 16 })], alignment: AlignmentType.CENTER })
+        ]
+      }]
+    });
+
+    Packer.toBlob(doc).then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `CampusOne_Timetable_${departmentName}_${selectedClass ? selectedClass.semester : ''}_${selectedClass ? selectedClass.name : ''}_2025-26.docx`.replace(/\\s+/g, '_');
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
+  },
+
+  getExportTableHtml(entries) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const timeSlots = [
+      { label: '09:00 AM – 10:00 AM', start: '09:00' },
+      { label: '10:00 AM – 11:00 AM', start: '10:00' },
+      { label: '11:00 AM – 12:00 PM', start: '11:00' },
+      { label: '12:00 PM – 01:00 PM', start: '12:00' }
+    ];
+
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = this.timetablesData.faculty || [];
+
+    let html = `
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; text-align: center; font-size: 12px;">
+        <thead>
+          <tr>
+            <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0;">TIME / DAY</th>
+            ${days.map(d => `<th style="border: 1px solid #000; padding: 8px; background: #f0f0f0;">${d.toUpperCase()}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    timeSlots.forEach(slot => {
+      html += `<tr><td style="border: 1px solid #000; padding: 8px;"><strong>${slot.label}</strong></td>`;
+      days.forEach(day => {
+        const entry = entries.find(e => e.day && e.day.toLowerCase() === day.toLowerCase() && e.startTime === slot.start);
+        if (!entry) {
+          html += `<td style="border: 1px solid #000; padding: 8px; color: #666;">— Free —</td>`;
+        } else {
+          const sub = subjects.find(s => s.id === entry.subjectId);
+          const fac = faculty.find(f => f.id === entry.facultyId);
+          const isPractical = sub && (sub.type === 'PRACTICAL' || sub.name.toLowerCase().includes('lab'));
+          const roomLabel = isPractical ? `Lab ${entry.room || '—'}` : `Room ${entry.room || '—'}`;
+          let subjectName = isPractical && sub && !sub.name.toLowerCase().includes('lab') ? `${sub.name} Lab` : (sub ? sub.name : entry.subjectId);
+          if (isPractical) subjectName = `<strong>[Practical]</strong> ${subjectName}`;
+
+          html += `
+            <td style="border: 1px solid #000; padding: 8px; text-align: left;">
+              <div style="font-weight: bold;">${subjectName}</div>
+              <div>${sub ? sub.code : ''}</div>
+              <div style="margin-top: 4px;">${fac ? fac.name : '—'}</div>
+              <div>${roomLabel}</div>
+            </td>
+          `;
+        }
+      });
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+    return html;
+  },
+
+  // =========================================================================
+  // MASTER TIMETABLE UI LOGIC
+  // =========================================================================
+
+  openAddMasterModal() {
+    const departments = (this.timetablesData && this.timetablesData.departments) || [];
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = (this.timetablesData && this.timetablesData.faculty) || [];
+
+    const modalHtml = `
+      <form id="add-master-slot-form" onsubmit="return false;">
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Day of Week *</label>
+            <select id="master-tt-day" class="form-select" required>
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Section / Class *</label>
+            <select id="master-tt-section" class="form-select" required>
+              ${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Start Time *</label>
+            <input type="time" id="master-tt-start" class="form-input" value="09:00" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Time *</label>
+            <input type="time" id="master-tt-end" class="form-input" value="10:00" required>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Subject *</label>
+            <select id="master-tt-subject" class="form-select" required>
+              ${subjects.map(s => `<option value="${s.id}">${s.name} (${s.code})</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Faculty Instructor *</label>
+            <select id="master-tt-faculty" class="form-select" required>
+              ${faculty.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Room / Lecture Hall *</label>
+            <input type="text" id="master-tt-room" class="form-input" value="301" placeholder="e.g. 301" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department *</label>
+            <select id="master-tt-department" class="form-select" required>
+              ${departments.map(d => `<option value="${d.id}">${d.name} (${d.code})\</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </form>
+    `;
+
+    UIService.openModal(
+      "Add Master Timetable Slot",
+      modalHtml,
+      [
+        { text: 'Cancel', className: 'btn-secondary', onClick: () => UIService.closeModal() },
+        {
+          text: 'Save to Master',
+          className: 'btn-primary',
+          onClick: async () => {
+            const day = document.getElementById('master-tt-day').value;
+            const startTime = document.getElementById('master-tt-start').value;
+            const endTime = document.getElementById('master-tt-end').value;
+            const departmentId = document.getElementById('master-tt-department').value;
+            const sectionId = document.getElementById('master-tt-section').value;
+            const subjectId = document.getElementById('master-tt-subject').value;
+            const facultyId = document.getElementById('master-tt-faculty').value;
+            const room = document.getElementById('master-tt-room').value;
+
+            try {
+              if (window.MasterTimetableService) {
+                // Fetch existing master for section
+                const academicYear = '2026-27'; // Example
+                let master = await window.MasterTimetableService.getMasterTimetable(sectionId, academicYear);
+                
+                if (!master) {
+                  master = {
+                    sectionId, academicYear, departmentId, semesterId: 'VI', slots: []
+                  };
+                }
+
+                master.slots.push({
+                  slotId: 'SLOT_' + Date.now(),
+                  day, startTime, endTime, subjectId, facultyId, room, active: true
+                });
+
+                await window.MasterTimetableService.saveMasterTimetable(master);
+              }
+              
+              // Fallback/Legacy saving to TimetableService as well so the grid reloads correctly
+              await TimetableService.createTimetableEntry({
+                day, startTime, endTime, departmentId, sectionId, subjectId, facultyId, room, status: 'ACTIVE'
+              });
+              
+              UIService.showToast("Master Timetable slot added successfully.", "success");
+              UIService.closeModal();
+              this.loading = true;
+              this.fetchData();
+            } catch(e) {
+              UIService.showToast("Failed to save slot: " + e.message, "danger");
+            }
+          }
+        }
+      ]
+    );
+  },
+
+  openAddExceptionModal() {
+    const departments = (this.timetablesData && this.timetablesData.departments) || [];
+    const classes = (this.timetablesData && this.timetablesData.classes) || [];
+    const subjects = (this.timetablesData && this.timetablesData.subjects) || [];
+    const faculty = (this.timetablesData && this.timetablesData.faculty) || [];
+
+    const defaultDate = new Date().toISOString().split('T')[0];
+
+    const modalHtml = `
+      <form id="add-exception-slot-form" onsubmit="return false;">
+        <div class="glass-panel" style="background:#FFFBEB; border-left:4px solid #F59E0B; padding:1rem; margin-bottom:1rem; border-radius:4px;">
+          <h4 style="color:#B45309; margin:0 0 0.5rem 0; font-size:0.95rem;"><i data-lucide="info" style="width:16px; height:16px; display:inline;"></i> Add Schedule Override</h4>
+          <p style="font-size:0.85rem; color:#92400E; margin:0;">Exceptions override the permanent timetable for a <strong>specific date</strong> without permanently altering the master schedule.</p>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Exception Date *</label>
+            <input type="date" id="exc-date" class="form-input" value="${defaultDate}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Section / Class *</label>
+            <select id="exc-section" class="form-select" required>
+              <option value="" disabled selected>Select Section ▼</option>
+              ${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Original Master Slot ID (Optional / Advanced)</label>
+          <input type="text" id="exc-original-id" class="form-input" placeholder="e.g. SLOT_12345 (Leave blank if not targeting a specific slot)">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Exception Type *</label>
+          <select id="exc-type" class="form-select" required onchange="const isCancel = this.value === 'CANCEL'; document.getElementById('exc-details-panel').style.display = isCancel ? 'none' : 'block';">
+            <option value="MODIFY" selected>Modify / Substitute Faculty / Change Room</option>
+            <option value="CANCEL">Cancel Class (No Lecture)</option>
+          </select>
+        </div>
+
+        <div id="exc-details-panel">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">New Subject (Optional)</label>
+              <select id="exc-subject" class="form-select">
+                <option value="">-- Keep Original Subject --</option>
+                ${subjects.map(s => `<option value="${s.id}">${s.name} (${s.code})</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Faculty / Substitute (Optional)</label>
+              <select id="exc-faculty" class="form-select">
+                <option value="">-- Keep Original Faculty --</option>
+                ${faculty.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">New Room (Optional)</label>
+              <input type="text" id="exc-room" class="form-input" placeholder="e.g. 405">
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">New Start Time (Optional)</label>
+              <input type="time" id="exc-start" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">New End Time (Optional)</label>
+              <input type="time" id="exc-end" class="form-input">
+            </div>
+          </div>
+        </div>
+      </form>
+    `;
+
+    UIService.openModal(
+      "Create Exception / Override",
+      modalHtml,
+      [
+        { text: 'Cancel', className: 'btn-secondary', onClick: () => UIService.closeModal() },
+        {
+          text: 'Save Exception',
+          className: 'btn-primary',
+          style: 'background:#F59E0B; border-color:#F59E0B;',
+          onClick: async () => {
+            const date = document.getElementById('exc-date').value;
+            const sectionId = document.getElementById('exc-section').value;
+            const type = document.getElementById('exc-type').value;
+            const originalId = document.getElementById('exc-original-id').value || null;
+            
+            const payload = { date, sectionId, type, originalTimetableSlotId: originalId };
+            
+            if (type === 'MODIFY') {
+              payload.newSubjectId = document.getElementById('exc-subject').value || null;
+              payload.newFacultyId = document.getElementById('exc-faculty').value || null;
+              payload.newRoom = document.getElementById('exc-room').value || null;
+              payload.newStartTime = document.getElementById('exc-start').value || null;
+              payload.newEndTime = document.getElementById('exc-end').value || null;
+            }
+
+            try {
+              if (window.MasterTimetableService) {
+                await window.MasterTimetableService.saveException(payload);
+                UIService.showToast("Exception created successfully.", "success");
+                UIService.closeModal();
+                this.loading = true;
+                this.fetchData();
+              } else {
+                UIService.showToast("MasterTimetableService is not available.", "danger");
+              }
+            } catch(e) {
+              UIService.showToast("Failed to save exception: " + e.message, "danger");
+            }
+          }
+        }
+      ]
+    );
+  },
+
+
+
+  // =========================================================================
   // TAB 2: SCHEDULED SLOTS (DATA TABLE MANAGEMENT VIEW)
   // =========================================================================
   renderScheduledSlotsTab(user) {
@@ -455,9 +960,14 @@ const TimetableView = {
         </div>
 
         ${isAdmin ? `
-          <button class="btn-primary" onclick="TimetableView.openAddModal()" >
-            <i data-lucide="plus-circle" style="width:18px; height:18px;"></i> + Add Scheduled Slot
-          </button>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="btn-primary" onclick="TimetableView.openAddExceptionModal()" style="background:#F59E0B; border-color:#F59E0B; color:white;">
+              <i data-lucide="alert-triangle" style="width:18px; height:18px;"></i> Add Exception
+            </button>
+            <button class="btn-primary" onclick="TimetableView.openAddModal()" >
+              <i data-lucide="plus-circle" style="width:18px; height:18px;"></i> Add One-Off Slot
+            </button>
+          </div>
         ` : ''}
       </div>
 

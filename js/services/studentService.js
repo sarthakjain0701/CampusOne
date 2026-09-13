@@ -53,6 +53,91 @@ const studentService = {
   },
 
   // --------------------------------------------------------------------------
+  // IDENTITY RESOLVER
+  // --------------------------------------------------------------------------
+  /**
+   * Resolves the full student profile for a given authenticated user.
+   * Handles linking via authorizedUsers, direct email match, and UID match.
+   */
+  async resolveStudentProfile(authUser) {
+    if (!authUser) return null;
+    const db = await this._ensureDb();
+    
+    let studentId = null;
+    let authUserEmail = (authUser.email || '').toLowerCase().trim();
+
+    // ── Strategy 1: Look up the authorizedUsers document by email ──
+    // In this project, authorizedUsers IS the primary student profile store.
+    // Document IDs are email addresses; each document contains the full
+    // student data (name, department, semester, section, rollNumber, etc.).
+    if (authUserEmail) {
+      try {
+        const authDoc = await db.collection(this._collection()).doc(authUserEmail).get();
+        if (authDoc.exists) {
+          const authData = authDoc.data();
+          studentId = authData.studentId || authData.profileId;
+
+          // If this document has a pointer to a separate 'students' record, fetch that.
+          if (studentId) {
+            try {
+              const studentDoc = await db.collection('students').doc(studentId).get();
+              if (studentDoc.exists) {
+                console.log('[StudentResolver] Resolved via authorizedUsers → students link');
+                return { id: studentDoc.id, email: authUserEmail, ...studentDoc.data() };
+              }
+            } catch (e) {
+              console.warn('[StudentResolver] students doc fetch failed for id:', studentId, e);
+            }
+          }
+
+          // Otherwise, the authorizedUsers document itself IS the student profile.
+          // This is the normal path for this project.
+          const role = (authData.role || '').toUpperCase();
+          if (role === 'STUDENT' || authUser.role === 'STUDENT') {
+            console.log('[StudentResolver] Resolved via authorizedUsers document (primary)');
+            return { id: authDoc.id, email: authDoc.id, ...authData };
+          }
+        }
+      } catch (e) {
+        console.warn('[StudentResolver] authorizedUsers lookup failed:', e);
+      }
+    }
+
+    // ── Strategy 2: Query separate 'students' collection by email ──
+    // Fallback for any future migration to a dedicated students collection.
+    try {
+      if (authUserEmail) {
+        const snap = await db.collection('students').where('email', '==', authUserEmail).limit(1).get();
+        if (!snap.empty) {
+          console.log('[StudentResolver] Resolved via students collection (email match)');
+          return { id: snap.docs[0].id, ...snap.docs[0].data() };
+        }
+      }
+
+      // ── Strategy 3: Query 'students' collection by userId / uid ──
+      if (authUser.uid) {
+        let snap = await db.collection('students').where('userId', '==', authUser.uid).limit(1).get();
+        if (!snap.empty) {
+          console.log('[StudentResolver] Resolved via students collection (userId match)');
+          return { id: snap.docs[0].id, ...snap.docs[0].data() };
+        }
+        
+        snap = await db.collection('students').where('uid', '==', authUser.uid).limit(1).get();
+        if (!snap.empty) {
+          console.log('[StudentResolver] Resolved via students collection (uid match)');
+          return { id: snap.docs[0].id, ...snap.docs[0].data() };
+        }
+      }
+    } catch (e) {
+      // 'students' collection may not exist — this is expected in the current architecture
+      console.warn('[StudentResolver] students collection fallback failed (may not exist):', e.code || e.message);
+    }
+
+    console.warn('[StudentResolver] No student profile found for:', authUserEmail || authUser.uid);
+    return null;
+  },
+
+  // --------------------------------------------------------------------------
   // READ — One-shot fetch
   // --------------------------------------------------------------------------
   async getStudentsFromFirestore() {

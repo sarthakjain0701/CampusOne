@@ -437,8 +437,8 @@ const DigitalLearningView = {
     this.searchTimer = setTimeout(() => App.renderCurrentView(), 300);
   },
 
-  openResourceModal(resourceId) {
-    const res = LearningResourceService.getResourceById(resourceId);
+  async openResourceModal(resourceId) {
+    const res = await LearningResourceService.getResourceById(resourceId);
     if (!res) return;
 
     UIService.openModal(
@@ -461,8 +461,8 @@ const DigitalLearningView = {
     );
   },
 
-  downloadResource(resourceId) {
-    const res = LearningResourceService.getResourceById(resourceId);
+  async downloadResource(resourceId) {
+    const res = await LearningResourceService.getResourceById(resourceId);
     UIService.showToast(`Downloading mock file: ${res ? res.fileName : 'Material.pdf'}...`, 'success');
   },
 
@@ -649,14 +649,20 @@ const DigitalLearningView = {
       const fetchPromise = (async () => {
         if (user && user.role && user.role.toUpperCase() === 'STUDENT') {
           // 1. Safe Auth State: Use existing user profile rather than querying all students
-          this.students = [{ 
-            id: user.uid || user.id, 
-            name: user.name || user.displayName || 'Student', 
-            email: user.email, 
-            department: user.department || 'CSE', 
-            semester: user.semester || 1 
-          }];
-          const student = this.students[0];
+          let student = null;
+          if (typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+            student = await studentService.resolveStudentProfile(user);
+          }
+          if (!student) {
+            student = { 
+              id: user.uid || user.id, 
+              name: user.name || user.displayName || 'Student', 
+              email: user.email, 
+              department: user.department || 'CSE', 
+              semester: user.semester || 1 
+            };
+          }
+          this.students = [student];
           
           // 2. Optimized Subjects: Only fetch subjects for this department/semester
           if (typeof subjectService !== 'undefined') {

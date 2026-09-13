@@ -20,7 +20,14 @@ const attendanceService = {
       let query = db.collection('attendance');
 
       if (user.role === 'STUDENT') {
-        query = query.where('studentId', '==', user.uid);
+        let studentId = user.uid;
+        if (typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
+          const profile = await studentService.resolveStudentProfile(user);
+          if (profile && profile.id) {
+            studentId = profile.id;
+          }
+        }
+        query = query.where('studentId', '==', studentId);
       } else if (typeof AuthorizationService !== 'undefined' && AuthorizationService.isAcademicStaff(user)) {
         const authorizedSubjectIds = await AuthorizationService.getAuthorizedSubjectIds(user);
         if (authorizedSubjectIds.length > 0 && authorizedSubjectIds.length <= 10) {
@@ -114,10 +121,11 @@ const attendanceService = {
       if (!(await AuthorizationService.canEditAttendance(user, subjectId, classId))) {
         throw new Error("Access Denied: You are not authorized to mark or update attendance for this subject/class.");
       }
-      if (AuthorizationService.isAcademicStaff(user) && typeof AttendanceAssignmentService !== 'undefined') {
-        const canMark = await AttendanceAssignmentService.canMarkAttendance(user.uid, classId, subjectId, date);
+      if (AuthorizationService.isAcademicStaff(user) && window.MasterTimetableService) {
+        const schedule = await window.MasterTimetableService.getFacultyScheduleForDate(user.uid, date);
+        const canMark = schedule.some(s => (s.sectionId === classId || s.classId === classId) && s.subjectId === subjectId);
         if (!canMark) {
-          throw new Error("Access Denied: You do not have an active attendance assignment for this class, subject, and date.");
+          throw new Error("Access Denied: You do not have an active timetable slot for this class, subject, and date.");
         }
       }
     }
