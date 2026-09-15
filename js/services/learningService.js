@@ -102,6 +102,8 @@ const LearningResourceService = {
       semester: Number(resourceData.semester) || 2,
       academicYear: resourceData.academicYear || "2026-27",
       status: resourceData.status || "ACTIVE",
+      laboratoryName: resourceData.laboratoryName || "",
+      department: resourceData.department || "",
       uploadedAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0]
     };

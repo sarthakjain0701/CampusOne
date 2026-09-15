@@ -173,7 +173,7 @@ const App = {
             <div class="menu-category">Main Menu</div>
             ${sidebarMenu.map(item => `
               <a href="#/${item.id}" class="nav-item ${this.currentView === item.id ? 'active' : ''}" onclick="App.navigateTo('${item.id}'); return false;">
-                <i data-lucide="${item.icon}"></i>
+                ${item.icon ? `<i data-lucide="${item.icon}"></i>` : ''}
                 <span>${item.label}</span>
               </a>
             `).join('')}
@@ -330,8 +330,14 @@ const App = {
 
     const allItems = [
       { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
-      { id: 'mark-attendance', label: 'Attendance', icon: 'check-square', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT'] },
-      { id: 'attendance-history', label: 'Attendance History', icon: 'history', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'mark-attendance', label: 'Attendance', icon: 'check-square', roles: ['ADMIN', 'FACULTY'] },
+      { id: 'attendance-history', label: 'Attendance History', icon: 'history', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
+      
+      // Lab Assistant specifics
+      { id: 'lab-problem-report', label: 'Report Problem', icon: 'alert-triangle', roles: ['LAB_ASSISTANT'] },
+      { id: 'my-lab-reports', label: 'My Reports', icon: 'file-text', roles: ['LAB_ASSISTANT'] },
+      { id: 'admin-lab-reports', label: 'Lab Problem Reports', icon: 'wrench', roles: ['ADMIN'] },
+
       { id: 'digital-learning', label: 'Digital Learning', icon: 'book-open', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'timetable', label: 'Timetable', icon: 'calendar', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'exam-results', label: 'Exam Results', icon: 'award', roles: ['ADMIN', 'STUDENT'] },
@@ -348,7 +354,8 @@ const App = {
       { id: 'departments', label: 'Departments', icon: 'building-2', roles: ['ADMIN'] },
       { id: 'subjects', label: 'Subjects', icon: 'book-text', roles: ['ADMIN'] },
       { id: 'classes', label: 'Classes', icon: 'layers', roles: ['ADMIN'] },
-      { id: 'reports', label: 'Reports & Analytics', icon: 'file-text', roles: ['ADMIN'] },
+      { id: 'assignments', label: 'Faculty Assignment', icon: 'briefcase', roles: ['ADMIN'] },
+      { id: 'reports', label: 'Reports & Analytics', icon: 'pie-chart', roles: ['ADMIN'] },
       { id: 'notifications', label: 'Notifications', icon: 'bell', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'profile', label: 'User Profile', icon: 'user', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'settings', label: 'System Settings', icon: 'settings', roles: ['ADMIN'] }
@@ -395,7 +402,10 @@ const App = {
       'library-reservations': 'Reservations',
       'library-fines': 'Fines & Payments',
       'library-reports': 'Library Reports',
-      'library-settings': 'Library Settings'
+      'library-settings': 'Library Settings',
+      'lab-problem-report': 'Report Laboratory Problem',
+      'my-lab-reports': 'My Problem Reports',
+      'admin-lab-reports': 'Manage Lab Problem Reports'
     };
     return titles[this.currentView] || 'Poornima Attendance System';
   },
@@ -427,7 +437,8 @@ const App = {
     // DASHBOARD ROUTING — role-specific dashboards
     if (this.currentView === 'dashboard') {
       if (user.role === 'ADMIN') return window.DashboardAdmin.render();
-      if (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT') return window.DashboardFaculty.render();
+      if (user.role === 'FACULTY') return window.DashboardFaculty.render();
+      if (user.role === 'LAB_ASSISTANT') return window.DashboardLabAssistant.render();
       if (user.role === 'LIBRARIAN') return window.DashboardLibrarian.render();
       return window.DashboardStudent.render();
     }
@@ -440,7 +451,7 @@ const App = {
       'mark-attendance': window.MarkAttendanceView,
       'attendance-history': window.AttendanceHistoryView,
       'attendance-assignments': window.AttendanceAssignmentsView,
-      'digital-learning': window.DigitalLearningView,
+      'digital-learning': (user && user.role === 'LAB_ASSISTANT') ? window.DigitalLearningLabAssistantView : window.DigitalLearningView,
       'timetable': window.TimetableView,
       'exam-results': window.ExamResultsView,
       'mid-term-marks': window.MidTermMarksView,
@@ -462,13 +473,20 @@ const App = {
       'profile': window.ProfileView,
       'settings': window.SettingsView,
       'change-password': window.ChangePasswordView,
+      
+      // Library modules
       'library-books': window.LibraryBooksView,
       'library-circulation': window.LibraryCirculationView,
       'library-members': window.LibraryMembersView,
       'library-reservations': window.LibraryReservationsView,
       'library-fines': window.LibraryFinesView,
       'library-reports': window.LibraryReportsView,
-      'library-settings': window.LibrarySettingsView
+      'library-settings': window.LibrarySettingsView,
+
+      // Lab Assistant modules
+      'lab-problem-report': window.LabProblemReportView,
+      'my-lab-reports': window.MyLabReportsView,
+      'admin-lab-reports': window.AdminLabReportsView
     };
 
     const targetView = views[this.currentView];
@@ -506,9 +524,12 @@ const App = {
         if (window.DashboardAdmin && window.DashboardAdmin.afterRender) window.DashboardAdmin.afterRender();
         else if (window.DashboardAdmin && window.DashboardAdmin.initCharts) window.DashboardAdmin.initCharts();
       }
-      if (user && (user.role === 'FACULTY' || user.role === 'LAB_ASSISTANT')) {
+      if (user && user.role === 'FACULTY') {
         if (window.DashboardFaculty.afterRender) window.DashboardFaculty.afterRender();
         if (window.DashboardFaculty.initCharts) window.DashboardFaculty.initCharts();
+      }
+      if (user && user.role === 'LAB_ASSISTANT') {
+        if (window.DashboardLabAssistant && window.DashboardLabAssistant.afterRender) window.DashboardLabAssistant.afterRender();
       }
       if (user && user.role === 'STUDENT') {
         if (window.DashboardStudent && window.DashboardStudent.afterRender) window.DashboardStudent.afterRender();
@@ -557,8 +578,12 @@ const App = {
       window.ExamFormManagementView.afterRender();
     } else if (this.currentView === 'hall-ticket' && window.HallTicketView && window.HallTicketView.afterRender) {
       window.HallTicketView.afterRender();
-    } else if (this.currentView === 'digital-learning' && window.DigitalLearningView && window.DigitalLearningView.afterRender) {
-      window.DigitalLearningView.afterRender();
+    } else if (this.currentView === 'digital-learning') {
+      if (user && user.role === 'LAB_ASSISTANT' && window.DigitalLearningLabAssistantView && window.DigitalLearningLabAssistantView.afterRender) {
+        window.DigitalLearningLabAssistantView.afterRender();
+      } else if (window.DigitalLearningView && window.DigitalLearningView.afterRender) {
+        window.DigitalLearningView.afterRender();
+      }
     } else if (this.currentView === 'notifications' && window.NotificationsView && window.NotificationsView.afterRender) {
       window.NotificationsView.afterRender();
     } else if (this.currentView === 'profile' && window.ProfileView && window.ProfileView.afterRender) {

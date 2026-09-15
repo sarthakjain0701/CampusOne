@@ -376,6 +376,7 @@ const DigitalLearningView = {
                 <th>Subject</th>
                 <th>Type</th>
                 <th>File</th>
+                <th>Uploaded By</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -386,9 +387,13 @@ const DigitalLearningView = {
                 return `
                   <tr>
                     <td><strong>${r.title}</strong></td>
-                    <td>${sub ? sub.name : r.subjectId}</td>
+                    <td>${sub ? sub.name : r.subjectId} <br><small style="color:var(--color-text-muted)">${r.laboratoryName ? 'Lab: ' + r.laboratoryName : ''}</small></td>
                     <td><span class="status-badge active">${r.resourceType}</span></td>
                     <td><code>${r.fileName}</code></td>
+                    <td>
+                      <small>${r.uploadedBy || r.facultyId || 'Admin'}</small><br>
+                      <small style="color:var(--color-text-muted)">${r.uploadedAt || ''}</small>
+                    </td>
                     <td><span class="status-badge ${r.status.toLowerCase()}">${r.status}</span></td>
                     <td>
                       <button class="btn-icon" title="Edit" onclick="DigitalLearningView.openEditModal('${r.id}')"><i data-lucide="edit-2"></i></button>
