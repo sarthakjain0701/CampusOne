@@ -55,7 +55,7 @@
   transform: translateY(-4px);
 }
 .lib-stat-card:focus-visible {
-  outline: 3px solid #3B82F6;
+  outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -94,7 +94,7 @@
 
 /* Card 4 — Total Book Titles: Blue Gradient */
 .lib-stat-card--titles {
-  background: linear-gradient(135deg, #60A5FA, #2563EB);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-primary));
   box-shadow: 0 8px 28px rgba(37,99,235,0.28);
   border: 1px solid rgba(255,255,255,0.15);
   color: #fff;
@@ -220,20 +220,20 @@
   flex-shrink: 0;
 }
 .lib-action-btn {
-  background: linear-gradient(135deg, #3B82F6, #2563EB) !important;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover)) !important;
   border: none !important;
   box-shadow: 0 4px 14px rgba(37,99,235,0.22) !important;
 }
 .lib-action-btn:hover {
-  background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-secondary)) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 6px 18px rgba(37,99,235,0.32) !important;
 }
 .lib-action-btn--secondary {
-  background: linear-gradient(135deg, #60A5FA, #2563EB) !important;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-primary-hover)) !important;
 }
 .lib-action-btn--secondary:hover {
-  background: linear-gradient(135deg, #3B82F6, #1D4ED8) !important;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)) !important;
 }
 
 /* ==========================================================================
@@ -408,13 +408,14 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-blue), #2563EB);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   color: #FFF;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  border: none;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-secondary));
   transform: translateY(-1px);
   box-shadow: 0 6px 15px rgba(59, 130, 246, 0.35);
 }

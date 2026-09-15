@@ -1,6 +1,7 @@
 const ROLE_CONFIG = {
   student: { dashboard: "dashboard", label: "Student" },
   faculty: { dashboard: "dashboard", label: "Faculty" },
+  lab_assistant: { dashboard: "dashboard", label: "Lab Assistant" },
   proctor: { dashboard: "dashboard", label: "Proctor" },
   hod: { dashboard: "dashboard", label: "HOD" },
   dean: { dashboard: "dashboard", label: "Dean" },

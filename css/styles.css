@@ -7,19 +7,43 @@
 :root {
   --font-family: 'Inter', "Segoe UI", Roboto, Arial, sans-serif;
   
-  /* Core Colors - Blue Palette */
-  --color-primary: #3B82F6; /* Blue */
-  --color-primary-hover: #2563EB; /* Darker Blue */
-  --color-secondary: #1E3A8A; /* Deep Blue */
-  --color-accent: #60A5FA; /* Soft Blue */
+  /* Poornima Design System */
+  --poornima-deep-blue: #163A8A;
+  --poornima-blue: #2563EB;
+  --poornima-sky: #38BDF8;
+  --poornima-cyan: #06B6D4;
+  --poornima-gold: #D4A72C;
+  
+  --text-primary: #172033;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  
+  --page-background: #EFF6FF;
+  --card-background: #FFFFFF;
+  --border-color: #DCE8F7;
+  
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  
+  /* Role defaults (fallback) */
+  --role-primary: var(--poornima-blue);
+  --role-secondary: var(--poornima-sky);
+  --role-accent: var(--poornima-gold);
+  
+  /* Core Colors - Blue Palette (kept for legacy components) */
+  --color-primary: var(--poornima-blue);
+  --color-primary-hover: var(--poornima-deep-blue);
+  --color-secondary: var(--poornima-deep-blue);
+  --color-accent: var(--poornima-sky);
   
   /* Blue Theme Specific */
-  --primary-blue: #3B82F6;
-  --deep-blue: #1E3A8A;
-  --blue: #60A5FA;
-  --light-blue: #93C5FD;
+  --primary-blue: var(--poornima-blue);
+  --deep-blue: var(--poornima-deep-blue);
+  --blue: var(--poornima-blue);
+  --light-blue: var(--poornima-sky);
   --sky-blue: #E0F2FE;
-  --soft-blue: #EFF6FF;
+  --soft-blue: var(--page-background);
   --very-light-blue: #F5F9FF;
   
   --surface: #FFFFFF;
@@ -30,7 +54,7 @@
   
   /* Backgrounds */
   --color-app-bg: var(--background);
-  --color-sidebar-bg: linear-gradient(180deg, #1E3A8A 0%, #2563EB 50%, #3B82F6 100%);
+  --color-sidebar-bg: linear-gradient(180deg, var(--poornima-deep-blue) 0%, var(--poornima-blue) 100%);
   
   /* Glass Tokens */
   --glass-bg: rgba(255, 255, 255, 0.72);
@@ -92,8 +116,7 @@ body {
   overflow-x: hidden;
   
   /* Soft blue-tinted atmosphere */
-  background-image: 
-    linear-gradient(135deg, #F7FBFF 0%, #EEF6FF 45%, #E8F3FF 100%);
+  background-image: linear-gradient(135deg, #F8FBFF 0%, #EFF6FF 45%, #E0F2FE 100%);
   background-attachment: fixed;
 }
 
@@ -152,11 +175,11 @@ a:hover { color: var(--color-primary-hover); }
 
 /* Login-scoped CSS variables */
 .login-page {
-  --login-blue:       #2563EB;
-  --login-sky:        #38BDF8;
-  --login-light-blue: #EFF6FF;
-  --login-deep:       #1E3A8A;
-  --login-text:       #1E3A8A;
+  --login-blue:       var(--poornima-blue);
+  --login-sky:        var(--poornima-sky);
+  --login-light-blue: var(--page-background);
+  --login-deep:       var(--poornima-deep-blue);
+  --login-text:       var(--poornima-deep-blue);
   --login-muted:      #496A8A;
   --login-border:     #C7DDF3;
 }
@@ -283,7 +306,7 @@ a:hover { color: var(--color-primary-hover); }
   font-size: 3rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: linear-gradient(90deg, #2563EB, #38BDF8);
+  background: linear-gradient(90deg, var(--poornima-blue), var(--poornima-sky));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -438,7 +461,7 @@ a:hover { color: var(--color-primary-hover); }
 
 /* Login button */
 .login-btn {
-  background: linear-gradient(135deg, #38BDF8, #2563EB) !important;
+  background: linear-gradient(135deg, var(--poornima-sky), var(--poornima-blue)) !important;
   color: #FFF !important;
   border: none !important;
   border-radius: 13px !important;
@@ -449,7 +472,7 @@ a:hover { color: var(--color-primary-hover); }
   transition: all 0.2s ease !important;
 }
 .login-btn:hover {
-  background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
+  background: linear-gradient(135deg, var(--poornima-blue), var(--poornima-deep-blue)) !important;
   box-shadow: 0 10px 28px rgba(37,99,235,0.38) !important;
   transform: translateY(-1px) !important;
 }
@@ -603,10 +626,10 @@ a:hover { color: var(--color-primary-hover); }
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.role-badge.admin { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
-.role-badge.faculty { background: #F3E8FF; color: #6D28D9; border: 1px solid #E9D5FF; }
-.role-badge.student { background: #CCFBF1; color: #0F766E; border: 1px solid #99F6E4; }
-.role-badge.librarian { background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
+.role-badge.admin { background: rgba(22, 58, 138, 0.12); color: var(--poornima-deep-blue); border: 1px solid rgba(22, 58, 138, 0.25); }
+.role-badge.faculty { background: rgba(37, 99, 235, 0.12); color: var(--poornima-blue); border: 1px solid rgba(37, 99, 235, 0.25); }
+.role-badge.student { background: rgba(6, 182, 212, 0.12); color: var(--poornima-cyan); border: 1px solid rgba(6, 182, 212, 0.25); }
+.role-badge.librarian { background: rgba(212, 167, 44, 0.15); color: #B47A09; border: 1px solid rgba(212, 167, 44, 0.3); }
 
 /* Main Content Area */
 .main-wrapper {
@@ -768,16 +791,16 @@ a:hover { color: var(--color-primary-hover); }
   transition: var(--transition-fast);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border-radius: var(--radius-md);
-  box-sizing: border-box;
+  box-sizing: border-box;\n  /* Align button radius with design */\n  border-radius: var(--radius-md);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-blue), #2563EB);
+  background: linear-gradient(135deg, var(--role-primary), var(--role-secondary));
   color: white; border: none;
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-secondary));
   opacity: 0.95; transform: translateY(-1px);
   box-shadow: 0 8px 25px rgba(59, 130, 246, 0.35);
 }
