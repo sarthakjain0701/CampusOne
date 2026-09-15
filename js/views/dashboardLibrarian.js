@@ -68,12 +68,15 @@ const DashboardLibrarian = {
     }
 
     const s = this.stats || { totalBooks: 0, availableCopies: 0, issuedCopies: 0, overdueCount: 0, pendingFinesTotal: 0 };
+    const loading = !this.stats;
+    const loadingVal = `<span class="lib-skeleton"></span>`;
 
     return `
-      <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <!-- DASHBOARD HEADER -->
+      <div class="lib-dash-header">
         <div>
-          <h1>Welcome, ${user.name}! 📚</h1>
-          <p>Library Management Dashboard — Live statistics and quick operations.</p>
+          <h1 class="lib-dash-title">Welcome, ${user.name}! 📚</h1>
+          <p class="lib-dash-subtitle">Library Management Dashboard — Live statistics and quick operations.</p>
         </div>
         ${this.stats && s.totalBooks === 0 ? `
           <button class="btn-primary" id="seed-demo-btn" onclick="DashboardLibrarian.seedDemoData()" style="background:#8B5CF6; border-color:#7C3AED;">
@@ -82,72 +85,64 @@ const DashboardLibrarian = {
         ` : ''}
       </div>
 
-      <!-- STATS GRID -->
-      <div class="stats-grid">
-        <div class="stat-card" onclick="App.navigateTo('library-circulation')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Currently Issued</h3>
-            <div class="value" id="lib-dash-issued">${this.stats ? s.issuedCopies : '<span class="loading-dots">...</span>'}</div>
-            <span class="stat-trend positive">Active borrowings</span>
+      <!-- FOUR STAT CARDS -->
+      <div class="lib-stats-grid">
+
+        <!-- CARD 1: Currently Issued — GREEN -->
+        <div class="lib-stat-card lib-stat-card--issued" onclick="App.navigateTo('library-circulation')" role="button" tabindex="0" aria-label="Currently Issued books">
+          <div class="lib-stat-icon-wrap lib-stat-icon-wrap--light">
+            <i data-lucide="book-open"></i>
           </div>
-          <div class="stat-icon blue"><i data-lucide="book-open"></i></div>
+          <div class="lib-stat-title">Currently Issued</div>
+          <div class="lib-stat-value" id="lib-dash-issued">${loading ? loadingVal : s.issuedCopies}</div>
+          <div class="lib-stat-meta">Active borrowings</div>
         </div>
 
-        <div class="stat-card" onclick="App.navigateTo('library-circulation')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Overdue Books</h3>
-            <div class="value" id="lib-dash-overdue" style="color: ${s.overdueCount > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">
-              ${this.stats ? s.overdueCount : '<span class="loading-dots">...</span>'}
-            </div>
-            <span class="stat-trend ${s.overdueCount > 0 ? 'negative' : 'positive'}">
-              ${s.overdueCount > 0 ? 'Action required' : 'No overdue items'}
-            </span>
+        <!-- CARD 2: Overdue Books — AMBER/YELLOW -->
+        <div class="lib-stat-card lib-stat-card--overdue" onclick="App.navigateTo('library-circulation')" role="button" tabindex="0" aria-label="Overdue Books">
+          <div class="lib-stat-icon-wrap lib-stat-icon-wrap--dark">
+            <i data-lucide="triangle-alert"></i>
           </div>
-          <div class="stat-icon ${s.overdueCount > 0 ? 'red' : 'green'}"><i data-lucide="alert-triangle"></i></div>
+          <div class="lib-stat-title">Overdue Books</div>
+          <div class="lib-stat-value" id="lib-dash-overdue">${loading ? loadingVal : s.overdueCount}</div>
+          <div class="lib-stat-meta">${s.overdueCount > 0 ? 'Attention required' : 'No overdue items'}</div>
         </div>
 
-        <div class="stat-card" onclick="App.navigateTo('library-fines')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Pending Fines</h3>
-            <div class="value" id="lib-dash-fines" style="color: ${s.pendingFinesTotal > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">
-              ${this.stats ? `₹${s.pendingFinesTotal}` : '<span class="loading-dots">...</span>'}
-            </div>
-            <span class="stat-trend ${s.pendingFinesTotal > 0 ? 'warning' : 'positive'}">
-              Unpaid library fines
-            </span>
+        <!-- CARD 3: Pending Fines — MINT/LIGHT GREEN -->
+        <div class="lib-stat-card lib-stat-card--fines" onclick="App.navigateTo('library-fines')" role="button" tabindex="0" aria-label="Pending Fines">
+          <div class="lib-stat-icon-wrap lib-stat-icon-wrap--mint">
+            <i data-lucide="indian-rupee"></i>
           </div>
-          <div class="stat-icon ${s.pendingFinesTotal > 0 ? 'amber' : 'green'}"><i data-lucide="indian-rupee"></i></div>
+          <div class="lib-stat-title">Pending Fines</div>
+          <div class="lib-stat-value" id="lib-dash-fines">${loading ? loadingVal : `₹${s.pendingFinesTotal}`}</div>
+          <div class="lib-stat-meta">Unpaid library fines</div>
         </div>
 
-        <div class="stat-card" onclick="App.navigateTo('library-books')" style="cursor:pointer;">
-          <div class="stat-info">
-            <h3>Total Book Titles</h3>
-            <div class="value" id="lib-dash-books">${this.stats ? s.totalBooks : '<span class="loading-dots">...</span>'}</div>
-            <span class="stat-trend positive" id="lib-dash-avail">${s.availableCopies} available copies</span>
+        <!-- CARD 4: Total Book Titles — BLUE -->
+        <div class="lib-stat-card lib-stat-card--titles" onclick="App.navigateTo('library-books')" role="button" tabindex="0" aria-label="Total Book Titles">
+          <div class="lib-stat-icon-wrap lib-stat-icon-wrap--light">
+            <i data-lucide="library"></i>
           </div>
-          <div class="stat-icon purple"><i data-lucide="library"></i></div>
+          <div class="lib-stat-title">Total Book Titles</div>
+          <div class="lib-stat-value" id="lib-dash-books">${loading ? loadingVal : s.totalBooks}</div>
+          <div class="lib-stat-meta" id="lib-dash-avail">${s.availableCopies} available copies</div>
         </div>
+
       </div>
 
       <!-- QUICK ACTIONS -->
-      <div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color: white; border: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-          <div>
-            <h3 style="margin: 0 0 0.4rem 0; font-size: 1.15rem; font-weight: 800; color: #F8FAFC;">
-              Library Quick Actions
-            </h3>
-            <p style="margin: 0; font-size: 0.85rem; color: #94A3B8;">
-              Manage inventory, issue/return books, and track library operations.
-            </p>
-          </div>
-          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-            <button class="btn-primary" onclick="App.navigateTo('library-books')" style="background:#3B82F6; border-color:#3B82F6;">
-              <i data-lucide="book-plus"></i> Add Book
-            </button>
-            <button class="btn-primary" onclick="App.navigateTo('library-circulation')" style="background:#2563EB;">
-              <i data-lucide="rotate-ccw"></i> Circulation
-            </button>
-          </div>
+      <div class="lib-quick-actions">
+        <div class="lib-quick-actions-info">
+          <h3 class="lib-quick-actions-title">Library Quick Actions</h3>
+          <p class="lib-quick-actions-desc">Manage inventory, issue/return books, and track library operations.</p>
+        </div>
+        <div class="lib-quick-actions-btns">
+          <button class="btn-primary lib-action-btn" onclick="App.navigateTo('library-books')">
+            <i data-lucide="book-plus"></i> Add Book
+          </button>
+          <button class="btn-primary lib-action-btn lib-action-btn--secondary" onclick="App.navigateTo('library-circulation')">
+            <i data-lucide="rotate-ccw"></i> Circulation
+          </button>
         </div>
       </div>
     `;

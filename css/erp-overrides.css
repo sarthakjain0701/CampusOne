@@ -1,7 +1,260 @@
 /* ==========================================================================
    ERP MODERN UI OVERRIDES (POORNIMA GROUP OF COLLEGE)
    ========================================================================== */
-/* Square/Compact Stat Cards Grid */
+
+/* ==========================================================================
+   LIBRARY DASHBOARD — PREMIUM STAT CARDS
+   ========================================================================== */
+
+/* Dashboard header */
+.lib-dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(59,130,246,0.1);
+}
+.lib-dash-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #1E293B;
+  margin: 0 0 0.3rem 0;
+  letter-spacing: -0.3px;
+}
+.lib-dash-subtitle {
+  font-size: 0.95rem;
+  color: #64748B;
+  margin: 0;
+}
+
+/* 4-column stat card grid */
+.lib-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+/* Base stat card */
+.lib-stat-card {
+  position: relative;
+  border-radius: 22px;
+  padding: 1.6rem 1.5rem;
+  min-height: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+  overflow: hidden;
+}
+.lib-stat-card:hover {
+  transform: translateY(-4px);
+}
+.lib-stat-card:focus-visible {
+  outline: 3px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+/* Card 1 — Currently Issued: Strong Green Gradient */
+.lib-stat-card--issued {
+  background: linear-gradient(135deg, #22C55E, #16A34A);
+  box-shadow: 0 8px 28px rgba(22,163,74,0.30);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+}
+.lib-stat-card--issued:hover {
+  box-shadow: 0 14px 36px rgba(22,163,74,0.40);
+}
+
+/* Card 2 — Overdue Books: Amber/Yellow Gradient */
+.lib-stat-card--overdue {
+  background: linear-gradient(135deg, #FACC15, #F59E0B);
+  box-shadow: 0 8px 28px rgba(245,158,11,0.28);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #78350F;
+}
+.lib-stat-card--overdue:hover {
+  box-shadow: 0 14px 36px rgba(245,158,11,0.38);
+}
+
+/* Card 3 — Pending Fines: Red Gradient */
+.lib-stat-card--fines {
+  background: linear-gradient(135deg, #F87171, #DC2626);
+  box-shadow: 0 8px 28px rgba(220,38,38,0.28);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+}
+.lib-stat-card--fines:hover {
+  box-shadow: 0 14px 36px rgba(220,38,38,0.40);
+}
+
+/* Card 4 — Total Book Titles: Blue Gradient */
+.lib-stat-card--titles {
+  background: linear-gradient(135deg, #60A5FA, #2563EB);
+  box-shadow: 0 8px 28px rgba(37,99,235,0.28);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+}
+.lib-stat-card--titles:hover {
+  box-shadow: 0 14px 36px rgba(37,99,235,0.38);
+}
+
+/* Icon container */
+.lib-stat-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.2rem;
+  flex-shrink: 0;
+}
+.lib-stat-icon-wrap svg { width: 22px; height: 22px; }
+
+/* White translucent icon bg — for dark gradient cards (green, blue) */
+.lib-stat-icon-wrap--light {
+  background: rgba(255,255,255,0.22);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
+}
+/* Dark icon bg — for yellow card */
+.lib-stat-icon-wrap--dark {
+  background: rgba(120,53,15,0.12);
+  border: 1px solid rgba(120,53,15,0.15);
+  color: #78350F;
+}
+/* White translucent icon bg — for red card */
+.lib-stat-icon-wrap--mint {
+  background: rgba(255,255,255,0.22);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
+}
+
+/* Card text elements */
+.lib-stat-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  opacity: 0.85;
+  line-height: 1.2;
+}
+.lib-stat-value {
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -1px;
+  margin: 0.1rem 0;
+}
+.lib-stat-meta {
+  font-size: 0.78rem;
+  font-weight: 500;
+  opacity: 0.78;
+  line-height: 1.35;
+}
+
+/* Skeleton loading shimmer */
+.lib-skeleton {
+  display: inline-block;
+  width: 70px;
+  height: 2.4rem;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.38) 50%, rgba(255,255,255,0.2) 75%);
+  background-size: 200% 100%;
+  animation: lib-shimmer 1.4s infinite;
+  vertical-align: middle;
+}
+@keyframes lib-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+/* Adjust skeleton color on light green card */
+.lib-stat-card--fines .lib-skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.38) 50%, rgba(255,255,255,0.2) 75%);
+  background-size: 200% 100%;
+  animation: lib-shimmer 1.4s infinite;
+}
+.lib-stat-card--overdue .lib-skeleton {
+  background: linear-gradient(90deg, rgba(120,53,15,0.1) 25%, rgba(120,53,15,0.22) 50%, rgba(120,53,15,0.1) 75%);
+  background-size: 200% 100%;
+  animation: lib-shimmer 1.4s infinite;
+}
+
+/* ==========================================================================
+   LIBRARY QUICK ACTIONS — MODERN CLEAN SURFACE
+   ========================================================================== */
+.lib-quick-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid #DCEAF7;
+  border-radius: 18px;
+  box-shadow: 0 8px 25px rgba(30,64,175,0.07);
+  margin-bottom: 2rem;
+}
+.lib-quick-actions-info {}
+.lib-quick-actions-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1E293B;
+  margin: 0 0 0.3rem 0;
+}
+.lib-quick-actions-desc {
+  font-size: 0.87rem;
+  color: #64748B;
+  margin: 0;
+}
+.lib-quick-actions-btns {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.lib-action-btn {
+  background: linear-gradient(135deg, #3B82F6, #2563EB) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(37,99,235,0.22) !important;
+}
+.lib-action-btn:hover {
+  background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(37,99,235,0.32) !important;
+}
+.lib-action-btn--secondary {
+  background: linear-gradient(135deg, #60A5FA, #2563EB) !important;
+}
+.lib-action-btn--secondary:hover {
+  background: linear-gradient(135deg, #3B82F6, #1D4ED8) !important;
+}
+
+/* ==========================================================================
+   LIBRARY DASHBOARD RESPONSIVE
+   ========================================================================== */
+@media (max-width: 1200px) {
+  .lib-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .lib-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .lib-stat-value { font-size: 2.1rem; }
+  .lib-quick-actions { flex-direction: column; align-items: flex-start; }
+  .lib-quick-actions-btns { width: 100%; }
+  .lib-action-btn { flex: 1; justify-content: center; }
+}
+
+
 .stat-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
