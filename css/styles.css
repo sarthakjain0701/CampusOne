@@ -1229,6 +1229,179 @@ a:hover { color: var(--color-primary-hover); }
 }
 
 /* ==========================================================================
+   GLOBAL HOVER EFFECTS (PREMIUM PAMS SYSTEM)
+   ========================================================================== */
+
+/* 1. SIDEBAR ITEMS */
+.sidebar-menu .nav-item {
+  transition: background-color 200ms ease, transform 200ms ease, color 200ms ease;
+}
+@media (hover: hover) {
+  .sidebar-menu .nav-item:not(.active):hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(4px);
+  }
+}
+
+/* 2. TOP HEADER CONTROLS */
+.search-input {
+  transition: box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease;
+}
+.search-input:focus-visible,
+.search-input:hover {
+  border-color: var(--color-primary);
+}
+@media (hover: hover) {
+  .search-input:hover {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+  }
+}
+.nav-icon-btn {
+  transition: background-color 200ms ease, transform 200ms ease;
+}
+@media (hover: hover) {
+  .nav-icon-btn:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    transform: scale(1.05);
+  }
+}
+
+/* 3. BUTTONS */
+button, .btn-primary, .btn-secondary, .btn-xs, .btn-icon, .btn-icon-sm {
+  transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease, opacity 200ms ease, filter 200ms ease;
+}
+@media (hover: hover) {
+  .btn-primary:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+    filter: brightness(1.05);
+  }
+  .btn-secondary:not(:disabled):hover {
+    background-color: var(--sky-blue);
+    color: var(--color-primary-hover);
+    border-color: var(--light-blue);
+  }
+  .btn-xs:not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(0.95);
+  }
+  /* Action buttons (edit, view, etc.) */
+  .btn-icon:not(:disabled):hover,
+  .btn-icon-sm:not(:disabled):hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  }
+  .btn-icon-sm.danger:hover,
+  .btn-icon.danger:hover {
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+  }
+}
+.btn-primary:not(:disabled):active,
+.btn-secondary:not(:disabled):active {
+  transform: translateY(0) scale(0.98);
+}
+button:focus-visible, 
+a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 4. CARDS */
+.card, .glass-card {
+  transition: transform 250ms ease, box-shadow 250ms ease, border-color 250ms ease;
+}
+@media (hover: hover) {
+  .card:hover, .glass-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* 5. DATA TABLES */
+table tbody tr {
+  transition: background-color 200ms ease;
+}
+@media (hover: hover) {
+  table tbody tr:hover {
+    background-color: var(--soft-blue);
+  }
+}
+
+/* 6. FORM INPUTS & SELECTS */
+input, select, textarea {
+  transition: border-color 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+}
+@media (hover: hover) {
+  input:not(:disabled):not([type="checkbox"]):not([type="radio"]):hover, 
+  select:not(:disabled):hover, 
+  textarea:not(:disabled):hover {
+    border-color: var(--color-primary);
+  }
+}
+input:focus-visible, 
+select:focus-visible, 
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* 7. DROPDOWN MENUS */
+.action-menu-item {
+  transition: background-color 150ms ease, color 150ms ease;
+}
+@media (hover: hover) {
+  .action-menu-item:hover {
+    background-color: var(--soft-blue);
+    color: var(--color-primary-hover);
+  }
+}
+
+/* 8. TABS */
+.tab {
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+}
+@media (hover: hover) {
+  .tab:not(.active):hover {
+    color: var(--color-primary);
+    background-color: rgba(59, 130, 246, 0.05);
+  }
+}
+
+/* 9. NOTIFICATIONS */
+.notification-item {
+  transition: background-color 200ms ease, transform 200ms ease;
+}
+@media (hover: hover) {
+  .notification-item:hover {
+    background-color: var(--soft-blue);
+    transform: translateX(2px);
+  }
+}
+
+/* 10. DIGITAL ID CARD / INTERACTIVE CARDS */
+.id-card-container {
+  transition: transform 300ms ease, box-shadow 300ms ease;
+}
+@media (hover: hover) {
+  .id-card-container:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px rgba(37, 99, 235, 0.15);
+  }
+}
+
+/* 11. BADGES / CHIPS */
+.status-badge, .badge, .chip {
+  transition: opacity 200ms ease, filter 200ms ease;
+}
+@media (hover: hover) {
+  .status-badge:hover, .badge:hover, .chip:hover {
+    filter: brightness(0.95);
+  }
+}
+
+/* ==========================================================================
    PRINT STYLES
    ========================================================================== */
 @media print {
@@ -1257,6 +1430,12 @@ a:hover { color: var(--color-primary-hover); }
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+  /* Remove hover transforms/shadows during print */
+  * {
+    transform: none !important;
+    box-shadow: none !important;
+    transition: none !important;
   }
   @page {
     size: A4 portrait;

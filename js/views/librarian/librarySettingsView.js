@@ -186,6 +186,29 @@ const LibrarySettingsView = {
       `;
     }
 
+    if (this.errorMessage) {
+      return `
+        <div class="page-header">
+          <div>
+            <h1>Library Settings</h1>
+            <p>Configure borrowing rules, overdue fines, reissue policies, and library notifications.</p>
+          </div>
+        </div>
+        <div class="card" style="padding: 4rem 2rem; text-align: center; border-color: #FECACA;">
+          <div style="width:64px; height:64px; border-radius:50%; background:#FEE2E2; color:#DC2626; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem auto; box-shadow:0 4px 12px rgba(220,38,38,0.15);">
+            <i data-lucide="alert-triangle" style="width:32px; height:32px;"></i>
+          </div>
+          <h2 style="color:#991B1B; font-weight:800; font-size:1.5rem; margin-bottom:0.5rem;">Unable to load library configuration.</h2>
+          <p style="color:var(--color-text-muted); font-size:0.95rem; max-width:480px; margin:0 auto 1.5rem auto; line-height:1.6;">
+            ${this.errorMessage}
+          </p>
+          <button class="btn-primary" onclick="LibrarySettingsView.loading = true; LibrarySettingsView.fetchSettings()" style="font-weight:700;">
+            <i data-lucide="refresh-cw"></i> Retry
+          </button>
+        </div>
+      `;
+    }
+
     const cfg = this.settings || {
       issuePeriodDays: 15,
       overdueFinePerDay: 2,

@@ -47,7 +47,7 @@ const LibrarySettingsService = {
       if (doc.exists) {
         this.cache = { ...DEFAULT_LIBRARY_SETTINGS, ...doc.data() };
       } else {
-        await db.collection('librarySettings').doc('config').set(DEFAULT_LIBRARY_SETTINGS);
+        // Document missing, use validated defaults in memory
         this.cache = { ...DEFAULT_LIBRARY_SETTINGS };
       }
       this.isLoaded = true;
