@@ -88,25 +88,28 @@ const LibraryCirculationView = {
       return `<tr><td colspan="7" style="text-align:center;">No active transactions.</td></tr>`;
     }
 
-    const todayStr = new Date().toISOString();
-
     return this.transactions.map(t => {
-      const isOverdue = t.status === 'OVERDUE' || (t.status === 'ISSUED' && t.dueDate < todayStr);
-      const statusClass = isOverdue ? 'danger' : 'present';
-      const statusText = isOverdue ? 'OVERDUE' : 'ISSUED';
+      const statusInfo = window.LibraryPolicy 
+        ? window.LibraryPolicy.getTransactionStatus(t) 
+        : { label: t.status, variant: t.status === 'OVERDUE' ? 'danger' : 'present' };
 
       return `
         <tr>
-          <td><strong>${t.bookTitle}</strong></td>
-          <td><small style="color:var(--color-text-muted);">${t.copyId}</small></td>
-          <td><strong>${t.userId}</strong></td>
-          <td>${new Date(t.issueDate).toLocaleDateString()}</td>
-          <td><strong style="color: ${isOverdue ? 'var(--color-danger)' : 'inherit'};">${new Date(t.dueDate).toLocaleDateString()}</strong></td>
-          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td><strong>${t.bookTitle || 'Untitled Book'}</strong></td>
+          <td><small style="color:var(--color-text-muted);">${t.copyId || t.accessionNumber || '-'}</small></td>
+          <td><strong>${t.memberName || t.memberEmail || t.userId}</strong></td>
+          <td>${t.issueDate ? new Date(t.issueDate).toLocaleDateString() : '-'}</td>
+          <td><strong style="color: ${statusInfo.variant === 'danger' ? 'var(--color-danger)' : 'inherit'};">${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '-'}</strong></td>
+          <td><span class="status-badge ${statusInfo.variant}">${statusInfo.label}</span></td>
           <td>
-            <button class="btn-xs btn-secondary" onclick="LibraryCirculationView.processReturn('${t.id}')">
-              Return
-            </button>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+              <button class="btn-xs btn-secondary" onclick="LibraryCirculationView.processReturn('${t.id}')">
+                Return
+              </button>
+              <button class="btn-xs btn-outline" style="border:1px solid var(--color-border); background:white; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.75rem; cursor:pointer;" onclick="LibraryCirculationView.processReissue('${t.id}')">
+                Reissue
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -288,6 +291,18 @@ const LibraryCirculationView = {
         UIService.showToast("Book returned successfully! Any applicable fines have been recorded.", "success");
       } catch (err) {
         UIService.showToast(err.message || "Failed to return book.", "danger");
+        console.error(err);
+      }
+    });
+  },
+
+  processReissue(transactionId) {
+    UIService.showConfirm("Reissue Book", "Are you sure you want to reissue this book for another 15 days?", async () => {
+      try {
+        const res = await LibraryService.reissueBook(transactionId);
+        UIService.showToast(`Book reissued successfully! New due date: ${new Date(res.dueDate).toLocaleDateString()}`, "success");
+      } catch (err) {
+        UIService.showToast(err.message || "Failed to reissue book.", "danger");
         console.error(err);
       }
     });

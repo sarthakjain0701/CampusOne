@@ -1,8 +1,83 @@
 /* ==========================================================================
    POORNIMA ATTENDANCE SYSTEM - LIBRARY SERVICE (FIRESTORE)
    Comprehensive Library Operations
+   Policy: 15-day issue period | ₹2/day overdue fine | Day 13/14/15 reminders
    ========================================================================== */
 
+/* ==========================================================================
+   LIBRARY POLICY — CENTRALIZED CONSTANTS & FINE CALCULATOR
+   Single source of truth used by all callers (Circulation, View, Dashboard)
+   ========================================================================== */
+const LibraryPolicy = {
+  ISSUE_DAYS: 15,       // Standard issue period
+  FINE_PER_DAY: 2,      // ₹2 per overdue day
+  REMINDER_DAYS: [13, 14, 15], // Days on which reminders are sent
+
+  /**
+   * Calculate overdue days and fine amount.
+   * Works on calendar-day boundaries (India timezone-safe via date-only comparison).
+   * @param {string|Date} issueDate
+   * @param {string|Date} dueDate
+   * @param {Date} [asOf]  - defaults to now
+   * @returns {{ overdueDays: number, fineAmount: number }}
+   */
+  calculateOverdueFine(issueDate, dueDate, asOf) {
+    const today = asOf ? this._toDay(asOf) : this._toDay(new Date());
+    const due   = this._toDay(new Date(dueDate));
+    const overdueDays = Math.max(0, Math.floor((today - due) / 86400000));
+    return { overdueDays, fineAmount: overdueDays * this.FINE_PER_DAY };
+  },
+
+  /**
+   * How many days elapsed since issue (0-based from day 1).
+   * Day 1 = issueDate itself.
+   */
+  daysSinceIssue(issueDate, asOf) {
+    const today  = this._toDay(asOf ? new Date(asOf) : new Date());
+    const issued = this._toDay(new Date(issueDate));
+    return Math.floor((today - issued) / 86400000) + 1;
+  },
+
+  /**
+   * Days remaining until due date (negative = overdue).
+   */
+  daysRemaining(dueDate, asOf) {
+    const today = this._toDay(asOf ? new Date(asOf) : new Date());
+    const due   = this._toDay(new Date(dueDate));
+    return Math.floor((due - today) / 86400000);
+  },
+
+  /**
+   * Human-readable status label for a transaction.
+   */
+  getTransactionStatus(t, asOf) {
+    if (t.status === 'RETURNED') return { label: 'RETURNED', variant: 'active' };
+    const rem = this.daysRemaining(t.dueDate, asOf);
+    if (rem < 0)  return { label: `Overdue by ${Math.abs(rem)} day${Math.abs(rem) !== 1 ? 's' : ''}`, variant: 'danger' };
+    if (rem === 0) return { label: 'Due Today',    variant: 'warning' };
+    if (rem === 1) return { label: 'Due Tomorrow', variant: 'warning' };
+    if (rem <= 2)  return { label: 'Due Soon',     variant: 'warning' };
+    return { label: 'Issued', variant: 'present' };
+  },
+
+  /** Strip time component — returns midnight UTC ms of local calendar date */
+  _toDay(d) {
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  },
+
+  /** Calculate due date string (ISO) from issue date + 15 calendar days */
+  calcDueDate(from) {
+    const d = new Date(from);
+    d.setDate(d.getDate() + this.ISSUE_DAYS);
+    return d.toISOString();
+  }
+};
+
+window.LibraryPolicy = LibraryPolicy;
+
+/* ==========================================================================
+   LIBRARY SERVICE
+   ========================================================================== */
 const LibraryService = {
   db: null,
   listeners: [],
@@ -57,6 +132,10 @@ const LibraryService = {
     return { id: doc.id, ...doc.data() };
   },
 
+  /**
+   * Add a new book. After a successful Firestore write, automatically sends
+   * a "New Book Available" notification to all STUDENT-role users.
+   */
   async addBook(bookData) {
     const db = this._getDb();
     const newBookRef = db.collection('libraryBooks').doc();
@@ -70,8 +149,39 @@ const LibraryService = {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    // Write first — only notify on success
     await newBookRef.set(payload);
-    return { id: newBookRef.id, ...payload };
+    const created = { id: newBookRef.id, ...payload };
+
+    // Send new-book notification to all students (fire-and-forget, non-blocking)
+    this._sendNewBookNotification(created).catch(e =>
+      console.warn('New-book notification failed (non-critical):', e)
+    );
+
+    return created;
+  },
+
+  /** @private */
+  async _sendNewBookNotification(book) {
+    if (!window.notificationService) return;
+    const details = [
+      book.author   ? `Author: ${book.author}`   : null,
+      book.isbn     ? `ISBN: ${book.isbn}`        : null,
+      book.category ? `Category: ${book.category}`: null,
+      book.availableCopies != null
+        ? `Copies Available: ${book.availableCopies}` : null
+    ].filter(Boolean).join(' | ');
+
+    await window.notificationService.createNotification({
+      title: 'New Book Available',
+      message: `A new book '${book.title}' has been added to the library collection. ${details}. Check the library portal for details and availability.`,
+      recipientId: 'ALL',
+      recipientRole: 'STUDENT',
+      type: 'INFO',
+      priority: 'MEDIUM',
+      category: 'LIBRARY',
+      relatedModule: 'library'
+    });
   },
 
   async updateBook(bookId, updates) {
@@ -117,15 +227,19 @@ const LibraryService = {
   },
 
   // ------------------------------------------------------------------------
-  // CIRCULATION (ISSUE & RETURN)
+  // CIRCULATION (ISSUE, RETURN, REISSUE)
   // ------------------------------------------------------------------------
+
+  /**
+   * Issue a book to a user.
+   * Due date = issueDate + 15 calendar days (LibraryPolicy.ISSUE_DAYS).
+   */
   async issueBook(userId, bookId, copyId) {
     const db = this._getDb();
     
-    // Validate User (Basic checks)
+    // Validate parameters
     if (!userId || !bookId) throw new Error("Invalid parameters.");
 
-    // Using Firestore Transactions for atomicity
     return await db.runTransaction(async (transaction) => {
       const bookRef = db.collection('libraryBooks').doc(bookId);
       const copyRef = db.collection('libraryBookCopies').doc(copyId);
@@ -141,10 +255,9 @@ const LibraryService = {
       const currentBook = bookDoc.data();
       if (currentBook.availableCopies <= 0) throw new Error("No available copies for this book.");
 
-      // Calculate Due Date (Default 14 days)
+      // 15-day issue period (policy-driven)
       const issueDate = new Date();
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 14);
+      const dueDate   = LibraryPolicy.calcDueDate(issueDate);
 
       const transRef = db.collection('libraryTransactions').doc();
       const newTransaction = {
@@ -153,10 +266,11 @@ const LibraryService = {
         copyId,
         bookTitle: currentBook.title,
         issueDate: issueDate.toISOString(),
-        dueDate: dueDate.toISOString(),
+        dueDate,
         returnDate: null,
         status: 'ISSUED',
         fineAmount: 0,
+        issuePeriodDays: LibraryPolicy.ISSUE_DAYS,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -165,7 +279,11 @@ const LibraryService = {
       transaction.set(transRef, newTransaction);
       
       // 2. Update Copy Status
-      transaction.update(copyRef, { status: 'ISSUED', currentTransactionId: transRef.id, updatedAt: new Date().toISOString() });
+      transaction.update(copyRef, {
+        status: 'ISSUED',
+        currentTransactionId: transRef.id,
+        updatedAt: new Date().toISOString()
+      });
 
       // 3. Update Book Inventory
       transaction.update(bookRef, {
@@ -178,6 +296,11 @@ const LibraryService = {
     });
   },
 
+  /**
+   * Return a book.
+   * Fine = ₹2 × overdue calendar days (LibraryPolicy.FINE_PER_DAY).
+   * Fine is ₹0 if returned on or before due date.
+   */
   async returnBook(transactionId) {
     const db = this._getDb();
 
@@ -197,27 +320,27 @@ const LibraryService = {
         transaction.get(copyRef)
       ]);
 
-      // Calculate any pending fine
+      // Calculate fine using centralized policy: ₹2/day
       const today = new Date();
-      const dueDate = new Date(tData.dueDate);
-      let fineAmount = 0;
-      if (today > dueDate) {
-        const diffTime = Math.abs(today - dueDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        fineAmount = diffDays * 5; // 5 Rs per day
-      }
+      const { fineAmount } = LibraryPolicy.calculateOverdueFine(
+        tData.issueDate, tData.dueDate, today
+      );
 
       // 1. Update Transaction
       transaction.update(transRef, {
         returnDate: today.toISOString(),
         status: 'RETURNED',
-        fineAmount: fineAmount,
+        fineAmount,
         updatedAt: new Date().toISOString()
       });
 
       // 2. Update Copy Status
       if (copyDoc.exists) {
-        transaction.update(copyRef, { status: 'AVAILABLE', currentTransactionId: null, updatedAt: new Date().toISOString() });
+        transaction.update(copyRef, {
+          status: 'AVAILABLE',
+          currentTransactionId: null,
+          updatedAt: new Date().toISOString()
+        });
       }
 
       // 3. Update Book Inventory
@@ -230,25 +353,138 @@ const LibraryService = {
         });
       }
 
-      // 4. Create Fine record if applicable
+      // 4. Create fine record if applicable
       if (fineAmount > 0) {
         const fineRef = db.collection('libraryFines').doc();
         transaction.set(fineRef, {
           userId: tData.userId,
           transactionId: transRef.id,
+          bookId: tData.bookId,
+          bookTitle: tData.bookTitle || '',
           amount: fineAmount,
+          finePerDay: LibraryPolicy.FINE_PER_DAY,
           status: 'PENDING',
           createdAt: new Date().toISOString()
         });
       }
 
-      return true;
+      return { fineAmount };
+    });
+  },
+
+  /**
+   * Reissue (renew) a book for another full 15-day period.
+   * The transaction's issueDate is updated to today and dueDate to +15 days.
+   * Historical data is preserved via previousDueDate.
+   */
+  async reissueBook(transactionId) {
+    const db = this._getDb();
+
+    return await db.runTransaction(async (transaction) => {
+      const transRef = db.collection('libraryTransactions').doc(transactionId);
+      const transDoc = await transaction.get(transRef);
+
+      if (!transDoc.exists) throw new Error("Transaction not found.");
+      const tData = transDoc.data();
+      if (tData.status === 'RETURNED') throw new Error("Cannot reissue a returned book.");
+
+      const today    = new Date();
+      const newDue   = LibraryPolicy.calcDueDate(today);
+
+      transaction.update(transRef, {
+        issueDate: today.toISOString(),
+        dueDate: newDue,
+        previousDueDate: tData.dueDate,   // preserve history
+        status: 'ISSUED',
+        fineAmount: 0,                     // reset fine on reissue
+        issuePeriodDays: LibraryPolicy.ISSUE_DAYS,
+        updatedAt: today.toISOString()
+      });
+
+      return { id: transactionId, issueDate: today.toISOString(), dueDate: newDue };
     });
   },
 
   // ------------------------------------------------------------------------
-  // DASHBOARD & ANALYTICS
+  // RETURN REMINDERS (Day 13 / 14 / 15)
+  // Idempotent — safe to call multiple times on the same day.
+  // Uses a deterministic Firestore document ID to prevent duplicates.
   // ------------------------------------------------------------------------
+
+  /**
+   * Generate return reminders for all active transactions.
+   * Call this once per day (e.g., on app load or via a scheduled trigger).
+   * @param {Date} [asOf]  - override "today" for testing
+   */
+  async generateReturnReminders(asOf) {
+    if (!window.notificationService) return;
+    const db = this._getDb();
+
+    try {
+      const snap = await db.collection('libraryTransactions')
+        .where('status', 'in', ['ISSUED', 'OVERDUE'])
+        .limit(200)
+        .get();
+
+      for (const doc of snap.docs) {
+        const t = { id: doc.id, ...doc.data() };
+        if (!t.dueDate || !t.userId || !t.bookTitle) continue;
+
+        const day = LibraryPolicy.daysSinceIssue(t.issueDate, asOf);
+        if (!LibraryPolicy.REMINDER_DAYS.includes(day)) continue;
+
+        const rem = LibraryPolicy.daysRemaining(t.dueDate, asOf);
+
+        // Build message
+        let title, message;
+        const dueDateStr = new Date(t.dueDate).toLocaleDateString('en-IN', {
+          day: '2-digit', month: 'short', year: 'numeric'
+        });
+
+        if (day === 13) {
+          title   = 'Book Return Reminder';
+          message = `Your library book '${t.bookTitle}' is due in 2 days on ${dueDateStr}. Please return or reissue the book before the due date to avoid overdue fines.`;
+        } else if (day === 14) {
+          title   = 'Book Return Reminder';
+          message = `Reminder: Your library book '${t.bookTitle}' is due tomorrow, ${dueDateStr}. Please return or reissue the book to avoid overdue fines.`;
+        } else if (day === 15) {
+          title   = 'Book Due Today';
+          message = `Your library book '${t.bookTitle}' is due today. Please return or reissue the book today. An overdue fine of ₹${LibraryPolicy.FINE_PER_DAY} per day will apply from tomorrow.`;
+        }
+
+        // Idempotent: use deterministic Firestore document ID
+        const reminderDocId = `return-reminder-${t.id}-day${day}`;
+        const reminderRef   = db.collection('notifications').doc(reminderDocId);
+        const existing      = await reminderRef.get();
+        if (existing.exists) continue; // already sent for this transaction+day
+
+        const notif = {
+          title,
+          message,
+          recipientId: t.userId,
+          recipientRole: 'STUDENT',
+          type: 'WARNING',
+          priority: 'HIGH',
+          category: 'LIBRARY',
+          relatedModule: 'library',
+          transactionId: t.id,
+          reminderDay: day,
+          isRead: false,
+          read: false,
+          createdAt: new Date().toISOString()
+        };
+
+        await reminderRef.set(notif);
+        // Also push to local cache
+        if (window.notificationService.localCache) {
+          window.notificationService.localCache.push({ id: reminderDocId, ...notif });
+        }
+      }
+    } catch (err) {
+      console.warn('generateReturnReminders error (non-critical):', err);
+    }
+  },
+
   // ------------------------------------------------------------------------
   // DASHBOARD & ANALYTICS (PARALLELIZED QUERIES)
   // ------------------------------------------------------------------------
@@ -281,9 +517,9 @@ const LibraryService = {
       stats.totalBooks = booksSnap.size || 0;
       booksSnap.forEach(doc => {
         const data = doc.data();
-        stats.totalCopies += (data.totalCopies || 0);
+        stats.totalCopies    += (data.totalCopies    || 0);
         stats.availableCopies += (data.availableCopies || 0);
-        stats.issuedCopies += (data.issuedCopies || 0);
+        stats.issuedCopies   += (data.issuedCopies   || 0);
       });
 
       // Process Fines Aggregation
@@ -417,8 +653,9 @@ const LibraryService = {
 
       if (students.length > 0) {
         const now = new Date();
-        const pastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const overdueDate = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+        // Use 18-day-old issue so it's already overdue by 3 days (15+3)
+        const pastIssue   = new Date(now.getTime() - 18 * 86400000);
+        const overdueDate = new Date(pastIssue.getTime() + LibraryPolicy.ISSUE_DAYS * 86400000);
         
         const student1 = students[0];
         const student2 = students[1] || students[0];
@@ -428,7 +665,7 @@ const LibraryService = {
         const copies2 = await this.getBookCopies(createdBooks[1].id);
         const copies3 = await this.getBookCopies(createdBooks[2].id);
 
-        // 1. ACTIVE (ISSUED)
+        // 1. ACTIVE (ISSUED) — fresh 15-day issue
         if (copies1.length > 0) {
           const t1 = await this.issueBook(student1.id, createdBooks[0].id, copies1[0].id);
           await db.collection('libraryTransactions').doc(t1.id).update({
@@ -437,22 +674,24 @@ const LibraryService = {
           });
         }
         
-        // 2. OVERDUE
+        // 2. OVERDUE — 18 days ago, so 3 days overdue, fine = ₹6
         if (copies2.length > 0) {
           const t2 = await this.issueBook(student2.id, createdBooks[1].id, copies2[0].id);
           await db.collection('libraryTransactions').doc(t2.id).update({
-            issueDate: pastMonth.toISOString(),
+            issueDate: pastIssue.toISOString(),
             dueDate: overdueDate.toISOString(),
             status: 'OVERDUE',
             memberEmail: student2.email || student2.id,
             isTestData: true
           });
-          // Add fine
+          // Fine = ₹2 × 3 = ₹6
           await db.collection('libraryFines').doc().set({
             userId: student2.id,
             memberEmail: student2.email || student2.id,
             transactionId: t2.id,
-            amount: 15, // 5 Rs/day * 3 days
+            bookTitle: createdBooks[1].title,
+            amount: 3 * LibraryPolicy.FINE_PER_DAY,
+            finePerDay: LibraryPolicy.FINE_PER_DAY,
             status: 'PENDING',
             isTestData: true,
             createdAt: new Date().toISOString()
@@ -475,6 +714,7 @@ const LibraryService = {
       throw err;
     }
   },
+
   stopListening() {
     if (this.listeners && this.listeners.length > 0) {
       this.listeners.forEach(unsub => unsub && typeof unsub === 'function' && unsub());

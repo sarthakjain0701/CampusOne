@@ -97,9 +97,23 @@ const LibraryView = {
     }
 
     const activeIssued = this.transactions.filter(r => r.status !== 'RETURNED');
-    const overdueBooks = this.transactions.filter(r => r.status === 'OVERDUE' || (r.status === 'ISSUED' && new Date(r.dueDate) < new Date()));
+    const overdueBooks = this.transactions.filter(r => {
+      if (r.status === 'RETURNED') return false;
+      if (r.status === 'OVERDUE') return true;
+      return r.dueDate && new Date(r.dueDate) < new Date();
+    });
+
     const unpaidFines = this.fines.filter(r => r.status === 'PENDING');
-    const totalFineAmount = unpaidFines.reduce((sum, r) => sum + r.amount, 0);
+    let unpaidFineSum = unpaidFines.reduce((sum, r) => sum + (r.amount || 0), 0);
+    
+    // Add dynamic overdue fine for active issues if not yet logged in fines collection
+    let dynamicFineSum = 0;
+    activeIssued.forEach(r => {
+      if (r.dueDate && window.LibraryPolicy) {
+        dynamicFineSum += window.LibraryPolicy.calculateOverdueFine(r.issueDate, r.dueDate).fineAmount;
+      }
+    });
+    const totalFineAmount = Math.max(unpaidFineSum, dynamicFineSum);
 
     return `
       <div class="page-header">
@@ -269,20 +283,25 @@ const LibraryView = {
               </thead>
               <tbody>
                 ${this.transactions.map(r => {
-                  let statusClass = 'present';
-                  let isOverdue = r.status === 'OVERDUE' || (r.status === 'ISSUED' && new Date(r.dueDate) < new Date());
-                  if (isOverdue) statusClass = 'danger';
-                  if (r.status === 'RETURNED') statusClass = 'active';
+                  const statusInfo = window.LibraryPolicy 
+                    ? window.LibraryPolicy.getTransactionStatus(r) 
+                    : { label: r.status, variant: r.status === 'OVERDUE' ? 'danger' : 'present' };
+
+                  const dynamicFine = (r.status !== 'RETURNED' && window.LibraryPolicy && r.dueDate)
+                    ? window.LibraryPolicy.calculateOverdueFine(r.issueDate, r.dueDate).fineAmount
+                    : 0;
+
+                  const fineDisp = Math.max(r.fineAmount || 0, dynamicFine);
 
                   return `
                     <tr>
-                      <td><strong>${r.bookTitle}</strong></td>
-                      <td>${new Date(r.issueDate).toLocaleDateString()}</td>
-                      <td><strong style="color: ${isOverdue ? 'var(--color-danger)' : 'inherit'};">${new Date(r.dueDate).toLocaleDateString()}</strong></td>
+                      <td><strong>${r.bookTitle || 'Untitled Book'}</strong></td>
+                      <td>${r.issueDate ? new Date(r.issueDate).toLocaleDateString() : '-'}</td>
+                      <td><strong style="color: ${statusInfo.variant === 'danger' ? 'var(--color-danger)' : 'inherit'};">${r.dueDate ? new Date(r.dueDate).toLocaleDateString() : '-'}</strong></td>
                       <td>
-                        <span class="status-badge ${statusClass}">${isOverdue ? 'OVERDUE' : r.status}</span>
+                        <span class="status-badge ${statusInfo.variant}">${statusInfo.label}</span>
                       </td>
-                      <td>${r.fineAmount > 0 ? `₹${r.fineAmount}` : '₹0'}</td>
+                      <td>${fineDisp > 0 ? `₹${fineDisp}` : '₹0'}</td>
                     </tr>
                   `;
                 }).join('')}
