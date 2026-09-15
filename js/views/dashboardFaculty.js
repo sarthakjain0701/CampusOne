@@ -238,7 +238,7 @@ const DashboardFaculty = {
           datasets: [{
             label: 'Avg. Attendance (%)',
             data: [88, 76, 92],
-            backgroundColor: ['#3B82F6', '#8B5CF6', '#10B981'],
+            backgroundColor: ['#3B82F6', '#1E3A8A', '#60A5FA'],
             borderRadius: 6
           }]
         },

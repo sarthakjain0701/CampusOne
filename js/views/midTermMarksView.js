@@ -386,9 +386,9 @@ const MidTermMarksView = {
    */
   renderQuickSearchResultCard(student) {
     return `
-      <div class="card" style="padding:1.75rem; border-left:5px solid #10B981; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
+      <div class="card" style="padding:1.75rem; border-left:5px solid #3B82F6; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
-          <div style="display:flex; align-items:center; gap:0.5rem; color:#047857; font-weight:800; font-size:0.95rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem; color:#1D4ED8; font-weight:800; font-size:0.95rem;">
             <i data-lucide="check-circle-2" style="width:20px; height:20px;"></i> ✓ Student Found
           </div>
           <span class="status-badge active" style="font-weight:700;">Active Record</span>

@@ -99,13 +99,13 @@ const DashboardAdmin = {
       </div>
 
       <!-- POORNIMA HERO BANNER -->
-      <div class="glass-panel" style="background-image: linear-gradient(135deg, rgba(8, 25, 55, 0.95) 0%, rgba(30, 64, 130, 0.9) 50%, rgba(37, 99, 235, 0.85) 100%); background-size: cover; background-position: center; border-radius: var(--radius-xl); padding: 2.5rem; margin-bottom: 2rem; color: #FFF; box-shadow: var(--glass-shadow);">
-        <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">Welcome to Poornima Group Of College</h2>
-        <p style="font-size: 1rem; color: rgba(255,255,255,0.85); max-width: 600px; margin-bottom: 1.5rem;">Smart Attendance. Better Management. Better Education. Manage attendance, academics, library and campus operations from one centralized platform.</p>
+      <div class="glass-panel" style="background-image: linear-gradient(135deg, #DCEBFF 0%, #BFD9FF 45%, #93C5FD 100%); background-size: cover; background-position: center; border-radius: var(--radius-xl); padding: 2.5rem; margin-bottom: 2rem; color: var(--text-primary); box-shadow: var(--glass-shadow);">
+        <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(90deg, #374151, #6B7280, #9CA3AF, #4B5563); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Welcome to Poornima Group Of College</h2>
+        <p style="font-size: 1rem; color: var(--text-primary); max-width: 600px; margin-bottom: 1.5rem;">Smart Attendance. Better Management. Better Education. Manage attendance, academics, library and campus operations from one centralized platform.</p>
         <div style="display: flex; gap: 12px; margin-top: 1.5rem;">
-          <button class="btn-primary" onclick="App.navigateTo('students')" style="box-shadow: 0 4px 15px rgba(0,0,0,0.2);">Manage Users</button>
-          <button class="btn-secondary" onclick="App.navigateTo('mark-attendance')" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: #FFF; backdrop-filter: blur(8px);">Attendance</button>
-          <button class="btn-secondary" onclick="App.navigateTo('timetable')" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: #FFF; backdrop-filter: blur(8px);">Timetable</button>
+          <button class="btn-primary" onclick="App.navigateTo('students')" style="box-shadow: 0 4px 15px rgba(59,130,246,0.2);">Manage Users</button>
+          <button class="btn-secondary" onclick="App.navigateTo('mark-attendance')">Attendance</button>
+          <button class="btn-secondary" onclick="App.navigateTo('timetable')">Timetable</button>
         </div>
       </div>
 
@@ -243,10 +243,10 @@ const DashboardAdmin = {
             label: 'Attendance Rate (%)',
             data: [82, 88, 85, 90, 86, 84],
             borderColor: '#3B82F6',
-            backgroundColor: 'rgba(59, 130, 246, 0.15)',
-            fill: true,
-            tension: 0.4,
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
             borderWidth: 3,
+            tension: 0.4,
+            fill: true,
             pointBackgroundColor: '#3B82F6'
           }]
         },

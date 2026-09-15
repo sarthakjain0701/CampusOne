@@ -491,7 +491,7 @@ const ReportsView = {
           <div style="height:140px;position:relative;margin-bottom:0.6rem;"><canvas id="rpt-dist-chart"></canvas></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;">
             ${this._dBand('90–100%', distribution.excellent, '#10B981')}
-            ${this._dBand('75–89%', distribution.good, '#3B82F6')}
+            ${this._dBand('75–89%', distribution.good, '#059669')}
             ${this._dBand('60–74%', distribution.warning, '#F59E0B')}
             ${this._dBand('Below 60%', distribution.critical, '#EF4444')}
           </div>
@@ -586,7 +586,7 @@ const ReportsView = {
         data: {
           labels: chart.labels,
           datasets: [{ label: 'Attendance %', data: chart.data,
-            backgroundColor: chart.data.map(v => v >= 75 ? '#3B82F6' : '#F59E0B'),
+            backgroundColor: chart.data.map(v => v >= 75 ? '#059669' : '#F59E0B'),
             borderRadius: 5, borderSkipped: false }]
         },
         options: {
@@ -607,7 +607,7 @@ const ReportsView = {
         data: {
           labels: ['90–100%', '75–89%', '60–74%', 'Below 60%'],
           datasets: [{ data: [distribution.excellent, distribution.good, distribution.warning, distribution.critical],
-            backgroundColor: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff' }]
+            backgroundColor: ['#10B981', '#059669', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff' }]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
       });

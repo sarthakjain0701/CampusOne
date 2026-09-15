@@ -51,7 +51,7 @@ const AcademicCalendarService = {
         label: 'Working Day',
         badgeClass: 'status-working-day',
         icon: 'check-circle',
-        color: '#10B981',
+        color: '#60A5FA',
         isWorkingDay: true,
         dayName: ''
       };
@@ -152,7 +152,7 @@ const AcademicCalendarService = {
       label: 'Working Day',
       badgeClass: 'status-working-day',
       icon: 'check-circle',
-      color: '#10B981',
+      color: '#60A5FA',
       isWorkingDay: true,
       dayName
     };

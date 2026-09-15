@@ -187,7 +187,7 @@ const LibraryView = {
           color: #065F46;
         }
         .library-stat-green .library-stat-icon-wrapper {
-          background: #10B981;
+          background: #60A5FA;
           color: white;
         }
 

@@ -936,9 +936,9 @@ const TimetableView = {
           <div style="font-size:1.75rem; font-weight:800; color:var(--color-navy-dark); margin-top:0.25rem;">${stats.totalSlots}</div>
         </div>
 
-        <div class="glass-panel" style="padding:1.25rem; border-left:4px solid #10B981; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
+        <div class="glass-panel" style="padding:1.25rem; border-left:4px solid #3B82F6; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">
           <div style="font-size:0.8rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Active Slots</div>
-          <div style="font-size:1.75rem; font-weight:800; color:#047857; margin-top:0.25rem;">${stats.activeSlots}</div>
+          <div style="font-size:1.75rem; font-weight:800; color:#1D4ED8; margin-top:0.25rem;">${stats.activeSlots}</div>
         </div>
 
         <div class="glass-panel" style="padding:1.25rem; border-left:4px solid #F59E0B; background:linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);">

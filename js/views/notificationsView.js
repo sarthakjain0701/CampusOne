@@ -107,7 +107,7 @@ const NotificationsView = {
     if (category === 'DIGITAL_LEARNING') { iconName = 'book-open'; iconBg = '#EFF6FF'; iconColor = '#2563EB'; }
     if (category === 'TIMETABLE') { iconName = 'calendar'; iconBg = '#F5F3FF'; iconColor = '#7C3AED'; }
     if (category === 'RESULT') { iconName = 'award'; iconBg = '#FEF3C7'; iconColor = '#D97706'; }
-    if (category === 'HOLIDAY') { iconName = 'calendar-days'; iconBg = '#ECFDF5'; iconColor = '#059669'; }
+    if (category === 'HOLIDAY') { iconName = 'calendar-days'; iconBg = '#EFF6FF'; iconColor = '#3B82F6'; }
 
     if (category === 'LIBRARY') { iconName = 'book'; iconBg = '#FFF7ED'; iconColor = '#EA580C'; }
     if (category === 'EXAM_FORM') { iconName = 'file-text'; iconBg = '#FAF5FF'; iconColor = '#9333EA'; }
@@ -122,7 +122,7 @@ const NotificationsView = {
     }
 
     return `
-      <div class="notification-item" style="display:flex; gap:1.25rem; padding:1.25rem; border-radius:12px; border:1px solid ${isUnread ? '#3B82F6' : 'var(--color-border)'}; background:${isUnread ? '#F8FAFC' : 'white'}; transition:var(--transition-fast); position:relative; box-shadow:${isUnread ? '0 4px 12px rgba(59,130,246,0.08)' : 'none'};">
+      <div class="notification-item" style="display:flex; gap:1.25rem; padding:1.25rem; border-radius:12px; border:1px solid ${isUnread ? '#3B82F6' : 'var(--color-border)'}; background:${isUnread ? '#F5F9FF' : 'white'}; transition:var(--transition-fast); position:relative; box-shadow:${isUnread ? '0 4px 12px rgba(59, 130, 246, 0.08)' : 'none'};">
         
         <!-- ICON -->
         <div style="width:48px; height:48px; background:${iconBg}; color:${iconColor}; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">

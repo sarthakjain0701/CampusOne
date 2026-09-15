@@ -141,7 +141,7 @@ const DashboardLibrarian = {
             </p>
           </div>
           <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-            <button class="btn-primary" onclick="App.navigateTo('library-books')" style="background:#10B981; border-color:#10B981;">
+            <button class="btn-primary" onclick="App.navigateTo('library-books')" style="background:#3B82F6; border-color:#3B82F6;">
               <i data-lucide="book-plus"></i> Add Book
             </button>
             <button class="btn-primary" onclick="App.navigateTo('library-circulation')" style="background:#2563EB;">

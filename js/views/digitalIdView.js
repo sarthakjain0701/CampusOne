@@ -77,7 +77,7 @@ const DigitalIdView = {
         <div id="digital-id-card" class="printable-area" style="width:420px; max-width:100%; background:linear-gradient(135deg, #0F172A 0%, #1E3A5F 60%, #0F172A 100%); border-radius:18px; box-shadow:0 20px 40px rgba(15,23,42,0.3); overflow:hidden; position:relative; color:white; font-family:Inter, sans-serif; border:1px solid rgba(255,255,255,0.15);">
           
           <!-- TOP HEADER BANNER -->
-          <div style="background:linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%); padding:1.1rem 1.5rem; display:flex; align-items:center; gap:0.85rem; border-bottom:2px solid rgba(255,255,255,0.15);">
+          <div style="background:linear-gradient(90deg, #1E3A8A 0%, #3B82F6 100%); padding:1.1rem 1.5rem; display:flex; align-items:center; gap:0.85rem; border-bottom:2px solid rgba(255,255,255,0.15);">
             <div style="width:44px; height:44px; background:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem; color:#1E40AF; box-shadow:0 2px 8px rgba(0,0,0,0.2);">PAS</div>
             <div>
               <div style="font-size:0.7rem; font-weight:700; color:rgba(255,255,255,0.85); text-transform:uppercase; letter-spacing:1px;">POORNIMA ATTENDANCE SYSTEM</div>

@@ -53,7 +53,11 @@ const attendanceService = {
   async getStudentAttendance(studentId) {
     try {
       const db = this._getDb();
-      const snapshot = await db.collection('attendance').where('studentId', '==', studentId).get();
+      const snapshot = await db.collection('attendance')
+        .where('studentId', '==', studentId)
+        .orderBy('date', 'desc')
+        .limit(500)
+        .get();
       const records = snapshot.docs.map(doc => doc.data());
 
       const total = records.length;
@@ -71,6 +75,8 @@ const attendanceService = {
       const snapshot = await db.collection('attendance')
         .where('studentId', '==', studentId)
         .where('subjectId', '==', subjectId)
+        .orderBy('date', 'desc')
+        .limit(200)
         .get();
       const records = snapshot.docs.map(doc => doc.data());
 
@@ -106,6 +112,7 @@ const attendanceService = {
         .where('classId', '==', classId)
         .where('subjectId', '==', subjectId)
         .where('date', '==', date)
+        .limit(200) // Bound to reasonable class size max
         .get();
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
@@ -155,6 +162,7 @@ const attendanceService = {
       .where('classId', '==', classId)
       .where('subjectId', '==', subjectId)
       .where('date', '==', date)
+      .limit(300) // Bound by max theoretical class size
       .get();
 
     const existingRecords = new Map();

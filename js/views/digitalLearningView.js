@@ -205,7 +205,7 @@ const DigitalLearningView = {
                   <div><strong style="color:#2563EB;">${notesCount}</strong> Notes</div>
                   <div><strong style="color:#D97706;">${assignCount}</strong> Assignments</div>
                   <div><strong style="color:#7C3AED;">${tuteCount}</strong> Tutes</div>
-                  <div><strong style="color:#059669;">${bookCount}</strong> Books</div>
+                  <div><strong style="color:#3B82F6;">${bookCount}</strong> Books</div>
                 </div>
               </div>
 
