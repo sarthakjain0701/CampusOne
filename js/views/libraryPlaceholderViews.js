@@ -56,23 +56,6 @@ window.LibraryReportsView = {
   }
 };
 
-window.LibrarySettingsView = {
-  render() {
-    return `
-      <div class="page-header">
-        <div>
-          <h1>Library Settings</h1>
-          <p>Configure fine amounts, borrowing limits, and library rules.</p>
-        </div>
-      </div>
-      <div class="card" style="padding: 3rem; text-align: center; color: var(--color-text-muted);">
-        <i data-lucide="settings" style="width: 48px; height: 48px; color: var(--color-border); margin-bottom: 1rem;"></i>
-        <h2>Configuration Editor</h2>
-        <p>Update grace periods, max borrowing limits, and default issue periods.</p>
-      </div>
-    `;
-  }
-};
 
 window.LibraryReservationsView = {
   render() {

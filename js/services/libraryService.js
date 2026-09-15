@@ -9,9 +9,41 @@
    Single source of truth used by all callers (Circulation, View, Dashboard)
    ========================================================================== */
 const LibraryPolicy = {
-  ISSUE_DAYS: 15,       // Standard issue period
-  FINE_PER_DAY: 2,      // ₹2 per overdue day
-  REMINDER_DAYS: [13, 14, 15], // Days on which reminders are sent
+  get ISSUE_DAYS() {
+    return (window.LibrarySettingsService && window.LibrarySettingsService.cache)
+      ? (window.LibrarySettingsService.cache.issuePeriodDays || 15)
+      : 15;
+  },
+  get FINE_PER_DAY() {
+    return (window.LibrarySettingsService && window.LibrarySettingsService.cache)
+      ? (window.LibrarySettingsService.cache.overdueFinePerDay !== undefined ? window.LibrarySettingsService.cache.overdueFinePerDay : 2)
+      : 2;
+  },
+  get REMINDER_DAYS() {
+    return (window.LibrarySettingsService && window.LibrarySettingsService.cache && Array.isArray(window.LibrarySettingsService.cache.reminderDays))
+      ? window.LibrarySettingsService.cache.reminderDays
+      : [13, 14, 15];
+  },
+  get MAX_BOOKS_PER_STUDENT() {
+    return (window.LibrarySettingsService && window.LibrarySettingsService.cache)
+      ? (window.LibrarySettingsService.cache.maxBooksPerStudent || 3)
+      : 3;
+  },
+  get REISSUE_ENABLED() {
+    return (window.LibrarySettingsService && window.LibrarySettingsService.cache)
+      ? (window.LibrarySettingsService.cache.reissueEnabled !== false)
+      : true;
+  },
+  get NEW_BOOK_NOTIF_ENABLED() {
+    return (window.LibrarySettingsService && window.LibrarySettingsService.cache)
+      ? (window.LibrarySettingsService.cache.newBookNotificationsEnabled !== false)
+      : true;
+  },
+  get RETURN_REMINDERS_ENABLED() {
+    return (window.LibrarySettingsService && window.LibrarySettingsService.cache)
+      ? (window.LibrarySettingsService.cache.returnRemindersEnabled !== false)
+      : true;
+  },
 
   /**
    * Calculate overdue days and fine amount.
@@ -153,10 +185,12 @@ const LibraryService = {
     await newBookRef.set(payload);
     const created = { id: newBookRef.id, ...payload };
 
-    // Send new-book notification to all students (fire-and-forget, non-blocking)
-    this._sendNewBookNotification(created).catch(e =>
-      console.warn('New-book notification failed (non-critical):', e)
-    );
+    // Send new-book notification if enabled (fire-and-forget, non-blocking)
+    if (LibraryPolicy.NEW_BOOK_NOTIF_ENABLED) {
+      this._sendNewBookNotification(created).catch(e =>
+        console.warn('New-book notification failed (non-critical):', e)
+      );
+    }
 
     return created;
   },
@@ -378,6 +412,9 @@ const LibraryService = {
    * Historical data is preserved via previousDueDate.
    */
   async reissueBook(transactionId) {
+    if (!LibraryPolicy.REISSUE_ENABLED) {
+      throw new Error("Book reissuance is currently disabled in Library Settings.");
+    }
     const db = this._getDb();
 
     return await db.runTransaction(async (transaction) => {
@@ -418,6 +455,7 @@ const LibraryService = {
    */
   async generateReturnReminders(asOf) {
     if (!window.notificationService) return;
+    if (!LibraryPolicy.RETURN_REMINDERS_ENABLED) return;
     const db = this._getDb();
 
     try {
