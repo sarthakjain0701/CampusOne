@@ -31,12 +31,6 @@
   --role-secondary: var(--poornima-sky);
   --role-accent: var(--poornima-gold);
   
-  /* Core Colors - Blue Palette (kept for legacy components) */
-  --color-primary: var(--poornima-blue);
-  --color-primary-hover: var(--poornima-deep-blue);
-  --color-secondary: var(--poornima-deep-blue);
-  --color-accent: var(--poornima-sky);
-  
   /* Blue Theme Specific */
   --primary-blue: var(--poornima-blue);
   --deep-blue: var(--poornima-deep-blue);
@@ -48,22 +42,55 @@
   
   --surface: #FFFFFF;
   --background: #F4F8FC;
-  --text-primary: #1F2937;
-  --text-muted: #64748B;
   --border-blue: #D7E6F7;
+}
+
+/* Role overrides */
+[data-role="ADMIN"] {
+  --role-primary: #1E40AF;
+  --role-secondary: #2563EB;
+  --role-accent: #D4A72C;
+}
+[data-role="FACULTY"] {
+  --role-primary: #2563EB;
+  --role-secondary: #0EA5E9;
+  --role-accent: #14B8A6;
+}
+[data-role="STUDENT"] {
+  --role-primary: #0284C7;
+  --role-secondary: #38BDF8;
+  --role-accent: #06B6D4;
+}
+[data-role="LIBRARIAN"] {
+  --role-primary: #047857;
+  --role-secondary: #10B981;
+  --role-accent: #2563EB;
+}
+[data-role="LAB_ASSISTANT"] {
+  --role-primary: #4338CA;
+  --role-secondary: #6366F1;
+  --role-accent: #8B5CF6;
+}
+
+:root {
+  /* Legacy Color Aliases */
+  --color-primary: var(--role-primary);
+  --color-primary-hover: var(--role-secondary);
+  --color-secondary: var(--role-secondary);
+  --color-accent: var(--role-accent);
   
   /* Backgrounds */
   --color-app-bg: var(--background);
   --color-sidebar-bg: linear-gradient(180deg, var(--poornima-deep-blue) 0%, var(--poornima-blue) 100%);
   
-  /* Glass Tokens */
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-bg-dark: rgba(30, 58, 138, 0.65);
-  --glass-border: rgba(59, 130, 246, 0.12); /* Subtle blue border */
+  /* Glass Tokens (Converted to clean flat UI) */
+  --glass-bg: #FFFFFF;
+  --glass-bg-dark: rgba(30, 58, 138, 0.95);
+  --glass-border: #DCE8F7;
   --glass-border-dark: rgba(255, 255, 255, 0.15);
-  --glass-shadow: 0 8px 30px rgba(37, 99, 235, 0.08); /* Gentle blue shadow */
+  --glass-shadow: 0 6px 20px rgba(30,64,175,0.06);
   --glass-shadow-dark: 0 20px 60px rgba(0, 0, 0, 0.25);
-  --glass-blur: blur(18px);
+  --glass-blur: none;
 
   /* Text Colors */
   --color-text-main: var(--text-primary);
@@ -93,9 +120,9 @@
   
   /* Radius System */
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   
   --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -586,7 +613,8 @@ a:hover { color: var(--color-primary-hover); }
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  color: rgba(255,255,255,0.75);
+  color: #FFF;
+  background: transparent;
   text-decoration: none;
   border-radius: var(--radius-md);
   font-size: 15px;
@@ -594,21 +622,20 @@ a:hover { color: var(--color-primary-hover); }
   margin-bottom: 4px;
   transition: var(--transition-fast);
   cursor: pointer;
+  position: relative;
 }
 
-.nav-item i { font-size: 1.15rem; width: 22px; text-align: center; }
+.nav-item i { font-size: 1.15rem; width: 22px; text-align: center; color: rgba(255,255,255,0.85); }
 
 .nav-item:hover {
-  background: rgba(239, 246, 255, 0.5); /* Soft blue background */
-  color: var(--blue);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, var(--blue), var(--primary-blue));
-  color: #FFF;
+  background: rgba(255, 255, 255, 0.18);
   font-weight: 600;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
-  border: 1px solid rgba(255,255,255,0.1);
+  border-left: 4px solid var(--poornima-sky);
+  padding-left: 10px; /* Adjust padding to account for the border */
 }
 
 .sidebar-footer {
@@ -756,16 +783,16 @@ a:hover { color: var(--color-primary-hover); }
 .form-input, .form-control {
   width: 100%; height: 46px; /* 44-48px target */
   padding: 0 1rem; font-size: 15px; font-family: inherit;
-  border: 1px solid var(--border-blue);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   outline: none; transition: var(--transition-fast);
-  background: #FFFFFF; color: var(--color-text-main);
+  background: #FFFFFF; color: var(--text-primary);
   box-sizing: border-box;
 }
 .form-input.with-icon { padding-left: 3rem; }
 .form-input:focus, .form-control:focus {
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  border-color: var(--role-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
 }
 .form-input.dark {
   background: rgba(255,255,255,0.08);
@@ -775,8 +802,8 @@ a:hover { color: var(--color-primary-hover); }
 .form-input.dark::placeholder { color: rgba(255,255,255,0.4); }
 .form-input.dark:focus {
   background: rgba(255,255,255,0.12);
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  border-color: var(--role-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.20);
 }
 
 .form-actions {
@@ -1465,3 +1492,56 @@ textarea:focus-visible {
     margin: 20mm;
   }
 }
+
+ / *   T a b l e s   * / 
+ . t a b l e - c o n t a i n e r   { 
+     b o r d e r - r a d i u s :   1 2 p x ; 
+     o v e r f l o w :   h i d d e n ; 
+     b o r d e r :   1 p x   s o l i d   v a r ( - - b o r d e r - c o l o r ) ; 
+     b a c k g r o u n d :   # F F F ; 
+ } 
+ . d a t a - t a b l e   { 
+     w i d t h :   1 0 0 % ; 
+     b o r d e r - c o l l a p s e :   c o l l a p s e ; 
+ } 
+ . d a t a - t a b l e   t h   { 
+     b a c k g r o u n d :   v a r ( - - p a g e - b a c k g r o u n d ) ; 
+     c o l o r :   v a r ( - - r o l e - p r i m a r y ) ; 
+     b o r d e r - b o t t o m :   2 p x   s o l i d   v a r ( - - b o r d e r - c o l o r ) ; 
+     p a d d i n g :   1 r e m ; 
+     f o n t - w e i g h t :   6 0 0 ; 
+     t e x t - a l i g n :   l e f t ; 
+ } 
+ . d a t a - t a b l e   t d   { 
+     b a c k g r o u n d :   # F F F ; 
+     b o r d e r - b o t t o m :   1 p x   s o l i d   v a r ( - - b o r d e r - c o l o r ) ; 
+     p a d d i n g :   1 r e m ; 
+     t r a n s i t i o n :   b a c k g r o u n d   0 . 2 s ; 
+ } 
+ . d a t a - t a b l e   t r : h o v e r   t d   { 
+     b a c k g r o u n d :   v a r ( - - p a g e - b a c k g r o u n d ) ; 
+ } 
+  
+ 
+ / *   W e l c o m e   H e a d i n g   * / 
+ . w e l c o m e - h e a d i n g   { 
+     b a c k g r o u n d :   l i n e a r - g r a d i e n t ( 9 0 d e g ,   # 3 7 4 1 5 1 ,   # 9 C A 3 A F ,   # D 1 D 5 D B ,   # 6 B 7 2 8 0 ) ; 
+     - w e b k i t - b a c k g r o u n d - c l i p :   t e x t ; 
+     - w e b k i t - t e x t - f i l l - c o l o r :   t r a n s p a r e n t ; 
+     b a c k g r o u n d - c l i p :   t e x t ; 
+ } 
+  
+ 
+ / *   A c c e s s i b i l i t y   F o c u s   S t a t e s   * / 
+ b u t t o n : f o c u s - v i s i b l e , 
+ a : f o c u s - v i s i b l e , 
+ . n a v - i t e m : f o c u s - v i s i b l e , 
+ i n p u t : f o c u s - v i s i b l e , 
+ s e l e c t : f o c u s - v i s i b l e , 
+ t e x t a r e a : f o c u s - v i s i b l e   { 
+     o u t l i n e :   2 p x   s o l i d   v a r ( - - r o l e - p r i m a r y ) ; 
+     o u t l i n e - o f f s e t :   2 p x ; 
+     b o x - s h a d o w :   0   0   0   4 p x   r g b a ( 3 7 , 9 9 , 2 3 5 , 0 . 1 ) ; 
+ } 
+  
+ 

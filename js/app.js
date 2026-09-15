@@ -143,6 +143,9 @@ const App = {
     const appEl = document.getElementById('app');
     const sidebarMenu = this.getNavigationForRole(user.role);
     const roleDisplayName = this.getRoleDisplayName(user.role);
+    
+    // Set data-role for CSS theming
+    appEl.setAttribute('data-role', user.role);
 
     const unreadCount = notificationService.getUnreadCount(user);
     const badgeText = notificationService.getBadgeText(user);
@@ -327,6 +330,18 @@ const App = {
         { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['LIBRARIAN'] }
       ];
     }
+    
+    if (role === 'LAB_ASSISTANT') {
+      return [
+        { id: 'dashboard', label: 'Dashboard', roles: ['LAB_ASSISTANT'] },
+        { id: 'laboratory', label: 'Laboratory', roles: ['LAB_ASSISTANT'] },
+        { id: 'digital-learning', label: 'Digital Learning', roles: ['LAB_ASSISTANT'] },
+        { id: 'lab-problem-report', label: 'Report Problem', roles: ['LAB_ASSISTANT'] },
+        { id: 'my-lab-reports', label: 'My Reports', roles: ['LAB_ASSISTANT'] },
+        { id: 'notifications', label: 'Notifications', roles: ['LAB_ASSISTANT'] },
+        { id: 'profile', label: 'Profile', roles: ['LAB_ASSISTANT'] }
+      ];
+    }
 
     const allItems = [
       { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
@@ -339,9 +354,9 @@ const App = {
       { id: 'admin-lab-reports', label: 'Lab Problem Reports', icon: 'wrench', roles: ['ADMIN'] },
 
       { id: 'digital-learning', label: 'Digital Learning', icon: 'book-open', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
-      { id: 'timetable', label: 'Timetable', icon: 'calendar', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'timetable', label: 'Timetable', icon: 'calendar', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
       { id: 'exam-results', label: 'Exam Results', icon: 'award', roles: ['ADMIN', 'STUDENT'] },
-      { id: 'mid-term-marks', label: 'Mid-Term Marks', icon: 'file-spreadsheet', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
+      { id: 'mid-term-marks', label: 'Mid-Term Marks', icon: 'file-spreadsheet', roles: ['ADMIN', 'FACULTY', 'STUDENT'] },
       { id: 'hall-ticket', label: 'Hall Ticket', icon: 'ticket', roles: ['STUDENT'] },
       { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days', roles: ['ADMIN', 'FACULTY', 'LAB_ASSISTANT', 'STUDENT'] },
       { id: 'library', label: 'Library Portal', icon: 'book', roles: ['STUDENT'] },
@@ -403,6 +418,11 @@ const App = {
       'library-fines': 'Fines & Payments',
       'library-reports': 'Library Reports',
       'library-settings': 'Library Settings',
+      
+      // Laboratory Management
+      'laboratory': 'Laboratory Management',
+
+      // Lab Assistant (Problem Reporting)
       'lab-problem-report': 'Report Laboratory Problem',
       'my-lab-reports': 'My Problem Reports',
       'admin-lab-reports': 'Manage Lab Problem Reports'

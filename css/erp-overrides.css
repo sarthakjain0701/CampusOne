@@ -408,35 +408,37 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  background: linear-gradient(135deg, var(--role-primary), var(--role-secondary));
   color: #FFF;
   border: none;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-secondary));
-  transform: translateY(-1px);
-  box-shadow: 0 6px 15px rgba(59, 130, 246, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
 }
 
 .btn-secondary {
-  background: #F1F5F9;
-  color: var(--color-navy-dark, #0F172A);
-  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: var(--role-primary);
+  border: 1px solid var(--role-primary);
 }
 
 .btn-secondary:hover {
-  background: #E2E8F0;
+  background: var(--page-background);
+  transform: translateY(-1px);
 }
 
 .btn-danger {
-  background: var(--color-danger);
+  background: #EF4444;
   color: #FFF;
+  border: none;
 }
 
 .btn-danger:hover {
   background: #DC2626;
+  transform: translateY(-1px);
 }
 
 .btn-icon {
