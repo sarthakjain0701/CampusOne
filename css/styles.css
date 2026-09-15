@@ -147,75 +147,363 @@ a:hover { color: var(--color-primary-hover); }
 }
 
 /* ==========================================================================
-   LOGIN PAGE
+   LOGIN PAGE — PREMIUM TWO-COLUMN CAMPUS DESIGN
    ========================================================================== */
-.login-page { 
-  position: relative; 
-  min-height: 100vh; 
-  overflow: hidden; 
-} 
 
-.login-page::before { 
-  content: ""; 
-  position: absolute; 
-  inset: -20px; 
-  background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQN7_9-FyE5OVqVhdW07dipp8COHU3ch2yIvwRyzkROUFys8KdtinCr-Pvd&s=10'); 
-  background-size: cover; 
-  background-position: center; 
-  background-repeat: no-repeat; 
-  opacity: 0.55;
-  filter: blur(8px); 
-  transform: scale(1.05); 
-  z-index: 0; 
-} 
+/* Login-scoped CSS variables */
+.login-page {
+  --login-blue:       #2563EB;
+  --login-sky:        #38BDF8;
+  --login-light-blue: #EFF6FF;
+  --login-deep:       #1E3A8A;
+  --login-text:       #1E3A8A;
+  --login-muted:      #496A8A;
+  --login-border:     #C7DDF3;
+}
 
-.login-page::after { 
-  content: ""; 
-  position: absolute; 
-  inset: 0; 
-  background: rgba(15, 30, 20, 0.45); 
-  z-index: 1; 
-} 
+/* Full-page container */
+.login-page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  font-family: var(--font-family);
+}
 
-.login-content { 
-  position: relative; 
+/* --- Background campus image layer --- */
+.login-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSUi4kWdxjp9tk8JWKABF_E0xWG0dRXN0CFVzlEvdDuJA&s=10');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(3px) brightness(0.92);
+  transform: scale(1.04);
+  z-index: 0;
+}
+
+/* --- Sky-blue overlay for readability --- */
+.login-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(239, 248, 255, 0.82),
+    rgba(219, 239, 255, 0.68),
+    rgba(191, 219, 254, 0.55)
+  );
+  z-index: 1;
+}
+
+/* --- Decorative translucent blobs --- */
+.login-blob {
+  position: absolute;
+  border-radius: 50%;
   z-index: 2;
+  pointer-events: none;
+}
+.login-blob-1 {
+  width: 480px; height: 480px;
+  background: radial-gradient(circle, rgba(56,189,248,0.18), transparent 70%);
+  top: -120px; left: -120px;
+}
+.login-blob-2 {
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, rgba(37,99,235,0.13), transparent 70%);
+  bottom: -100px; right: 340px;
+}
+
+/* ===================================================
+   TWO-COLUMN LAYOUT WRAPPER
+   =================================================== */
+.login-layout {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem 4%;
+  gap: 2rem;
+}
+
+/* ===================================================
+   LEFT SIDE — BRANDING
+   =================================================== */
+.login-branding {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 560px;
+  padding-left: 2%;
+}
+
+/* Logo row */
+.login-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+.login-brand-logo {
+  height: 76px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 3px 8px rgba(30,58,138,0.25));
+}
+.login-brand-name {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--login-deep);
+  line-height: 1.2;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.login-brand-tagline {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--login-muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+}
+
+/* Main headline */
+.login-headline {
+  line-height: 1.15;
+}
+.login-headline-dark {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--login-deep);
+  letter-spacing: -0.5px;
+}
+.login-headline-gradient {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #2563EB, #38BDF8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Supporting text */
+.login-supporting {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.login-supporting p {
+  font-size: 1.02rem;
+  font-weight: 400;
+  color: var(--login-muted);
+  margin: 0;
+  line-height: 1.65;
+}
+
+/* Feature highlights */
+.login-features {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255,255,255,0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  width: fit-content;
+}
+.login-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0 1.1rem;
+}
+.login-feature-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+  border: 1px solid #BFDBFE;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--login-blue);
+  flex-shrink: 0;
+}
+.login-feature-icon svg { width: 18px; height: 18px; }
+.login-feature-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--login-deep);
+  line-height: 1.35;
+}
+.login-feature-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(37,99,235,0.2);
+  flex-shrink: 0;
+}
+
+/* Closing quote */
+.login-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.login-quote span {
+  font-size: 1.05rem;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--login-blue);
+  letter-spacing: 0.2px;
+}
+.login-quote-line {
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--login-blue), transparent);
+  border-radius: 2px;
+}
+
+/* ===================================================
+   RIGHT SIDE — LOGIN PANEL
+   =================================================== */
+.login-panel-wrapper {
+  flex-shrink: 0;
+  width: 460px;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  padding: 1.5rem;
+  margin-left: auto;
+  padding-right: 2%;
 }
 
 .login-card {
   width: 100%;
-  max-width: 440px;
-  background: rgba(255, 255, 255, 0.85); /* Frosted surface */
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 25px 70px rgba(30, 58, 138, 0.20);
-  border-radius: 24px;
-  padding: 2.5rem;
+  background: rgba(239, 248, 255, 0.88);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255,255,255,0.78);
+  box-shadow: 0 20px 60px rgba(30, 64, 175, 0.18), 0 4px 20px rgba(56,189,248,0.08);
+  border-radius: 28px;
+  padding: 2.5rem 2.25rem;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
-
 .login-header h1 {
   font-size: 1.85rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--login-deep);
   margin-bottom: 0.5rem;
-  text-shadow: 0 2px 10px rgba(255,255,255,0.3);
+}
+.login-header p {
+  color: var(--login-muted);
+  font-size: 0.85rem;
 }
 
-.login-header p {
-  color: var(--text-muted);
-  font-size: 0.95rem;
+/* Scoped input styling inside login card */
+.login-label {
+  color: var(--login-deep) !important;
+  font-weight: 600;
 }
+.login-input {
+  background: rgba(255,255,255,0.82) !important;
+  border: 1px solid var(--login-border) !important;
+  border-radius: 14px !important;
+  color: #1F2937 !important;
+  height: 48px !important;
+}
+.login-input::placeholder { color: #94A3B8; }
+.login-input:focus {
+  border-color: var(--login-blue) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.14) !important;
+  background: rgba(255,255,255,0.96) !important;
+}
+
+/* Input icon color in login */
+.login-card .input-icon { color: #64A0D0; }
+
+/* Toggle pw button */
+.login-toggle-pw {
+  position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #64A0D0;
+  cursor: pointer; z-index: 5;
+  display: flex; align-items: center;
+}
+.login-toggle-pw:hover { color: var(--login-blue); }
+
+/* Login button */
+.login-btn {
+  background: linear-gradient(135deg, #38BDF8, #2563EB) !important;
+  color: #FFF !important;
+  border: none !important;
+  border-radius: 13px !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px;
+  box-shadow: 0 8px 22px rgba(37,99,235,0.28) !important;
+  transition: all 0.2s ease !important;
+}
+.login-btn:hover {
+  background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
+  box-shadow: 0 10px 28px rgba(37,99,235,0.38) !important;
+  transform: translateY(-1px) !important;
+}
+.login-btn:active { transform: translateY(0) !important; }
+.login-btn:disabled {
+  opacity: 0.65 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* ===================================================
+   RESPONSIVE
+   =================================================== */
+@media (max-width: 1024px) {
+  .login-layout { padding: 2rem 3%; }
+  .login-headline-dark, .login-headline-gradient { font-size: 2.4rem; }
+  .login-panel-wrapper { width: 420px; }
+}
+
+@media (max-width: 768px) {
+  .login-layout {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 2rem 1.25rem;
+    gap: 2rem;
+  }
+  .login-branding {
+    max-width: 100%;
+    padding-left: 0;
+    align-items: center;
+    text-align: center;
+  }
+  .login-brand-header { flex-direction: column; text-align: center; }
+  .login-headline-dark, .login-headline-gradient { font-size: 2rem; }
+  .login-headline { text-align: center; }
+  .login-supporting { align-items: center; }
+  .login-features { width: 100%; justify-content: center; flex-wrap: wrap; gap: 0.5rem; }
+  .login-feature-divider { display: none; }
+  .login-quote { align-items: center; }
+  .login-panel-wrapper {
+    width: 100%;
+    max-width: 460px;
+    padding-right: 0;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card { padding: 2rem 1.5rem; border-radius: 22px; }
+  .login-headline-dark, .login-headline-gradient { font-size: 1.75rem; }
+}
+
+
 
 /* ==========================================================================
    APP SHELL (MAIN LAYOUT)

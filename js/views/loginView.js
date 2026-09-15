@@ -9,42 +9,114 @@ const LoginView = {
   render() {
     return `
       <div class="login-page">
-        <!-- CENTERED FORM SECTION -->
-        <div class="login-content">
-          <div class="login-card">
-            <div class="login-header">
-              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 1rem; gap: 0.5rem;">
-                <img src="https://www.poornima.org/img/emblem.png" alt="Poornima Group Of College Logo" style="height: 90px; width: auto; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); margin-bottom: 0.5rem;">
-                <div style="font-size: 1.5rem; font-weight: 900; color: #FFFFFF; letter-spacing: 1px; text-align: center; text-shadow: 0 2px 10px rgba(0,0,0,0.5); line-height: 1.2; margin-top: 0.5rem; text-transform: uppercase;">Poornima Group Of College</div>
+
+        <!-- DECORATIVE BLOBS (behind content) -->
+        <div class="login-blob login-blob-1"></div>
+        <div class="login-blob login-blob-2"></div>
+
+        <!-- TWO-COLUMN WRAPPER -->
+        <div class="login-layout">
+
+          <!-- ===== LEFT SIDE — BRANDING ===== -->
+          <div class="login-branding">
+
+            <!-- Logo + College Name -->
+            <div class="login-brand-header">
+              <img src="https://www.poornima.org/img/emblem.png" alt="Poornima Group Of College Logo" class="login-brand-logo">
+              <div>
+                <div class="login-brand-name">POORNIMA GROUP OF<br>COLLEGE</div>
+                <div class="login-brand-tagline">Smart Attendance. Better Management. Better Education.</div>
               </div>
-              <p style="font-weight: 600; color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; margin-bottom: 0.25rem; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">Smart Attendance. Better Management. Better Education.</p>
             </div>
 
-            <form id="login-form" onsubmit="LoginView.handleSubmit(event)">
-              <div class="form-group">
-                <label class="form-label" for="login-email">College Email Address</label>
-                <div class="input-container">
-                  <i data-lucide="mail" class="input-icon"></i>
-                  <input type="email" id="login-email" class="form-input" placeholder="name@poornima.org" required value="">
-                </div>
-              </div>
+            <!-- Main Headline -->
+            <div class="login-headline">
+              <div class="login-headline-dark">Education Builds</div>
+              <div class="login-headline-gradient">a Brighter Future</div>
+            </div>
 
-              <div class="form-group" id="password-group">
-                <label class="form-label" for="login-password">Password</label>
-                <div class="input-container">
-                  <i data-lucide="lock" class="input-icon"></i>
-                  <input type="${this.showPassword ? 'text' : 'password'}" id="login-password" class="form-input" placeholder="••••••••" required>
-                  <button type="button" class="toggle-password" onclick="LoginView.togglePasswordVisibility()" aria-label="Toggle password visibility">
-                    <i data-lucide="${this.showPassword ? 'eye-off' : 'eye'}"></i>
-                  </button>
-                </div>
-              </div>
+            <!-- Supporting Text -->
+            <div class="login-supporting">
+              <p>Learn today, lead tomorrow.</p>
+              <p>Empowering minds for a better tomorrow.</p>
+            </div>
 
-              <button type="submit" id="btn-login-submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">
-                LOG IN
-              </button>
-            </form>
+            <!-- Feature Highlights -->
+            <div class="login-features">
+              <div class="login-feature-item">
+                <div class="login-feature-icon">
+                  <i data-lucide="graduation-cap"></i>
+                </div>
+                <div class="login-feature-text">Quality<br>Education</div>
+              </div>
+              <div class="login-feature-divider"></div>
+              <div class="login-feature-item">
+                <div class="login-feature-icon">
+                  <i data-lucide="users"></i>
+                </div>
+                <div class="login-feature-text">Experienced<br>Faculty</div>
+              </div>
+              <div class="login-feature-divider"></div>
+              <div class="login-feature-item">
+                <div class="login-feature-icon">
+                  <i data-lucide="trending-up"></i>
+                </div>
+                <div class="login-feature-text">Holistic<br>Development</div>
+              </div>
+            </div>
+
+            <!-- Closing Quote -->
+            <div class="login-quote">
+              <span>Together Towards Excellence</span>
+              <div class="login-quote-line"></div>
+            </div>
+
           </div>
+          <!-- ===== END LEFT SIDE ===== -->
+
+          <!-- ===== RIGHT SIDE — LOGIN CARD ===== -->
+          <div class="login-panel-wrapper">
+            <div class="login-card">
+
+              <!-- Card Header -->
+              <div class="login-header">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 0.75rem; gap: 0.5rem;">
+                  <img src="https://www.poornima.org/img/emblem.png" alt="Poornima Group Of College Logo" style="height: 72px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(30,64,175,0.25)); margin-bottom: 0.25rem;">
+                  <div style="font-size: 1.15rem; font-weight: 900; color: #1E3A8A; letter-spacing: 0.5px; text-align: center; line-height: 1.25; text-transform: uppercase;">Poornima Group Of College</div>
+                </div>
+                <p style="font-weight: 500; color: #64748B; font-size: 0.85rem; margin-bottom: 0; text-align: center;">Smart Attendance. Better Management. Better Education.</p>
+              </div>
+
+              <!-- Form -->
+              <form id="login-form" onsubmit="LoginView.handleSubmit(event)">
+                <div class="form-group">
+                  <label class="form-label login-label" for="login-email">College Email Address</label>
+                  <div class="input-container">
+                    <i data-lucide="mail" class="input-icon"></i>
+                    <input type="email" id="login-email" class="form-input login-input" placeholder="name@poornima.org" required value="">
+                  </div>
+                </div>
+
+                <div class="form-group" id="password-group">
+                  <label class="form-label login-label" for="login-password">Password</label>
+                  <div class="input-container">
+                    <i data-lucide="lock" class="input-icon"></i>
+                    <input type="${this.showPassword ? 'text' : 'password'}" id="login-password" class="form-input login-input" placeholder="••••••••" required>
+                    <button type="button" class="toggle-password login-toggle-pw" onclick="LoginView.togglePasswordVisibility()" aria-label="Toggle password visibility">
+                      <i data-lucide="${this.showPassword ? 'eye-off' : 'eye'}"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <button type="submit" id="btn-login-submit" class="btn-primary login-btn" style="width: 100%; margin-top: 1rem;">
+                  LOG IN &nbsp;→
+                </button>
+              </form>
+
+            </div>
+          </div>
+          <!-- ===== END RIGHT SIDE ===== -->
+
         </div>
       </div>
     `;
