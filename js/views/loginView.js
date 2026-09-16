@@ -99,11 +99,11 @@ const LoginView = {
 
                 <div class="form-group" id="password-group">
                   <label class="form-label login-label" for="login-password">Password</label>
-                  <div class="input-container">
+                  <div class="input-container" style="position: relative;">
                     <i data-lucide="lock" class="input-icon"></i>
-                    <input type="${this.showPassword ? 'text' : 'password'}" id="login-password" class="form-input login-input" placeholder="••••••••" required>
-                    <button type="button" class="toggle-password login-toggle-pw" onclick="LoginView.togglePasswordVisibility()" aria-label="Toggle password visibility">
-                      <i data-lucide="${this.showPassword ? 'eye-off' : 'eye'}"></i>
+                    <input type="password" id="login-password" class="form-input login-input" placeholder="••••••••" required style="padding-right: 48px;">
+                    <button type="button" id="toggle-pw-btn" class="toggle-password login-toggle-pw" onclick="LoginView.togglePasswordVisibility()" aria-label="Show password">
+                      <i data-lucide="eye" id="toggle-pw-icon"></i>
                     </button>
                   </div>
                 </div>
@@ -125,8 +125,17 @@ const LoginView = {
   togglePasswordVisibility() {
     this.showPassword = !this.showPassword;
     const input = document.getElementById('login-password');
-    if (input) {
+    const btn = document.getElementById('toggle-pw-btn');
+    if (input && btn) {
       input.type = this.showPassword ? 'text' : 'password';
+      btn.setAttribute('aria-label', this.showPassword ? 'Hide password' : 'Show password');
+      // Update icon dynamically
+      btn.innerHTML = `<i data-lucide="${this.showPassword ? 'eye-off' : 'eye'}" id="toggle-pw-icon"></i>`;
+      if (window.lucide) {
+        window.lucide.createIcons({
+          root: btn
+        });
+      }
     }
   },
 

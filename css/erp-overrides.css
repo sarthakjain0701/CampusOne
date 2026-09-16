@@ -662,10 +662,19 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Hide desktop hamburger */
-@media (min-width: 992px) {
+/* Desktop Sidebar Collapse Logic */
+@media (min-width: 1025px) {
+  /* No need to hide the hamburger button now */
   .hamburger-btn, .btn-toggle-sidebar {
-    display: none !important;
+    display: inline-flex !important;
+  }
+  
+  body.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+  }
+  
+  body.sidebar-collapsed .main-wrapper {
+    margin-left: 0;
   }
 }
 
@@ -690,4 +699,793 @@
   .app-main { margin: 0 !important; padding: 0 !important; overflow: visible !important; }
   .printable-area { box-shadow: none !important; border: none !important; max-width: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; color: #000 !important; }
   body { background: #FFF !important; }
+}
+
+/* ==========================================================================
+   POORNIMA UNIFIED DESIGN SYSTEM (APPENDED OVERRIDES)
+   ========================================================================== */
+
+:root {
+  /* Poornima Central Variables */
+  --poornima-deep-blue: #163A8A;
+  --poornima-blue: #2563EB;
+  --poornima-sky: #38BDF8;
+  --poornima-cyan: #06B6D4;
+  --poornima-gold: #D4A72C;
+
+  --text-primary: #172033;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  --page-background: #EFF6FF;
+  --card-background: #FFFFFF;
+  --border-color: #DCE8F7;
+
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+
+  /* Default fallback */
+  --role-primary: var(--poornima-blue);
+  --role-secondary: var(--poornima-sky);
+  --role-accent: var(--poornima-cyan);
+}
+
+/* ------------------------------------------
+   ROLE-BASED THEMES
+   ------------------------------------------ */
+[data-role="ADMIN"], body.role-admin {
+  --role-primary: #1E40AF;
+  --role-secondary: #2563EB;
+  --role-accent: #D4A72C;
+}
+
+[data-role="FACULTY"], body.role-faculty {
+  --role-primary: #2563EB;
+  --role-secondary: #0EA5E9;
+  --role-accent: #14B8A6;
+}
+
+[data-role="STUDENT"], body.role-student {
+  --role-primary: #0284C7;
+  --role-secondary: #38BDF8;
+  --role-accent: #06B6D4;
+}
+
+[data-role="LIBRARIAN"], body.role-librarian {
+  --role-primary: #047857;
+  --role-secondary: #10B981;
+  --role-accent: #2563EB;
+}
+
+[data-role="LAB_ASSISTANT"], body.role-lab-assistant {
+  --role-primary: #4338CA;
+  --role-secondary: #6366F1;
+  --role-accent: #8B5CF6;
+}
+
+/* ------------------------------------------
+   GLOBAL APPLICATION BACKGROUND
+   ------------------------------------------ */
+body {
+  background: linear-gradient(135deg, #F8FBFF 0%, #EFF6FF 45%, #E0F2FE 100%) !important;
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------
+   SIDEBAR
+   ------------------------------------------ */
+.sidebar, .app-sidebar {
+  background: linear-gradient(180deg, #163A8A 0%, #2563EB 100%) !important;
+  color: #FFFFFF;
+}
+
+.sidebar .menu-item, .nav-item {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent;
+  transition: background 200ms ease;
+  position: relative;
+}
+
+.sidebar .menu-item i, .sidebar .menu-item svg, .nav-item i, .nav-item svg {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.sidebar .menu-item:hover, .nav-item:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+}
+
+.sidebar .menu-item.active, .nav-item.active {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border-left: 4px solid var(--role-accent) !important;
+}
+
+/* ------------------------------------------
+   DASHBOARD STAT CARDS
+   ------------------------------------------ */
+.stat-card, .dashboard-card {
+  background: var(--card-background) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(30,64,175,0.06) !important;
+  transition: all 220ms ease !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover, .dashboard-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Adding role-colored subtle accent line to cards */
+.stat-card::before, .dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--role-primary), var(--role-secondary));
+  opacity: 0.8;
+}
+
+.stat-card .icon-wrapper, .dashboard-card .icon {
+  color: var(--role-primary) !important;
+  background: rgba(37, 99, 235, 0.08); /* Fallback tint */
+}
+
+.stat-card .value {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.stat-card .label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ------------------------------------------
+   BUTTONS
+   ------------------------------------------ */
+button.btn-primary, .btn-primary {
+  background: linear-gradient(135deg, var(--role-primary), var(--role-secondary)) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+  transition: all 200ms ease !important;
+}
+
+button.btn-primary:hover, .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
+}
+
+button.btn-secondary, .btn-secondary {
+  background: #FFFFFF !important;
+  color: var(--role-primary) !important;
+  border: 1px solid var(--role-primary) !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  transition: all 200ms ease !important;
+}
+
+button.btn-secondary:hover, .btn-secondary:hover {
+  background: #F8FAFC !important;
+}
+
+button.btn-danger, .btn-danger {
+  background: var(--danger) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+
+/* ------------------------------------------
+   TABLES
+   ------------------------------------------ */
+table, .data-table {
+  border-collapse: separate !important;
+  border-spacing: 0;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+th, .data-table th {
+  background: rgba(37, 99, 235, 0.04) !important; /* Extremely light role tint */
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid var(--border-color) !important;
+}
+
+td, .data-table td {
+  background: #FFFFFF !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+tr:hover td, .data-table tbody tr:hover td {
+  background: rgba(37, 99, 235, 0.02) !important;
+}
+
+/* ------------------------------------------
+   FORMS (Inputs, Selects, Textareas)
+   ------------------------------------------ */
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], select, textarea, .form-control {
+  background: #FFFFFF !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: 8px !important;
+  padding: 0.6rem 0.8rem;
+  transition: all 200ms ease !important;
+}
+
+input:focus, select:focus, textarea:focus, .form-control:focus {
+  border-color: var(--role-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.10) !important;
+}
+
+/* ------------------------------------------
+   CARDS / PANELS
+   ------------------------------------------ */
+.glass-panel, .panel, .card {
+  background: #FFFFFF !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 20px rgba(30,64,175,0.06) !important;
+  /* Removed extreme glassmorphism backdrop-filter for cleaner look */
+  backdrop-filter: none !important;
+}
+
+/* ------------------------------------------
+   MODALS
+   ------------------------------------------ */
+.modal-content, .modal-dialog {
+  background: #FFFFFF !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border-color) !important;
+  background: #F8FAFC !important;
+  border-radius: 16px 16px 0 0 !important;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--border-color) !important;
+  background: #F8FAFC !important;
+  border-radius: 0 0 16px 16px !important;
+}
+
+/* ------------------------------------------
+   BADGES / STATUS
+   ------------------------------------------ */
+.badge, .status-badge {
+  font-weight: 700 !important;
+  padding: 0.25rem 0.75rem !important;
+  border-radius: 9999px !important;
+  font-size: 0.75rem !important;
+}
+
+.badge-success, .status-present, .status-approved, .status-resolved {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: var(--success) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.badge-danger, .status-absent, .status-fine, .status-rejected {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: var(--danger) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+.badge-warning, .status-pending, .status-overdue {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: var(--warning) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+/* ------------------------------------------
+   HEADER / TOP BAR
+   ------------------------------------------ */
+.header, .app-header, .top-nav {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  box-shadow: 0 2px 10px rgba(30,64,175,0.03) !important;
+}
+
+.user-profile-icon, .avatar {
+  border: 2px solid var(--role-accent) !important;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* ------------------------------------------
+   WELCOME HEADING
+   ------------------------------------------ */
+.welcome-heading, h1.dashboard-welcome, .dashboard-welcome {
+  background: linear-gradient(90deg, #374151, #9CA3AF, #D1D5DB, #6B7280) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  font-weight: 800;
+}
+
+/* ------------------------------------------
+   ACCESSIBILITY & FOCUS
+   ------------------------------------------ */
+:focus-visible {
+  outline: 3px solid var(--role-accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* ------------------------------------------
+   PRINT STYLES PRESERVATION
+   ------------------------------------------ */
+@media print {
+  body {
+    background: #FFFFFF !important;
+  }
+  .sidebar, .app-header, .no-print {
+    display: none !important;
+  }
+  .stat-card, .glass-panel, .card {
+    border: 1px solid #CCC !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ==========================================================================
+   POORNIMA UNIFIED DESIGN SYSTEM (APPENDED OVERRIDES)
+   ========================================================================== */
+
+:root {
+  /* Poornima Central Variables */
+  --poornima-deep-blue: #163A8A;
+  --poornima-blue: #2563EB;
+  --poornima-sky: #38BDF8;
+  --poornima-cyan: #06B6D4;
+  --poornima-gold: #D4A72C;
+
+  --text-primary: #172033;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  --page-background: #EFF6FF;
+  --card-background: #FFFFFF;
+  --border-color: #DCE8F7;
+
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+
+  /* Default fallback */
+  --role-primary: var(--poornima-blue);
+  --role-secondary: var(--poornima-sky);
+  --role-accent: var(--poornima-cyan);
+}
+
+/* ------------------------------------------
+   ROLE-BASED THEMES
+   ------------------------------------------ */
+[data-role="ADMIN"], body.role-admin {
+  --role-primary: #1E40AF;
+  --role-secondary: #2563EB;
+  --role-accent: #D4A72C;
+}
+
+[data-role="FACULTY"], body.role-faculty {
+  --role-primary: #2563EB;
+  --role-secondary: #0EA5E9;
+  --role-accent: #14B8A6;
+}
+
+[data-role="STUDENT"], body.role-student {
+  --role-primary: #0284C7;
+  --role-secondary: #38BDF8;
+  --role-accent: #06B6D4;
+}
+
+[data-role="LIBRARIAN"], body.role-librarian {
+  --role-primary: #047857;
+  --role-secondary: #10B981;
+  --role-accent: #2563EB;
+}
+
+[data-role="LAB_ASSISTANT"], body.role-lab-assistant {
+  --role-primary: #4338CA;
+  --role-secondary: #6366F1;
+  --role-accent: #8B5CF6;
+}
+
+/* ------------------------------------------
+   GLOBAL APPLICATION BACKGROUND
+   ------------------------------------------ */
+body {
+  background: linear-gradient(135deg, #F8FBFF 0%, #EFF6FF 45%, #E0F2FE 100%) !important;
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------
+   SIDEBAR
+   ------------------------------------------ */
+.sidebar, .app-sidebar {
+  background: linear-gradient(180deg, #163A8A 0%, #2563EB 100%) !important;
+  color: #FFFFFF;
+}
+
+.sidebar .menu-item, .nav-item {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent;
+  transition: background 200ms ease;
+  position: relative;
+}
+
+.sidebar .menu-item i, .sidebar .menu-item svg, .nav-item i, .nav-item svg {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.sidebar .menu-item:hover, .nav-item:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+}
+
+.sidebar .menu-item.active, .nav-item.active {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border-left: 4px solid var(--role-accent) !important;
+}
+
+/* ------------------------------------------
+   DASHBOARD STAT CARDS
+   ------------------------------------------ */
+.stat-card, .dashboard-card {
+  background: var(--card-background) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(30,64,175,0.06) !important;
+  transition: all 220ms ease !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover, .dashboard-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Adding role-colored subtle accent line to cards */
+.stat-card::before, .dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--role-primary), var(--role-secondary));
+  opacity: 0.8;
+}
+
+.stat-card .icon-wrapper, .dashboard-card .icon {
+  color: var(--role-primary) !important;
+  background: rgba(37, 99, 235, 0.08); /* Fallback tint */
+}
+
+.stat-card .value {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.stat-card .label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ------------------------------------------
+   BUTTONS
+   ------------------------------------------ */
+button.btn-primary, .btn-primary {
+  background: linear-gradient(135deg, var(--role-primary), var(--role-secondary)) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+  transition: all 200ms ease !important;
+}
+
+button.btn-primary:hover, .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
+}
+
+button.btn-secondary, .btn-secondary {
+  background: #FFFFFF !important;
+  color: var(--role-primary) !important;
+  border: 1px solid var(--role-primary) !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  transition: all 200ms ease !important;
+}
+
+button.btn-secondary:hover, .btn-secondary:hover {
+  background: #F8FAFC !important;
+}
+
+button.btn-danger, .btn-danger {
+  background: var(--danger) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+
+/* ------------------------------------------
+   TABLES
+   ------------------------------------------ */
+table, .data-table {
+  border-collapse: separate !important;
+  border-spacing: 0;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+th, .data-table th {
+  background: rgba(37, 99, 235, 0.04) !important; /* Extremely light role tint */
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid var(--border-color) !important;
+}
+
+td, .data-table td {
+  background: #FFFFFF !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+tr:hover td, .data-table tbody tr:hover td {
+  background: rgba(37, 99, 235, 0.02) !important;
+}
+
+/* ------------------------------------------
+   FORMS (Inputs, Selects, Textareas)
+   ------------------------------------------ */
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], select, textarea, .form-control {
+  background: #FFFFFF !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: 8px !important;
+  padding: 0.6rem 0.8rem;
+  transition: all 200ms ease !important;
+}
+
+input:focus, select:focus, textarea:focus, .form-control:focus {
+  border-color: var(--role-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.10) !important;
+}
+
+/* ------------------------------------------
+   CARDS / PANELS
+   ------------------------------------------ */
+.glass-panel, .panel, .card {
+  background: #FFFFFF !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 20px rgba(30,64,175,0.06) !important;
+  /* Removed extreme glassmorphism backdrop-filter for cleaner look */
+  backdrop-filter: none !important;
+}
+
+/* ------------------------------------------
+   MODALS
+   ------------------------------------------ */
+.modal-content, .modal-dialog {
+  background: #FFFFFF !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border-color) !important;
+  background: #F8FAFC !important;
+  border-radius: 16px 16px 0 0 !important;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--border-color) !important;
+  background: #F8FAFC !important;
+  border-radius: 0 0 16px 16px !important;
+}
+
+/* ------------------------------------------
+   BADGES / STATUS
+   ------------------------------------------ */
+.badge, .status-badge {
+  font-weight: 700 !important;
+  padding: 0.25rem 0.75rem !important;
+  border-radius: 9999px !important;
+  font-size: 0.75rem !important;
+}
+
+.badge-success, .status-present, .status-approved, .status-resolved {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: var(--success) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.badge-danger, .status-absent, .status-fine, .status-rejected {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: var(--danger) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+.badge-warning, .status-pending, .status-overdue {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: var(--warning) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+/* ------------------------------------------
+   HEADER / TOP BAR
+   ------------------------------------------ */
+.header, .app-header, .top-nav {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  box-shadow: 0 2px 10px rgba(30,64,175,0.03) !important;
+}
+
+.user-profile-icon, .avatar {
+  border: 2px solid var(--role-accent) !important;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* ------------------------------------------
+   WELCOME HEADING
+   ------------------------------------------ */
+.welcome-heading, h1.dashboard-welcome, .dashboard-welcome {
+  background: linear-gradient(90deg, #374151, #9CA3AF, #D1D5DB, #6B7280) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  font-weight: 800;
+}
+
+/* ------------------------------------------
+   ACCESSIBILITY & FOCUS
+   ------------------------------------------ */
+:focus-visible {
+  outline: 3px solid var(--role-accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* ------------------------------------------
+   PRINT STYLES PRESERVATION
+   ------------------------------------------ */
+@media print {
+  body {
+    background: #FFFFFF !important;
+  }
+  .sidebar, .app-header, .no-print {
+    display: none !important;
+  }
+  .stat-card, .glass-panel, .card {
+    border: 1px solid #CCC !important;
+    box-shadow: none !important;
+  }
+}
+/* ------------------------------------------
+   ROLE BADGES (SIDEBAR)
+   ------------------------------------------ */
+.role-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.role-badge.admin {
+  background: #EF4444 !important;
+  color: #FFFFFF !important;
+}
+
+.role-badge.faculty {
+  background: #3B82F6 !important;
+  color: #FFFFFF !important;
+}
+
+.role-badge.student {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+}
+
+.role-badge.lab-assistant {
+  background: #8B5CF6 !important;
+  color: #FFFFFF !important;
+}
+
+.role-badge.librarian {
+  background: #F59E0B !important;
+  color: #FFFFFF !important;
+}
+/* ------------------------------------------
+   PASSWORD VISIBILITY BUTTON FIX
+   ------------------------------------------ */
+.input-container {
+  position: relative; /* Ensure wrapper handles absolute children */
+}
+
+.login-toggle-pw,
+.toggle-password {
+  position: absolute !important;
+  top: 50% !important;
+  right: 12px !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: var(--text-secondary, #64748B) !important;
+  z-index: 10 !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  margin: 0 !important;
+}
+
+/* Normal / Default icon sizing */
+.login-toggle-pw i,
+.toggle-password i {
+  width: 18px !important;
+  height: 18px !important;
+  color: inherit !important;
+  pointer-events: none; /* Prevent icon from catching clicks */
+}
+
+/* Hover State */
+.login-toggle-pw:hover,
+.toggle-password:hover {
+  background: rgba(37, 99, 235, 0.08) !important; /* Subtle blue tint */
+  color: var(--poornima-deep-blue, #163A8A) !important;
+}
+
+/* Focus State */
+.login-toggle-pw:focus-visible,
+.toggle-password:focus-visible {
+  outline: 2px solid var(--poornima-blue, #2563EB) !important;
+  outline-offset: 2px !important;
+  background: rgba(37, 99, 235, 0.05) !important;
+}
+
+/* Active / Click State */
+.login-toggle-pw:active,
+.toggle-password:active {
+  transform: translateY(-50%) scale(0.95) !important;
+  background: rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Ensure padding on input to avoid overlap */
+#login-password,
+input[type="password"] {
+  padding-right: 48px !important;
 }

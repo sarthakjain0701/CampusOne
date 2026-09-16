@@ -155,7 +155,7 @@ const App = {
     appEl.innerHTML = `
       <div class="main-layout">
         <!-- SIDEBAR DRAWER OVERLAY -->
-        <div class="sidebar-overlay" id="sidebar-overlay" onclick="App.toggleMobileSidebar()"></div>
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="App.toggleSidebar()"></div>
 
         <!-- SIDEBAR -->
         <aside class="sidebar ${this.mobileSidebarOpen ? 'mobile-open' : ''}" id="sidebar">
@@ -199,7 +199,7 @@ const App = {
           <!-- NAVBAR -->
           <header class="navbar">
             <div class="navbar-left">
-              <button class="btn-toggle-sidebar" onclick="App.toggleMobileSidebar()">
+              <button class="btn-toggle-sidebar" onclick="App.toggleSidebar()" aria-label="Toggle Sidebar">
                 <i data-lucide="menu"></i>
               </button>
               <div class="page-title">${this.getPageTitle()}</div>
@@ -257,18 +257,25 @@ const App = {
     this.postRenderView();
   },
 
-  toggleMobileSidebar() {
-    this.mobileSidebarOpen = !this.mobileSidebarOpen;
+  toggleSidebar() {
+    const isMobile = window.innerWidth <= 1024;
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-    if (sidebar) {
-      if (this.mobileSidebarOpen) {
-        sidebar.classList.add('mobile-open');
-        if (overlay) overlay.classList.add('active');
-      } else {
-        sidebar.classList.remove('mobile-open');
-        if (overlay) overlay.classList.remove('active');
+    
+    if (isMobile) {
+      this.mobileSidebarOpen = !this.mobileSidebarOpen;
+      if (sidebar) {
+        if (this.mobileSidebarOpen) {
+          sidebar.classList.add('mobile-open');
+          if (overlay) overlay.classList.add('active');
+        } else {
+          sidebar.classList.remove('mobile-open');
+          if (overlay) overlay.classList.remove('active');
+        }
       }
+    } else {
+      // Desktop toggle
+      document.body.classList.toggle('sidebar-collapsed');
     }
   },
 
@@ -296,7 +303,9 @@ const App = {
     }
 
     this.mobileSidebarOpen = false;
+    const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('mobile-open');
     if (overlay) overlay.classList.remove('active');
     
     this.setHashRoute(this.currentView);
@@ -610,6 +619,14 @@ const App = {
       window.ProfileView.afterRender();
     } else if (this.currentView === 'exam-results' && window.ExamResultsView && window.ExamResultsView.afterRender) {
       window.ExamResultsView.afterRender();
+    } else if (this.currentView === 'my-lab-reports' && window.MyLabReportsView && window.MyLabReportsView.afterRender) {
+      window.MyLabReportsView.afterRender();
+    } else if (this.currentView === 'lab-problem-report' && window.LabProblemReportView && window.LabProblemReportView.afterRender) {
+      window.LabProblemReportView.afterRender();
+    } else if (this.currentView === 'laboratory' && window.LaboratoryView && window.LaboratoryView.afterRender) {
+      window.LaboratoryView.afterRender();
+    } else if (this.currentView === 'admin-lab-reports' && window.AdminLabReportsView && window.AdminLabReportsView.afterRender) {
+      window.AdminLabReportsView.afterRender();
     }
   },
 

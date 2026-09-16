@@ -8,7 +8,6 @@ const DigitalLearningView = {
   searchQuery: '',
   loading: true,
   error: null,
-  students: [],
   subjects: [],
   allResources: [],
   faculty: [],
@@ -17,6 +16,9 @@ const DigitalLearningView = {
   selectedSemester: 'ALL',
   _isFetching: false,
   initialized: false,
+  activeTab: 'FACULTY',
+  labSearchQuery: '',
+  labCategoryFilter: 'ALL',
 
   render(params = {}) {
     const user = authService.getCurrentUser();
@@ -54,179 +56,276 @@ const DigitalLearningView = {
   // STUDENT VIEW
   // --------------------------------------------------------------------------
   renderStudentView(user) {
-    const student = this.students.find(s => s.email === user.email || s.userId === user.uid) || { id: user.uid || user.id, name: user.name || user.displayName || 'Student', email: user.email, department: 'CSE', semester: 1 };
+    if (!this.students || this.students.length === 0) {
+      return `<div style="padding:3rem; text-align:center; color:var(--color-danger);">
+                <i data-lucide="alert-circle" style="width:48px; height:48px; margin-bottom:1rem; color:var(--color-danger);"></i>
+                <p>Student profile could not be loaded. Please try refreshing.</p>
+                <button class="btn-primary" style="margin-top:1rem; margin-left:auto; margin-right:auto;" onclick="DigitalLearningView.fetchData()">Try Again</button>
+              </div>`;
+    }
+
+    const student = this.students.find(s => s.email === user.email || s.userId === user.uid) || this.students[0];
     
-    // Filter subjects to only show the student's enrolled subjects based on dept and sem
-    const studentSem = student.semester || 1;
+    // Safely parse semester and department
+    const studentSem = Number(student.semester) || 1;
     const studentDept = student.department || 'CSE';
     
-    let subjects = this.subjects.filter(s => s.department === studentDept && s.semester === studentSem);
+    // Ensure subjects array exists before filtering
+    let subjects = (this.subjects || []).filter(s => s.department === studentDept && Number(s.semester) === studentSem);
     
     if (this.selectedSemester !== 'ALL') {
-      subjects = subjects.filter(s => s.semester === Number(this.selectedSemester));
+      subjects = (this.subjects || []).filter(s => Number(s.semester) === Number(this.selectedSemester));
     }
-    const allResources = this.allResources.filter(r => r.status === 'ACTIVE');
+    const allResources = (this.allResources || []).filter(r => r.status === 'ACTIVE');
 
-    // If a specific subject is selected, show Subject Resource detail page
-    if (this.activeSubjectId) {
-      const selectedSubject = subjects.find(s => s.id === this.activeSubjectId) || subjects[0];
-      const subjectResources = allResources.filter(r => r.subjectId === selectedSubject.id);
+    this.activeTab = this.activeTab || 'FACULTY';
+    const facultyTypes = ['NOTES', 'BOOK', 'ASSIGNMENT', 'TUTE', 'OTHER'];
+    const facultyResources = allResources.filter(r => facultyTypes.includes(r.resourceType));
+    const labResources = allResources.filter(r => !facultyTypes.includes(r.resourceType));
 
-      // Group by category
-      const categories = [
-        { type: 'NOTES', title: 'NOTES', icon: 'file-text' },
-        { type: 'BOOK', title: 'BOOK SUGGESTIONS', icon: 'book' },
-        { type: 'ASSIGNMENT', title: 'ASSIGNMENTS', icon: 'clipboard-list' },
-        { type: 'TUTE', title: 'TUTES', icon: 'help-circle' },
-        { type: 'OTHER', title: 'OTHER MATERIALS', icon: 'folder' }
-      ];
-
-      return `
-        <div class="page-header" style="display:flex; align-items:center; justify-content:space-between;">
-          <div>
-            <button class="btn-secondary" onclick="DigitalLearningView.clearSubject()" style="margin-bottom:0.5rem;">
-              <i data-lucide="arrow-left"></i> Back to Subjects
-            </button>
-            <h1 style="margin:0;">${selectedSubject.name} (${selectedSubject.code})</h1>
-            <p style="margin:0.25rem 0 0 0; font-size:0.9rem; color:var(--color-text-muted);">
-              Department: ${selectedSubject.department || 'CSE'} | Credits: ${selectedSubject.credits || 4}
-            </p>
-          </div>
-          <div>
-            <span class="status-badge active">${subjectResources.length} Resources</span>
-          </div>
-        </div>
-
-        <!-- SEARCH AND FILTER BAR -->
-        <div class="card" style="margin-bottom:1.5rem;">
-          <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center;">
-            <div class="search-box" style="flex:1; min-width:240px;">
-              <i data-lucide="search"></i>
-              <input type="text" class="search-input" id="resource-search" placeholder="Search resources..." value="${this.searchQuery}" onkeyup="DigitalLearningView.handleSearch(this.value)">
-            </div>
-            <select class="form-control" style="width:auto; min-width:140px;" onchange="DigitalLearningView.filterCategory(this.value)">
-              <option value="ALL" ${this.activeFilterType === 'ALL' ? 'selected' : ''}>All Types</option>
-              <option value="NOTES" ${this.activeFilterType === 'NOTES' ? 'selected' : ''}>Notes</option>
-              <option value="ASSIGNMENT" ${this.activeFilterType === 'ASSIGNMENT' ? 'selected' : ''}>Assignments</option>
-              <option value="TUTE" ${this.activeFilterType === 'TUTE' ? 'selected' : ''}>Tutes</option>
-              <option value="BOOK" ${this.activeFilterType === 'BOOK' ? 'selected' : ''}>Books</option>
-              <option value="OTHER" ${this.activeFilterType === 'OTHER' ? 'selected' : ''}>Other</option>
-            </select>
-            <button class="btn-secondary" onclick="DigitalLearningView.filterCategory('ALL'); document.getElementById('resource-search').value=''; DigitalLearningView.handleSearch('');">
-              Clear Filters
-            </button>
-          </div>
-        </div>
-
-        <!-- CATEGORY SECTIONS -->
-        <div class="resource-categories-container">
-          ${categories.map(cat => {
-            if (this.activeFilterType !== 'ALL' && this.activeFilterType !== cat.type) return '';
-            
-            let catResources = subjectResources.filter(r => r.resourceType === cat.type);
-            if (this.searchQuery) {
-              const q = this.searchQuery.toLowerCase();
-              catResources = catResources.filter(r => r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
-            }
-
-            return `
-              <div class="card" style="margin-bottom:1.5rem;">
-                <div class="card-header" style="border-bottom:1px solid #F1F5F9; padding-bottom:0.75rem;">
-                  <h3 class="card-title"><i data-lucide="${cat.icon}"></i> ${cat.title} (${catResources.length})</h3>
-                </div>
-
-                ${catResources.length === 0 ? `
-                  <div style="padding:1.5rem; text-align:center; color:var(--color-text-muted); font-size:0.9rem;">
-                    No ${cat.title.toLowerCase()} available for this subject.
-                  </div>
-                ` : `
-                  <div class="resource-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:1rem; margin-top:1rem;">
-                    ${catResources.map(r => this.renderResourceCard(r)).join('')}
-                  </div>
-                `}
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-    }
-
-    // Default Overview Mode: Subject Cards
-    return `
+    const tabsHtml = `
       <div class="page-header">
         <h1>DIGITAL LEARNING</h1>
-        <p>Access your available learning resources.</p>
+        <p>Access your available learning resources and lab materials.</p>
       </div>
-
-      <!-- SEARCH & FILTER BAR -->
-      <div class="card" style="margin-bottom:1.5rem;">
-        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center; justify-content:space-between;">
-          <div class="search-box" style="flex:1; min-width:260px;">
-            <i data-lucide="search"></i>
-            <input type="text" class="search-input" placeholder="Search subject or material..." onkeyup="DigitalLearningView.handleGlobalSubjectSearch(this.value)">
-          </div>
-          <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-            <select class="form-control" style="width:auto;" onchange="DigitalLearningView.filterSemester(this.value)">
-              <option value="ALL">All Semesters</option>
-              <option value="1">Semester 1</option>
-              <option value="2" selected>Semester 2</option>
-              <option value="3">Semester 3</option>
-              <option value="5">Semester 5</option>
-            </select>
-          </div>
-        </div>
+      <div style="display:flex; border-bottom: 2px solid #E2E8F0; margin-bottom: 1.5rem; overflow-x: auto;">
+        <button onclick="DigitalLearningView.switchTab('FACULTY')" style="white-space: nowrap; padding: 1rem 2rem; background: transparent; border: none; font-size: 1rem; font-weight: ${this.activeTab === 'FACULTY' ? '700' : '500'}; color: ${this.activeTab === 'FACULTY' ? 'var(--color-primary)' : 'var(--color-text-muted)'}; border-bottom: 3px solid ${this.activeTab === 'FACULTY' ? 'var(--color-primary)' : 'transparent'}; cursor: pointer;">
+          Faculty Digital Learning
+        </button>
+        <button onclick="DigitalLearningView.switchTab('LAB')" style="white-space: nowrap; padding: 1rem 2rem; background: transparent; border: none; font-size: 1rem; font-weight: ${this.activeTab === 'LAB' ? '700' : '500'}; color: ${this.activeTab === 'LAB' ? 'var(--color-primary)' : 'var(--color-text-muted)'}; border-bottom: 3px solid ${this.activeTab === 'LAB' ? 'var(--color-primary)' : 'transparent'}; cursor: pointer;">
+          Lab Assistant Digital Learning
+        </button>
       </div>
+    `;
 
-      <!-- SUBJECT CARDS GRID -->
-      <div class="subject-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem;">
-        ${subjects.length === 0 ? `
-          <div style="grid-column: 1 / -1; padding: 4rem; text-align: center; background: white; border: 1px solid var(--color-border); border-radius: 8px;">
-            <i data-lucide="folder-open" style="width:48px; height:48px; color:var(--color-text-light); margin-bottom:1rem;"></i>
-            <h2 style="font-size:1.25rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">No learning resources available yet.</h2>
-            <p style="color:var(--color-text-muted);">There are currently no subjects or materials assigned to your semester.</p>
-          </div>
-        ` : subjects.map(sub => {
-          const subRes = allResources.filter(r => r.subjectId === sub.id);
-          const notesCount = subRes.filter(r => r.resourceType === 'NOTES').length;
-          const assignCount = subRes.filter(r => r.resourceType === 'ASSIGNMENT').length;
-          const tuteCount = subRes.filter(r => r.resourceType === 'TUTE').length;
-          const bookCount = subRes.filter(r => r.resourceType === 'BOOK').length;
+    let tabContentHtml = '';
 
-          return `
-            <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s ease, box-shadow 0.2s ease;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
-                  <span class="status-badge active" style="font-size:0.75rem;">${sub.code}</span>
-                  <span style="font-size:0.8rem; color:var(--color-text-muted);">Sem ${sub.semester}</span>
+    if (this.activeTab === 'FACULTY') {
+      // If a specific subject is selected, show Subject Resource detail page
+      if (this.activeSubjectId && subjects.length > 0) {
+        const selectedSubject = subjects.find(s => s.id === this.activeSubjectId) || subjects[0];
+        if (selectedSubject) {
+            const subjectResources = facultyResources.filter(r => r.subjectId === selectedSubject.id);
+
+            // Group by category
+            const categories = [
+              { type: 'NOTES', title: 'NOTES', icon: 'file-text' },
+              { type: 'BOOK', title: 'BOOK SUGGESTIONS', icon: 'book' },
+              { type: 'ASSIGNMENT', title: 'ASSIGNMENTS', icon: 'clipboard-list' },
+              { type: 'TUTE', title: 'TUTES', icon: 'help-circle' },
+              { type: 'OTHER', title: 'OTHER MATERIALS', icon: 'folder' }
+            ];
+
+            tabContentHtml = `
+              <div class="page-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 1.5rem;">
+                <div>
+                  <button class="btn-secondary" onclick="DigitalLearningView.clearSubject()" style="margin-bottom:0.5rem;">
+                    <i data-lucide="arrow-left"></i> Back to Subjects
+                  </button>
+                  <h2 style="margin:0;">${selectedSubject.name} (${selectedSubject.code})</h2>
+                  <p style="margin:0.25rem 0 0 0; font-size:0.9rem; color:var(--color-text-muted);">
+                    Department: ${selectedSubject.department || 'CSE'} | Credits: ${selectedSubject.credits || 4}
+                  </p>
                 </div>
-                <h3 style="font-size:1.1rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.75rem;">${sub.name}</h3>
-
-                <div class="resource-counts-box" style="background:#F8FAFC; border-radius:8px; padding:0.75rem; display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; font-size:0.85rem; margin-bottom:1rem;">
-                  <div><strong style="color:#2563EB;">${notesCount}</strong> Notes</div>
-                  <div><strong style="color:#D97706;">${assignCount}</strong> Assignments</div>
-                  <div><strong style="color:#7C3AED;">${tuteCount}</strong> Tutes</div>
-                  <div><strong style="color:#3B82F6;">${bookCount}</strong> Books</div>
+                <div>
+                  <span class="status-badge active">${subjectResources.length} Resources</span>
                 </div>
               </div>
 
-              <button class="btn-primary" style="width:100%; justify-content:center;" onclick="DigitalLearningView.openSubject('${sub.id}')">
-                <i data-lucide="book-open"></i> Open Subject
-              </button>
+              <!-- SEARCH AND FILTER BAR -->
+              <div class="card" style="margin-bottom:1.5rem;">
+                <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center;">
+                  <div class="search-box" style="flex:1; min-width:240px;">
+                    <i data-lucide="search"></i>
+                    <input type="text" class="search-input" id="resource-search" placeholder="Search resources..." value="${this.searchQuery}" onkeyup="DigitalLearningView.handleSearch(this.value)">
+                  </div>
+                  <select class="form-control" style="width:auto; min-width:140px;" onchange="DigitalLearningView.filterCategory(this.value)">
+                    <option value="ALL" ${this.activeFilterType === 'ALL' ? 'selected' : ''}>All Types</option>
+                    <option value="NOTES" ${this.activeFilterType === 'NOTES' ? 'selected' : ''}>Notes</option>
+                    <option value="ASSIGNMENT" ${this.activeFilterType === 'ASSIGNMENT' ? 'selected' : ''}>Assignments</option>
+                    <option value="TUTE" ${this.activeFilterType === 'TUTE' ? 'selected' : ''}>Tutes</option>
+                    <option value="BOOK" ${this.activeFilterType === 'BOOK' ? 'selected' : ''}>Books</option>
+                    <option value="OTHER" ${this.activeFilterType === 'OTHER' ? 'selected' : ''}>Other</option>
+                  </select>
+                  <button class="btn-secondary" onclick="DigitalLearningView.filterCategory('ALL'); document.getElementById('resource-search').value=''; DigitalLearningView.handleSearch('');">
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+
+              <!-- CATEGORY SECTIONS -->
+              <div class="resource-categories-container">
+                ${categories.map(cat => {
+                  if (this.activeFilterType !== 'ALL' && this.activeFilterType !== cat.type) return '';
+                  
+                  let catResources = subjectResources.filter(r => r.resourceType === cat.type);
+                  if (this.searchQuery) {
+                    const q = this.searchQuery.toLowerCase();
+                    catResources = catResources.filter(r => r.title.toLowerCase().includes(q) || (r.description && r.description.toLowerCase().includes(q)));
+                  }
+
+                  return `
+                    <div class="card" style="margin-bottom:1.5rem;">
+                      <div class="card-header" style="border-bottom:1px solid #F1F5F9; padding-bottom:0.75rem;">
+                        <h3 class="card-title"><i data-lucide="${cat.icon}"></i> ${cat.title} (${catResources.length})</h3>
+                      </div>
+
+                      ${catResources.length === 0 ? `
+                        <div style="padding:1.5rem; text-align:center; color:var(--color-text-muted); font-size:0.9rem;">
+                          No ${cat.title.toLowerCase()} available for this subject.
+                        </div>
+                      ` : `
+                        <div class="resource-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:1rem; margin-top:1rem;">
+                          ${catResources.map(r => this.renderResourceCard(r)).join('')}
+                        </div>
+                      `}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+        }
+      } 
+      
+      if (!tabContentHtml) {
+        // Default Overview Mode: Subject Cards
+        if (facultyResources.length === 0 && subjects.length === 0) {
+          tabContentHtml = `
+            <div style="padding: 4rem; text-align: center; background: white; border: 1px solid var(--color-border); border-radius: 8px;">
+              <i data-lucide="folder-open" style="width:48px; height:48px; color:var(--color-text-light); margin-bottom:1rem;"></i>
+              <h2 style="font-size:1.25rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">No faculty learning materials available yet.</h2>
+              <p style="color:var(--color-text-muted);">There are currently no subjects or materials assigned to your semester.</p>
             </div>
           `;
-        }).join('')}
-      </div>
-    `;
+        } else {
+          tabContentHtml = `
+            <!-- SEARCH & FILTER BAR -->
+            <div class="card" style="margin-bottom:1.5rem;">
+              <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center; justify-content:space-between;">
+                <div class="search-box" style="flex:1; min-width:260px;">
+                  <i data-lucide="search"></i>
+                  <input type="text" class="search-input" placeholder="Search subject or material..." onkeyup="DigitalLearningView.handleGlobalSubjectSearch(this.value)">
+                </div>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                  <select class="form-control" style="width:auto;" onchange="DigitalLearningView.filterSemester(this.value)">
+                    <option value="ALL">All Semesters</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2" selected>Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="5">Semester 5</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- SUBJECT CARDS GRID -->
+            <div class="subject-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem;">
+              ${subjects.map(sub => {
+                const subRes = facultyResources.filter(r => r.subjectId === sub.id);
+                const notesCount = subRes.filter(r => r.resourceType === 'NOTES').length;
+                const assignCount = subRes.filter(r => r.resourceType === 'ASSIGNMENT').length;
+                const tuteCount = subRes.filter(r => r.resourceType === 'TUTE').length;
+                const bookCount = subRes.filter(r => r.resourceType === 'BOOK').length;
+
+                return `
+                  <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s ease, box-shadow 0.2s ease;">
+                    <div>
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+                        <span class="status-badge active" style="font-size:0.75rem;">${sub.code}</span>
+                        <span style="font-size:0.8rem; color:var(--color-text-muted);">Sem ${sub.semester}</span>
+                      </div>
+                      <h3 style="font-size:1.1rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.75rem;">${sub.name}</h3>
+
+                      <div class="resource-counts-box" style="background:#F8FAFC; border-radius:8px; padding:0.75rem; display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; font-size:0.85rem; margin-bottom:1rem;">
+                        <div><strong style="color:#2563EB;">${notesCount}</strong> Notes</div>
+                        <div><strong style="color:#D97706;">${assignCount}</strong> Assignments</div>
+                        <div><strong style="color:#7C3AED;">${tuteCount}</strong> Tutes</div>
+                        <div><strong style="color:#3B82F6;">${bookCount}</strong> Books</div>
+                      </div>
+                    </div>
+
+                    <button class="btn-primary" style="width:100%; justify-content:center;" onclick="DigitalLearningView.openSubject('${sub.id}')">
+                      <i data-lucide="book-open"></i> Open Subject
+                    </button>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }
+      }
+    } else if (this.activeTab === 'LAB') {
+      if (labResources.length === 0) {
+        tabContentHtml = `
+          <div style="padding: 4rem; text-align: center; background: white; border: 1px solid var(--color-border); border-radius: 8px;">
+            <i data-lucide="flask-conical" style="width:48px; height:48px; color:var(--color-text-light); margin-bottom:1rem;"></i>
+            <h2 style="font-size:1.25rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">No lab learning materials available yet.</h2>
+            <p style="color:var(--color-text-muted);">There are currently no laboratory materials uploaded for your department and semester.</p>
+          </div>
+        `;
+      } else {
+        // LAB RESOURCES VIEW
+        let filteredLab = labResources;
+        if (this.labCategoryFilter && this.labCategoryFilter !== 'ALL') {
+           filteredLab = filteredLab.filter(r => r.resourceType === this.labCategoryFilter);
+        }
+        if (this.labSearchQuery) {
+           const q = this.labSearchQuery.toLowerCase();
+           filteredLab = filteredLab.filter(r => (r.title && r.title.toLowerCase().includes(q)) || (r.laboratoryName && r.laboratoryName.toLowerCase().includes(q)));
+        }
+
+        const labCategories = [
+          { value: 'LAB MANUAL', label: 'Lab Manual' },
+          { value: 'PRACTICAL GUIDE', label: 'Practical Guide' },
+          { value: 'EXPERIMENT PROCEDURE', label: 'Experiment Procedure' },
+          { value: 'EQUIPMENT MANUAL', label: 'Equipment Manual' },
+          { value: 'EQUIPMENT USAGE GUIDE', label: 'Equipment Usage Guide' },
+          { value: 'PROGRAMMING LAB MATERIAL', label: 'Programming Lab Material' },
+          { value: 'LAB SYLLABUS', label: 'Lab Syllabus' },
+          { value: 'LAB INSTRUCTIONS', label: 'Lab Instructions' },
+          { value: 'SAFETY GUIDELINES', label: 'Safety Guidelines' },
+          { value: 'REFERENCE MATERIAL', label: 'Reference Material' },
+          { value: 'LAB VIDEO / TUTORIAL', label: 'Lab Video / Tutorial' },
+          { value: 'LAB NOTICE', label: 'Lab Notice' },
+          { value: 'IMPORTANT LAB DOCUMENT', label: 'Important Lab Document' },
+          { value: 'USEFUL LAB RESOURCE', label: 'Useful Lab Resource' },
+          { value: 'OTHER LAB MATERIAL', label: 'Other Lab Material' }
+        ];
+
+        tabContentHtml = `
+          <div class="card" style="margin-bottom:1.5rem;">
+            <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center;">
+              <div class="search-box" style="flex:1; min-width:240px;">
+                <i data-lucide="search"></i>
+                <input type="text" class="search-input" placeholder="Search lab materials or room..." value="${this.labSearchQuery}" onkeyup="DigitalLearningView.handleLabSearch(this.value)">
+              </div>
+              <select class="form-control" style="width:auto; min-width:200px;" onchange="DigitalLearningView.filterLabCategory(this.value)">
+                <option value="ALL">All Lab Categories</option>
+                ${labCategories.map(c => `<option value="${c.value}" ${this.labCategoryFilter === c.value ? 'selected' : ''}>${c.label}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          
+          <div class="resource-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:1rem;">
+            ${filteredLab.map(r => this.renderLabResourceCard(r)).join('')}
+          </div>
+        `;
+      }
+    }
+
+    return tabsHtml + tabContentHtml;
   },
 
-  renderResourceCard(resource) {
+  renderLabResourceCard(resource) {
+    const labInfo = resource.laboratoryName ? `<div style="font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem;"><i data-lucide="map-pin" style="width:12px; height:12px;"></i> ${resource.laboratoryName}</div>` : '';
     return `
       <div class="resource-card" style="border:1px solid #E2E8F0; border-radius:10px; padding:1rem; background:#FFFFFF; display:flex; flex-direction:column; justify-content:space-between;">
         <div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-            <span class="status-badge ${resource.resourceType.toLowerCase()}" style="font-size:0.7rem; text-transform:uppercase;">${resource.resourceType}</span>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+            <span class="status-badge active" style="font-size:0.7rem; text-transform:uppercase;">${resource.resourceType}</span>
             <span style="font-size:0.75rem; color:var(--color-text-muted);">${resource.uploadedAt}</span>
           </div>
+          ${labInfo}
           <h4 style="font-size:0.95rem; font-weight:600; color:var(--color-navy-dark); margin-bottom:0.4rem;">${resource.title}</h4>
           <p style="font-size:0.825rem; color:var(--color-text-muted); line-height:1.4; margin-bottom:0.75rem;">${resource.description || 'No description provided.'}</p>
         </div>
@@ -409,7 +508,22 @@ const DigitalLearningView = {
     `;
   },
 
-  // Interactive Action Methods
+  switchTab(tabId) {
+    this.activeTab = tabId;
+    App.renderCurrentView();
+  },
+
+  handleLabSearch(val) {
+    this.labSearchQuery = val;
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => App.renderCurrentView(), 300);
+  },
+
+  filterLabCategory(val) {
+    this.labCategoryFilter = val;
+    App.renderCurrentView();
+  },
+
   filterSemester(val) {
     this.selectedSemester = val;
     this.loading = true; this.fetchData();
@@ -423,17 +537,17 @@ const DigitalLearningView = {
 
   openSubject(subjectId) {
     this.activeSubjectId = subjectId;
-    this.loading = true; this.fetchData();
+    App.renderCurrentView();
   },
 
   clearSubject() {
     this.activeSubjectId = null;
-    this.loading = true; this.fetchData();
+    App.renderCurrentView();
   },
 
   filterCategory(type) {
     this.activeFilterType = type;
-    this.loading = true; this.fetchData();
+    App.renderCurrentView();
   },
 
   handleSearch(val) {
@@ -656,7 +770,11 @@ const DigitalLearningView = {
           // 1. Safe Auth State: Use existing user profile rather than querying all students
           let student = null;
           if (typeof studentService !== 'undefined' && studentService.resolveStudentProfile) {
-            student = await studentService.resolveStudentProfile(user);
+            try {
+              student = await studentService.resolveStudentProfile(user);
+            } catch (e) {
+              console.warn("Could not resolve student profile from service, using fallback.", e);
+            }
           }
           if (!student) {
             student = { 
@@ -669,9 +787,10 @@ const DigitalLearningView = {
           }
           this.students = [student];
           
-          // 2. Optimized Subjects: Only fetch subjects for this department/semester
+          // 2. Optimized Subjects: Fetch subjects for this department/semester safely
+          this.subjects = [];
           if (typeof subjectService !== 'undefined') {
-             const allSubjs = subjectService.getSubjects ? subjectService.getSubjects() : [];
+             const allSubjs = (subjectService.getSubjects && typeof subjectService.getSubjects === 'function') ? subjectService.getSubjects() : [];
              if (window.FirebaseService && window.FirebaseService.db) {
                try {
                  const snap = await window.FirebaseService.db.collection('subjects')
@@ -679,31 +798,44 @@ const DigitalLearningView = {
                     .where('semester', '==', Number(student.semester))
                     .get();
                  this.subjects = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                 if (this.subjects.length === 0) {
-                   this.subjects = allSubjs.filter(s => s.department === student.department && s.semester === Number(student.semester));
-                 }
                } catch (err) {
-                 this.subjects = allSubjs.filter(s => s.department === student.department && s.semester === Number(student.semester));
+                 this.subjects = allSubjs.filter(s => s.department === student.department && Number(s.semester) === Number(student.semester));
                }
-             } else {
-               this.subjects = allSubjs.filter(s => s.department === student.department && s.semester === Number(student.semester));
+             }
+             if (!this.subjects || this.subjects.length === 0) {
+               this.subjects = allSubjs.filter(s => s.department === student.department && Number(s.semester) === Number(student.semester));
              }
           }
           
-          // 3. Optimized Learning Resources: Only fetch resources for the relevant subjects
-          if (window.FirebaseService && window.FirebaseService.db && this.subjects.length > 0) {
-              const subjectIds = this.subjects.map(s => s.id);
-              if (subjectIds.length <= 10) {
-                 const snap = await window.FirebaseService.db.collection('learningResources')
-                    .where('subjectId', 'in', subjectIds)
-                    .where('status', '==', 'ACTIVE')
-                    .get();
-                 this.allResources = snap.docs.map(d => ({id: d.id, ...d.data()}));
-              } else {
-                 this.allResources = await LearningResourceService.getAllResources();
+          // 3. Optimized Learning Resources: Fetch resources for ALL subjects relevant to the student
+          this.allResources = [];
+          if (window.FirebaseService && window.FirebaseService.db) {
+              let facultyRes = [];
+              
+              if (this.subjects && this.subjects.length > 0) {
+                const subjectIds = this.subjects.map(s => s.id);
+                // Chunk queries into groups of 10 to satisfy Firestore 'in' limits
+                for (let i = 0; i < subjectIds.length; i += 10) {
+                  const chunk = subjectIds.slice(i, i + 10);
+                  try {
+                    const snap = await window.FirebaseService.db.collection('learningResources')
+                        .where('subjectId', 'in', chunk)
+                        .where('status', '==', 'ACTIVE')
+                        .get();
+                    facultyRes.push(...snap.docs.map(d => ({id: d.id, ...d.data()})));
+                  } catch(e) {
+                    console.error("Error fetching chunk of learning resources", e);
+                  }
+                }
               }
+              
+              const allMap = new Map();
+              facultyRes.forEach(r => allMap.set(r.id, r));
+              this.allResources = Array.from(allMap.values());
           } else {
-              this.allResources = await LearningResourceService.getAllResources();
+              const allRes = await LearningResourceService.getAllResources();
+              const subIds = this.subjects.map(s => s.id);
+              this.allResources = allRes.filter(r => subIds.includes(r.subjectId) && r.status === 'ACTIVE');
           }
 
         } else if (user && AuthorizationService.isAcademicStaff(user)) {
