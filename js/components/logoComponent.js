@@ -9,9 +9,9 @@ const LogoComponent = {
     const subtextColor = theme === 'dark' ? '#93C5FD' : '#2563EB';
 
     // Standalone Image
-    const imgSrc = "https://www.poornima.org/img/emblem.png";
+    const imgSrc = "assets/logo/CampusOne_Logo.png";
     const imgStyle = "width: 100%; height: 100%; object-fit: contain;";
-    const imageElement = `<img src="${imgSrc}" alt="Poornima Logo" style="${imgStyle}">`;
+    const imageElement = `<img src="${imgSrc}" alt="CampusOne Logo" style="${imgStyle}" onerror="this.src='https://www.poornima.org/img/emblem.png'">`;
 
     if (variant === 'icon') {
       return `
@@ -26,8 +26,8 @@ const LogoComponent = {
         <div class="pas-logo-navbar ${className}" style="display: flex; align-items: center; gap: 10px;">
           <div style="width: 36px; height: 36px; flex-shrink: 0;">${imageElement}</div>
           <div class="pas-logo-text" style="display: flex; flex-direction: column; line-height: 1.1;">
-            <span style="font-size: 1.05rem; font-weight: 800; color: ${textColor}; letter-spacing: 0.5px;">POORNIMA</span>
-            <span style="font-size: 0.65rem; font-weight: 700; color: ${subtextColor}; letter-spacing: 1.5px; text-transform: uppercase;">GROUP OF COLLEGES</span>
+            <span style="font-size: 1.05rem; font-weight: 800; color: ${textColor}; letter-spacing: 0.5px;">CAMPUSONE</span>
+            <span style="font-size: 0.60rem; font-weight: 700; color: ${subtextColor}; letter-spacing: 1.0px; text-transform: uppercase;">THE ALL-IN-ONE EDUCATION PORTAL</span>
           </div>
         </div>
       `;
@@ -42,8 +42,8 @@ const LogoComponent = {
       <div class="pas-logo-full ${className}" style="display: flex; align-items: center; gap: 12px;">
         <div style="width: ${iconSize}; height: ${iconSize}; flex-shrink: 0;">${imageElement}</div>
         <div class="pas-logo-text" style="display: flex; flex-direction: column; line-height: 1.15;">
-          <span style="font-size: ${titleSize}; font-weight: 800; color: ${textColor}; letter-spacing: 0.8px;">POORNIMA</span>
-          <span style="font-size: ${subSize}; font-weight: 700; color: ${subtextColor}; letter-spacing: 2px; text-transform: uppercase;">GROUP OF COLLEGES</span>
+          <span style="font-size: ${titleSize}; font-weight: 800; color: ${textColor}; letter-spacing: 0.8px;">CAMPUSONE</span>
+          <span style="font-size: ${subSize}; font-weight: 700; color: ${subtextColor}; letter-spacing: 1.2px; text-transform: uppercase;">THE ALL-IN-ONE EDUCATION PORTAL</span>
         </div>
       </div>
     `;

@@ -161,11 +161,11 @@ const App = {
         <aside class="sidebar ${this.mobileSidebarOpen ? 'mobile-open' : ''}" id="sidebar">
           <div class="sidebar-header" style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem; height: auto;">
             <div style="width: 100%; display: flex; justify-content: center; margin-bottom: 0.25rem;">
-              <img src="https://www.poornima.org/img/emblem.png" alt="Poornima Group Of College Logo" style="height: 65px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
+              <img src="assets/logo/CampusOne_Logo.png" alt="CampusOne Logo" style="height: 65px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" onerror="this.src='https://www.poornima.org/img/emblem.png'">
             </div>
             <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-              <span style="font-size: 1.15rem; font-weight: 800; letter-spacing: 0.5px; color: #FFF; line-height: 1.2; text-align: center; text-transform: uppercase;">Poornima Group</span>
-              <span style="font-size: 0.85rem; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.2px; text-align: center;">Of College</span>
+              <span style="font-size: 1.15rem; font-weight: 800; letter-spacing: 0.5px; color: #FFF; line-height: 1.2; text-align: center; text-transform: uppercase;">CampusOne</span>
+              <span style="font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.2px; text-align: center;">The All-in-One<br>Education Portal</span>
             </div>
             <div style="display: flex; justify-content: center; width: 100%; margin-top: 0.25rem;">
               <span class="role-badge ${user.role.toLowerCase().replace('_', '-')}">${roleDisplayName}</span>
