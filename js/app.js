@@ -199,9 +199,6 @@ const App = {
           <!-- NAVBAR -->
           <header class="navbar">
             <div class="navbar-left">
-              <button class="btn-toggle-sidebar" onclick="App.toggleSidebar()" aria-label="Toggle Sidebar">
-                <i data-lucide="menu"></i>
-              </button>
               <div class="page-title">${this.getPageTitle()}</div>
             </div>
 

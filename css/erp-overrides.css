@@ -1489,3 +1489,70 @@ input:focus, select:focus, textarea:focus, .form-control:focus {
 input[type="password"] {
   padding-right: 48px !important;
 }
+
+/* ==========================================================================
+   CUSTOM HAMBURGER REDESIGN
+   ========================================================================== */
+
+/* Navbar alignment ensures hamburger and title are properly spaced and aligned */
+.navbar-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+/* The clickable button area */
+.btn-toggle-sidebar.custom-hamburger {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: 44px !important;
+  height: 44px !important;
+  
+  /* Overrides to remove cream background and borders */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  border-radius: 4px !important;
+  
+  cursor: pointer !important;
+  opacity: 0.85;
+  transition: opacity 0.2s ease !important;
+}
+
+/* Hover and Focus States */
+.btn-toggle-sidebar.custom-hamburger:hover {
+  background: transparent !important;
+  opacity: 1 !important;
+}
+
+.btn-toggle-sidebar.custom-hamburger:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
+}
+
+/* The three white lines */
+.btn-toggle-sidebar.custom-hamburger .hamburger-line {
+  display: block !important;
+  width: 24px !important;
+  height: 2px !important;
+  background-color: #ffffff !important;
+  border-radius: 2px !important;
+  transition: opacity 0.2s ease !important;
+}
+
+/* Ensure it's always visible in DOM when used */
+@media (max-width: 1024px) {
+  .btn-toggle-sidebar.custom-hamburger {
+    display: flex !important;
+  }
+}
+@media (min-width: 1025px) {
+  .btn-toggle-sidebar.custom-hamburger {
+    display: flex !important;
+  }
+}
