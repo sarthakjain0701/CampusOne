@@ -59,42 +59,43 @@ const ExamFormManagementView = {
     const students = this.students;
 
     return `
-      <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
-        <div>
-          <h1>EXAM FORM MANAGEMENT</h1>
-          <p>Create exam registration periods and review student exam applications.</p>
+      <div class="exam-form-management">
+        <div class="page-header" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
+          <div style="flex: 1; min-width: 0;">
+            <h1 style="overflow-wrap: anywhere; word-break: break-word;">EXAM FORM MANAGEMENT</h1>
+            <p>Create exam registration periods and review student exam applications.</p>
+          </div>
+          <button class="btn-primary" style="flex-shrink: 0; white-space: nowrap; height: 40px; padding: 0 16px; font-size: 14px;" onclick="ExamFormManagementView.openCreatePeriodModal()">
+            <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> Add Exam Period
+          </button>
         </div>
-        <button class="btn-primary" onclick="ExamFormManagementView.openCreatePeriodModal()">
-          <i data-lucide="plus-circle"></i> Create Exam Period
-        </button>
-      </div>
 
-      <!-- EXAM PERIODS GRID -->
-      <div class="card" style="margin-bottom: 2rem;">
-        <div class="card-header">
+        <!-- EXAM PERIODS GRID -->
+        <div class="card">
+          <div class="card-header">
           <h3 class="card-title"><i data-lucide="calendar"></i> Exam Registration Periods</h3>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; padding: 1rem 0;">
+        <div class="exam-period-grid">
           ${examPeriods.map(p => `
-            <div class="card" style="border: 1px solid var(--color-border); background:#F8FAFC; margin-bottom: 0; display:flex; flex-direction:column; justify-content:space-between;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <div class="card exam-period-card">
+              <div style="min-width: 0; width: 100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
                   <span class="status-badge ${p.status === 'OPEN' ? 'present' : p.status === 'UPCOMING' ? 'warning' : 'danger'}">${p.status}</span>
-                  <span style="font-size:0.75rem; color:var(--color-text-muted);">Sem ${p.semester}</span>
+                  <span style="font-size:0.75rem; color:var(--color-text-muted); white-space:nowrap;">Sem ${p.semester}</span>
                 </div>
-                <h4 style="font-weight:700; margin:0 0 0.5rem 0; color:var(--color-navy-dark);">${p.name}</h4>
-                <p style="font-size:0.8rem; color:var(--color-text-muted); margin-bottom:1rem;">
+                <h4 style="font-weight:700; margin:0 0 0.5rem 0; color:var(--color-navy-dark); overflow-wrap: anywhere; word-break: break-word;">${p.name}</h4>
+                <p style="font-size:0.8rem; color:var(--color-text-muted); margin-bottom:1rem; overflow-wrap: anywhere; word-break: break-word;">
                   Start: ${this.formatDateDisplay(p.startDate)}<br>
                   End: ${this.formatDateDisplay(p.endDate)}
                 </p>
               </div>
-              <div style="display:flex; gap:0.5rem; border-top:1px solid #E2E8F0; padding-top:0.75rem;">
+              <div style="display:flex; gap:0.5rem; border-top:1px solid #E2E8F0; padding-top:0.75rem; width:100%;">
                 ${p.status !== 'CLOSED' ? `
-                  <button class="btn-secondary" style="flex:1; justify-content:center;" onclick="ExamFormManagementView.closePeriod('${p.id}')">
+                  <button class="btn-secondary" style="width:100%; justify-content:center;" onclick="ExamFormManagementView.closePeriod('${p.id}')">
                     Close Period
                   </button>
                 ` : `
-                  <span style="font-size:0.75rem; color:var(--color-text-light); text-align:center; flex:1;">Registration Closed</span>
+                  <span style="font-size:0.75rem; color:var(--color-text-light); text-align:center; width:100%;">Registration Closed</span>
                 `}
               </div>
             </div>
@@ -103,8 +104,8 @@ const ExamFormManagementView = {
       </div>
 
       <!-- FILTER BAR -->
-      <div class="card" style="margin-bottom: 2rem;">
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; align-items:center;">
+      <div class="card">
+        <div class="exam-filters">
           <div>
             <label class="form-label" style="font-size:0.8rem;">Search Student / Roll No / App No</label>
             <input type="text" class="form-control" placeholder="Search..." value="${this.searchQuery}" onkeyup="ExamFormManagementView.handleSearch(this.value)">
@@ -147,7 +148,7 @@ const ExamFormManagementView = {
             No examination form submissions found matching criteria.
           </div>
         ` : `
-          <div class="table-responsive">
+          <div class="exam-submissions-wrapper">
             <table class="data-table">
               <thead>
                 <tr>
@@ -185,7 +186,7 @@ const ExamFormManagementView = {
                       <td>Semester ${s.semester}</td>
                       <td>${s.submittedAt ? this.formatDateDisplay(s.submittedAt) : '—'}</td>
                       <td><span class="status-badge ${badgeClass}">${statusDisplay}</span></td>
-                      <td style="display:flex; gap:0.5rem; align-items:center;">
+                      <td class="action-btn-container">
                         ${s.status === 'MANUAL_REVIEW_REQUIRED' || s.status === 'SUBMITTED' ? `
                           <button class="btn-primary btn-sm"  onclick="ExamFormManagementView.openReviewModal('${s.id}')">
                             <i data-lucide="check-square" style="width:12px; height:12px; display:inline;"></i> Review
@@ -211,6 +212,7 @@ const ExamFormManagementView = {
           </div>
         `}
       </div>
+    </div>
     `;
   },
 
