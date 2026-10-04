@@ -175,7 +175,20 @@ const facultyService = {
     updatedFields.updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
 
     try {
+      const facultyDoc = await db.collection(this._collection()).doc(docId).get();
       await db.collection(this._collection()).doc(docId).update(updatedFields);
+      
+      if (facultyDoc.exists && facultyDoc.data().uid) {
+        const centralUpdates = {};
+        if (updatedFields.name !== undefined) centralUpdates.name = updatedFields.name;
+        if (updatedFields.status !== undefined) centralUpdates.status = updatedFields.status;
+        if (updatedFields.role !== undefined) centralUpdates.role = updatedFields.role.toLowerCase();
+        if (updatedFields.updatedAt !== undefined) centralUpdates.updatedAt = updatedFields.updatedAt;
+
+        if (Object.keys(centralUpdates).length > 0) {
+          db.collection('users').doc(facultyDoc.data().uid).update(centralUpdates).catch(e => console.warn("User profile sync notice:", e));
+        }
+      }
     } catch (err) {
       console.error("Failed to update faculty in Firestore", err);
       if (err.code === 'not-found') throw new Error("Faculty record not found in the database.");
@@ -190,7 +203,14 @@ const facultyService = {
   async deleteFaculty(docId) {
     const db = await this._ensureDb();
     try {
+      const facultyDoc = await db.collection(this._collection()).doc(docId).get();
+      const uid = facultyDoc.exists ? facultyDoc.data().uid : null;
+      
       await db.collection(this._collection()).doc(docId).delete();
+      
+      if (uid) {
+        await db.collection('users').doc(uid).delete().catch(e => console.warn("Central sync notice:", e));
+      }
     } catch (err) {
       console.error("Failed to delete faculty from Firestore", err);
       if (err.code === 'permission-denied') throw new Error("You do not have permission to delete this record.");
