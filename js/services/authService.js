@@ -17,6 +17,10 @@ const authService = {
       throw new Error("Password is required.");
     }
 
+    if (!safeEmail.endsWith('@poornima.org')) {
+      throw new Error("Access restricted: Please use your official @poornima.org email address.");
+    }
+
     if (!window.FirebaseService) {
       throw new Error("Firebase Service is not loaded.");
     }

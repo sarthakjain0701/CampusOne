@@ -84,7 +84,8 @@ const ChangePasswordView = {
       localStorage.setItem('pas_session_user', JSON.stringify(currentUser));
 
       UIService.showToast("Password updated successfully!", "success");
-      App.navigateTo('dashboard');
+      const targetRoute = currentUser.role === 'LIBRARIAN' ? 'library-dashboard' : 'dashboard';
+      App.navigateTo(targetRoute);
     } catch (err) {
       console.error(err);
       UIService.showToast(err.message || "Failed to update password.", "danger");

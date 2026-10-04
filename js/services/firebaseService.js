@@ -130,13 +130,27 @@ const FirebaseService = {
         const roleLower = (userData.role || '').toLowerCase();
         const normalizedRole = (roleLower === 'administrator' || roleLower === 'admin') ? 'ADMIN' : roleLower.toUpperCase();
         
+        let mustChange = userData.mustChangePassword === true;
+        if (mustChange) {
+          try {
+            const authEmail = (userData.email || firebaseUser.email || '').toLowerCase().trim();
+            let roleCol = 'authorizedUsers';
+            if (['FACULTY', 'LAB_ASSISTANT', 'LIBRARIAN'].includes(normalizedRole)) roleCol = 'faculties';
+            if (normalizedRole === 'ADMIN') roleCol = 'admins';
+            const rDoc = await this.db.collection(roleCol).doc(authEmail).get();
+            if (rDoc.exists) {
+              mustChange = rDoc.data().mustChangePassword === true;
+            }
+          } catch (_) {}
+        }
+
         this.currentUser = {
           uid: firebaseUser.uid,
           email: userData.email || firebaseUser.email,
           role: normalizedRole,
           name: userData.name || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User'),
           active: (userData.status || 'ACTIVE').toUpperCase() === 'ACTIVE',
-          mustChangePassword: userData.mustChangePassword === true
+          mustChangePassword: mustChange
         };
 
         localStorage.setItem('pas_session_user', JSON.stringify(this.currentUser));
@@ -256,13 +270,30 @@ const FirebaseService = {
 
     // 4. Convert to PAMS internal user object structure for the session
     const normalizedRole = (roleLower === 'administrator' || roleLower === 'admin') ? 'ADMIN' : roleLower.toUpperCase();
+    
+    // Check mustChangePassword against source-of-truth role doc
+    let mustChangePassword = userData.mustChangePassword === true;
+    if (mustChangePassword) {
+      try {
+        let roleCol = 'authorizedUsers';
+        if (['FACULTY', 'LAB_ASSISTANT', 'LIBRARIAN'].includes(normalizedRole)) roleCol = 'faculties';
+        if (normalizedRole === 'ADMIN') roleCol = 'admins';
+        const roleSnap = await this.db.collection(roleCol).doc(authenticatedEmail).get();
+        if (roleSnap.exists) {
+          mustChangePassword = roleSnap.data().mustChangePassword === true;
+        }
+      } catch (roleFetchErr) {
+        console.warn("Could not check role doc for mustChangePassword:", roleFetchErr);
+      }
+    }
+
     const pamsUser = {
       uid: firebaseUser.uid,
       email: userData.email || authenticatedEmail,
       role: normalizedRole,
       name: userData.name || authenticatedEmail.split('@')[0],
       active: true,
-      mustChangePassword: userData.mustChangePassword === true
+      mustChangePassword: mustChangePassword
     };
 
     this.currentUser = pamsUser;

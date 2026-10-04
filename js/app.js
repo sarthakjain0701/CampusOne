@@ -85,8 +85,14 @@ const App = {
 
   isRouteAllowed(viewId, role) {
     if (!role) return false;
-    if (viewId === 'change-password') return true;
+    
+    // Globally allowed routes for authenticated users
+    const globalRoutes = ['change-password', 'profile', 'notifications'];
+    if (globalRoutes.includes(viewId)) return true;
+    
+    // Role-specific exceptions not in sidebar
     if (viewId === 'mark-attendance' && role === 'STUDENT') return true;
+    
     const allowed = this.getNavigationForRole(role);
     return allowed.some(item => item.id === viewId);
   },

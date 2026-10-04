@@ -213,6 +213,14 @@ const adminService = {
       payload.department = userData.department || "Computer Science & Engineering";
       payload.employeeId = userData.employeeId || `PGE-EMP-${Math.floor(100 + Math.random() * 900)}`;
       payload.designation = userData.designation || (role === 'LIBRARIAN' ? 'Head Librarian' : role === 'LAB_ASSISTANT' ? 'Lab Assistant' : 'Assistant Professor');
+    } else if (role === 'STUDENT') {
+      payload.department = userData.department || "Computer Science & Engineering";
+      payload.semester = Number(userData.semester) || 1;
+      payload.section = userData.section || "A";
+      payload.batch = userData.batch || "2026-2030";
+      payload.rollNumber = userData.rollNumber || userData.rollNo || "";
+      payload.rollNo = payload.rollNumber;
+      payload.registrationNumber = userData.registrationNumber || "";
     }
 
     if (!window.CloudFunctionsService) {
@@ -242,7 +250,15 @@ const adminService = {
 
       // If user has a matching users/{uid} document, update status/name there too
       if (user.uid) {
-        db.collection('users').doc(user.uid).update(updatedFields).catch(e => console.warn("User profile sync notice:", e));
+        const centralUpdates = {};
+        if (updatedFields.name !== undefined) centralUpdates.name = updatedFields.name;
+        if (updatedFields.status !== undefined) centralUpdates.status = updatedFields.status;
+        if (updatedFields.role !== undefined) centralUpdates.role = updatedFields.role.toLowerCase();
+        if (updatedFields.updatedAt !== undefined) centralUpdates.updatedAt = updatedFields.updatedAt;
+
+        if (Object.keys(centralUpdates).length > 0) {
+          db.collection('users').doc(user.uid).update(centralUpdates).catch(e => console.warn("User profile sync notice:", e));
+        }
       }
 
       this.invalidateCache();

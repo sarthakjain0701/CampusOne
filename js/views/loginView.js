@@ -90,7 +90,7 @@ const LoginView = {
                   <label class="form-label login-label" for="login-email" style="text-align: left; display: block; margin-bottom: 0.5rem; color: #1E3A8A;">Email Address</label>
                   <div class="input-container" style="position: relative;">
                     <i data-lucide="mail" class="input-icon" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #3B82F6;"></i>
-                    <input type="email" id="login-email" class="form-input login-input" placeholder="name@campusone.org" required value="" style="width: 100%; padding-left: 2.75rem; padding-right: 1rem; height: 48px; border-radius: 8px; border: 1px solid #E2E8F0;">
+                    <input type="email" id="login-email" class="form-input login-input" placeholder="name@poornima.org" required value="" style="width: 100%; padding-left: 2.75rem; padding-right: 1rem; height: 48px; border-radius: 8px; border: 1px solid #E2E8F0;">
                   </div>
                 </div>
 
