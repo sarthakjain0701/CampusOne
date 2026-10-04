@@ -110,7 +110,7 @@ const LoginView = {
                 </button>
                 
                 <div style="text-align: center; margin-bottom: 1.5rem;">
-                  <a href="#" style="color: #3B82F6; font-size: 0.9rem; font-weight: 500; text-decoration: none;">Forgot Password?</a>
+                  <a href="#" onclick="LoginView.handleForgotPassword(event)" style="color: #3B82F6; font-size: 0.9rem; font-weight: 500; text-decoration: none;">Forgot Password?</a>
                 </div>
               </form>
 
@@ -127,6 +127,23 @@ const LoginView = {
         </div>
       </div>
     `;
+  },
+
+  async handleForgotPassword(event) {
+    event.preventDefault();
+    const email = prompt("Please enter your official @poornima.org email address to reset your password:");
+    if (!email) return;
+
+    try {
+      if (window.authService && window.authService.resetPassword) {
+        await window.authService.resetPassword(email);
+        UIService.showToast("Password reset email sent! Check your inbox.", "success");
+      } else {
+        UIService.showToast("Auth service is not available.", "danger");
+      }
+    } catch (err) {
+      UIService.showToast(err.message, "danger");
+    }
   },
 
   togglePasswordVisibility() {

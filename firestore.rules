@@ -131,8 +131,7 @@ service cloud.firestore {
                          'role',
                          'status',
                          'uid',
-                         'email',
-                         'mustChangePassword'
+                         'email'
                        ]));
                        
       allow delete: if isAdmin();

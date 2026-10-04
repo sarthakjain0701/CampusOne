@@ -17,24 +17,17 @@
 
 const CloudFunctionsService = {
   /**
-   * Generates a secure 12-character temporary password meeting Firebase complexity requirements.
-   * Format: "Pas@" + 8 cryptographically random alphanumeric characters (e.g. "Pas@9k2m5x8q")
+   * Generates a predictable temporary password based on the user's email prefix.
+   * Format: "emailPrefix" (e.g., "2025pietcsrahul144" for "2025pietcsrahul144@poornima.org")
+   * If prefix is less than 6 characters, pads it to meet Firebase requirements.
    */
-  _generateTempPassword() {
-    const chars = "abcdefghjkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-    let randomPart = "";
-    if (window.crypto && window.crypto.getRandomValues) {
-      const bytes = new Uint8Array(8);
-      window.crypto.getRandomValues(bytes);
-      for (let i = 0; i < 8; i++) {
-        randomPart += chars[bytes[i] % chars.length];
-      }
-    } else {
-      for (let i = 0; i < 8; i++) {
-        randomPart += chars[Math.floor(Math.random() * chars.length)];
-      }
+  _generateTempPassword(email) {
+    if (!email || !email.includes('@')) return "CampusOne123";
+    let prefix = email.split('@')[0];
+    if (prefix.length < 6) {
+      prefix = prefix + "123456".substring(0, 6 - prefix.length);
     }
-    return `Pas@${randomPart}`;
+    return prefix;
   },
 
   /**
@@ -120,7 +113,7 @@ const CloudFunctionsService = {
     }
 
     // 4. Generate Temporary Password
-    const tempPassword = this._generateTempPassword();
+    const tempPassword = this._generateTempPassword(email);
 
     // 5. Initialize Secondary Firebase App for Auth Account Creation
     // (This guarantees the Admin session on the primary app is never replaced/logged out)

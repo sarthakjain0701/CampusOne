@@ -78,6 +78,14 @@ const ChangePasswordView = {
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
       });
 
+      // 2.5 Sync with central users collection
+      if (currentUser.uid) {
+        await window.FirebaseService.db.collection('users').doc(currentUser.uid).update({
+          mustChangePassword: false,
+          updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(e => console.warn("Central sync notice:", e));
+      }
+
       // 3. Update local session state
       currentUser.mustChangePassword = false;
       window.DataStore.setCurrentUser(currentUser);

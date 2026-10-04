@@ -29,6 +29,26 @@ const authService = {
     return await window.FirebaseService.loginWithEmailAndPassword(safeEmail, password);
   },
 
+  async resetPassword(email) {
+    const safeEmail = email ? email.trim().toLowerCase() : '';
+    if (!window.Validation) {
+      // Basic fallback if Validation isn't globally available here
+      if (!safeEmail || !safeEmail.includes('@')) throw new Error("Please enter a valid email address.");
+    } else {
+      if (!Validation.isRequired(safeEmail) || !Validation.isValidEmail(safeEmail)) {
+        throw new Error("Please enter a valid email address.");
+      }
+    }
+
+    if (!safeEmail.endsWith('@poornima.org')) {
+      throw new Error("Access restricted: Please use your official @poornima.org email address.");
+    }
+    if (!window.firebase || !window.firebase.auth) {
+      throw new Error("Firebase Service is not loaded.");
+    }
+    return await window.firebase.auth().sendPasswordResetEmail(safeEmail);
+  },
+
   async logout() {
     if (window.FirebaseService) {
       try {
