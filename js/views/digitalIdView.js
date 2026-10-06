@@ -11,14 +11,12 @@ const DigitalIdView = {
     if (!user) return `<div class="card" style="padding:2rem; text-align:center;">Please log in to view Digital ID Card.</div>`;
 
     const userRole = user.role;
-    let isStudentView = userRole === 'STUDENT';
-    let isFacultyView = userRole === 'FACULTY' || userRole === 'LAB_ASSISTANT';
-
-    if (userRole === 'ADMIN') {
+    if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
       if (params.tab) this.activeTab = params.tab;
-      isStudentView = this.activeTab === 'STUDENT';
-      isFacultyView = this.activeTab === 'FACULTY';
     }
+
+    // Start async load without blocking render
+    setTimeout(() => this.loadRealData(user, params), 0);
 
     return `
       <div class="page-header">
@@ -27,23 +25,73 @@ const DigitalIdView = {
           <p>Official Poornima Institute digital identity card with QR verification code.</p>
         </div>
       </div>
-
-      ${userRole === 'ADMIN' ? `
-        <!-- ADMIN ROLE TOGGLE SWITCHER -->
-        <div style="display:flex; justify-content:center; margin-bottom:1.5rem;">
-          <div style="background:var(--color-bg-light); padding:0.25rem; border-radius:10px; display:inline-flex; border:1px solid var(--color-border);">
-            <button class="btn-sm ${isStudentView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('STUDENT')" style="border:none;">
-              <i data-lucide="graduation-cap"></i> Student Digital ID
-            </button>
-            <button class="btn-sm ${isFacultyView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('FACULTY')" style="border:none; margin-left:0.25rem;">
-              <i data-lucide="users"></i> Faculty Digital ID
-            </button>
+      <div id="digital-id-container" style="display:flex; justify-content:center; align-items:center; padding: 4rem 1rem;">
+          <div style="text-align:center;">
+              <i data-lucide="loader-2" class="spin" style="width:32px; height:32px; color:#3B82F6;"></i>
+              <div style="margin-top:1rem; color:var(--color-text-muted, rgba(255,255,255,0.7)); font-weight:600;">Loading ID Card...</div>
           </div>
-        </div>
-      ` : ''}
-
-      ${isFacultyView ? this.renderFacultyCard(user) : this.renderStudentCard(user)}
+      </div>
     `;
+  },
+
+  async loadRealData(user, params) {
+    const container = document.getElementById('digital-id-container');
+    if (!container) return;
+
+    try {
+      const userRole = user.role;
+      let isStudentView = userRole === 'STUDENT';
+      let isFacultyView = userRole === 'FACULTY' || userRole === 'LAB_ASSISTANT';
+
+      if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
+        isStudentView = this.activeTab === 'STUDENT';
+        isFacultyView = this.activeTab === 'FACULTY';
+      }
+
+      let html = '';
+
+      if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
+        html += `
+          <!-- ADMIN ROLE TOGGLE SWITCHER -->
+          <div style="display:flex; justify-content:center; margin-bottom:1.5rem;">
+            <div style="background:var(--color-bg-light, rgba(0,0,0,0.1)); padding:0.25rem; border-radius:10px; display:inline-flex; border:1px solid rgba(255,255,255,0.1);">
+              <button class="btn-sm ${isStudentView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('STUDENT')" style="border:none;">
+                <i data-lucide="graduation-cap"></i> Student Digital ID
+              </button>
+              <button class="btn-sm ${isFacultyView ? 'btn-primary' : 'btn-secondary'}" onclick="DigitalIdView.switchTab('FACULTY')" style="border:none; margin-left:0.25rem;">
+                <i data-lucide="users"></i> Faculty Digital ID
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (isFacultyView) {
+        html += await this.getFacultyCardHtml(user);
+      } else {
+        html += await this.getStudentCardHtml(user);
+      }
+
+      container.innerHTML = html;
+      if (window.lucide) window.lucide.createIcons();
+    } catch (err) {
+      console.error("ID Card load error:", err);
+      container.innerHTML = `
+        <div style="text-align:center; padding:3rem; background:rgba(220,38,38,0.1); border-radius:12px; border:1px solid rgba(220,38,38,0.3); max-width:400px; margin:0 auto;">
+          <i data-lucide="alert-circle" style="width:48px; height:48px; color:#EF4444; margin-bottom:1rem;"></i>
+          <div style="color:#EF4444; font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">
+            Unable to load ID Card information.
+          </div>
+          <div style="color:var(--color-text-muted, rgba(255,255,255,0.7)); font-size:0.9rem; margin-bottom:1.5rem;">
+            Please try again.
+          </div>
+          <button class="btn-primary" onclick="DigitalIdView.switchTab('${this.activeTab}')" style="margin:0 auto;">
+            <i data-lucide="refresh-cw"></i> Retry
+          </button>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+    }
   },
 
   switchTab(tabName) {
@@ -51,24 +99,44 @@ const DigitalIdView = {
     App.renderCurrentView();
   },
 
-  renderStudentCard(currentUser) {
-    const students = DataStore.get('STUDENTS');
-    let student = students.find(s => s.email === currentUser.email || s.id === currentUser.id);
-    if (!student) student = students[0]; // Fallback to first student record
+  async getStudentCardHtml(currentUser) {
+    let student = null;
+    if (currentUser.role === 'STUDENT') {
+      student = await window.studentService.resolveStudentProfile(currentUser);
+      if (!student) throw new Error("Student profile not found.");
+    } else {
+      const res = await window.studentService.loadStudents(null, 1);
+      if (res && res.students && res.students.length > 0) {
+        student = res.students[0];
+      } else {
+        throw new Error("No students found for preview.");
+      }
+    }
 
-    const qrCodeString = QRService.generateStudentQR(student.id);
+    const qrCodeString = QRService.generateStudentQR(student.id || student.uid);
     const qrSvg = QRGenerator.generateSVG(qrCodeString, { size: 160, padding: 8 });
 
-    const name = student.name || currentUser.name || "Student Name";
-    const regNo = student.registrationNumber || student.rollNo || student.rollNumber || "REG-2026-001";
-    const studentId = student.studentId || student.id || "STU001";
-    const email = student.email || currentUser.email || "student@example.com";
-    const department = student.department || "Computer Science & Engineering";
-    const course = student.course || "B.Tech CSE";
+    const name = student.name || student.firstName || currentUser.name || "Student Name";
+    const regNo = student.registrationNumber || student.rollNo || student.rollNumber || "N/A";
+    const email = student.email || currentUser.email || "N/A";
+    const department = student.department || "N/A";
+    const course = student.course || "B.Tech";
     const section = student.section || "A";
-    const batch = student.batch || "2024–2028";
-    const semester = student.semester || 2;
+    const batch = student.batch || "N/A";
+    const semester = student.semester || "N/A";
     const session = student.academicSession || student.academicYear || "2026–27";
+    const photoURL = student.photoURL || student.profilePhoto || null;
+
+    let photoHtml = '';
+    if (photoURL) {
+      photoHtml = `<img src="${photoURL}" alt="Student Photo" style="width:105px; height:120px; border-radius:10px; border:2px solid rgba(255,255,255,0.25); box-shadow:0 4px 10px rgba(0,0,0,0.3); object-fit:cover;" onerror="this.outerHTML='<div style=\\'width:105px; height:120px; background:linear-gradient(135deg, #334155, #475569); border-radius:10px; border:2px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3);\\'><div style=\\'font-size:2.8rem; font-weight:800; color:rgba(255,255,255,0.85);\\'>${name.charAt(0)}</div></div>'"/>`;
+    } else {
+      photoHtml = `
+        <div style="width:105px; height:120px; background:linear-gradient(135deg, #334155, #475569); border-radius:10px; border:2px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
+          <div style="font-size:2.8rem; font-weight:800; color:rgba(255,255,255,0.85);">${name.charAt(0)}</div>
+        </div>
+      `;
+    }
 
     return `
       <div style="display:flex; flex-direction:column; align-items:center; padding:1rem 0;">
@@ -98,7 +166,6 @@ const DigitalIdView = {
                 <span style="color:rgba(255,255,255,0.6);">Registration No:</span>
                 <strong style="color:#93C5FD;">${regNo}</strong>
               </div>
-
 
               <div style="display:flex; justify-content:space-between; gap:0.5rem;">
                 <span style="color:rgba(255,255,255,0.6);">Email:</span>
@@ -139,10 +206,8 @@ const DigitalIdView = {
             <!-- RIGHT COLUMN: PHOTO & QR -->
             <div style="display:flex; flex-direction:column; align-items:center; gap:0.85rem;">
               
-              <!-- STUDENT PHOTO PLACEHOLDER -->
-              <div style="width:105px; height:120px; background:linear-gradient(135deg, #334155, #475569); border-radius:10px; border:2px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
-                <div style="font-size:2.8rem; font-weight:800; color:rgba(255,255,255,0.85);">${name.charAt(0)}</div>
-              </div>
+              <!-- STUDENT PHOTO -->
+              ${photoHtml}
 
               <!-- QR CODE BLOCK -->
               <div style="background:white; padding:6px; border-radius:8px; border:2px solid #3B82F6; box-shadow:0 4px 12px rgba(0,0,0,0.2); text-align:center;">
@@ -176,20 +241,45 @@ const DigitalIdView = {
     `;
   },
 
-  renderFacultyCard(currentUser) {
-    const facultyList = DataStore.get('FACULTY');
-    let fac = facultyList.find(f => f.email === currentUser.email || f.id === currentUser.id);
-    if (!fac) fac = facultyList[0]; // Fallback to first faculty record
+  async getFacultyCardHtml(currentUser) {
+    let fac = null;
+    if (currentUser.role === 'FACULTY' || currentUser.role === 'LAB_ASSISTANT') {
+      fac = await window.facultyService.getFacultyById(currentUser.email);
+      if (!fac) {
+        const list = await window.facultyService.getFacultyFromFirestore();
+        fac = list.find(f => f.email === currentUser.email || f.id === currentUser.id);
+      }
+      if (!fac) throw new Error("Faculty profile not found.");
+    } else {
+      const res = await window.facultyService.loadFaculty(null, 1);
+      if (res && res.facultyList && res.facultyList.length > 0) {
+        fac = res.facultyList[0];
+      } else {
+        throw new Error("No faculty found for preview.");
+      }
+    }
 
-    const qrCodeString = QRService.generateFacultyQR(fac.id);
+    const qrCodeString = QRService.generateFacultyQR(fac.id || fac.uid);
     const qrSvg = QRGenerator.generateSVG(qrCodeString, { size: 160, padding: 8 });
 
     const name = fac.name || currentUser.name || "Faculty Name";
-    const facultyId = fac.facultyId || fac.id || "FAC001";
-    const email = fac.email || currentUser.email || "faculty@pas.demo";
-    const department = fac.department || "Computer Science & Engineering";
-    const designation = fac.designation || "Associate Professor";
-    const empNo = fac.employeeNumber || fac.employeeId || "EMP-FAC-101";
+    const facultyId = fac.facultyId || fac.id || "N/A";
+    const email = fac.email || currentUser.email || "N/A";
+    const department = fac.department || "N/A";
+    const designation = fac.designation || "Faculty";
+    const empNo = fac.employeeNumber || fac.employeeId || "N/A";
+    const photoURL = fac.photoURL || fac.profilePhoto || null;
+
+    let photoHtml = '';
+    if (photoURL) {
+      photoHtml = `<img src="${photoURL}" alt="Faculty Photo" style="width:105px; height:120px; border-radius:10px; border:2px solid rgba(255,255,255,0.25); box-shadow:0 4px 10px rgba(0,0,0,0.3); object-fit:cover;" onerror="this.outerHTML='<div style=\\'width:105px; height:120px; background:linear-gradient(135deg, #475569, #334155); border-radius:10px; border:2px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3);\\'><div style=\\'font-size:2.8rem; font-weight:800; color:rgba(255,255,255,0.85);\\'>${name.charAt(0)}</div></div>'"/>`;
+    } else {
+      photoHtml = `
+        <div style="width:105px; height:120px; background:linear-gradient(135deg, #475569, #334155); border-radius:10px; border:2px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
+          <div style="font-size:2.8rem; font-weight:800; color:rgba(255,255,255,0.85);">${name.charAt(0)}</div>
+        </div>
+      `;
+    }
 
     return `
       <div style="display:flex; flex-direction:column; align-items:center; padding:1rem 0;">
@@ -249,10 +339,8 @@ const DigitalIdView = {
             <!-- RIGHT COLUMN: PHOTO & QR -->
             <div style="display:flex; flex-direction:column; align-items:center; gap:0.85rem;">
               
-              <!-- FACULTY PHOTO PLACEHOLDER -->
-              <div style="width:105px; height:120px; background:linear-gradient(135deg, #475569, #334155); border-radius:10px; border:2px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
-                <div style="font-size:2.8rem; font-weight:800; color:rgba(255,255,255,0.85);">${name.charAt(0)}</div>
-              </div>
+              <!-- FACULTY PHOTO -->
+              ${photoHtml}
 
               <!-- QR CODE BLOCK -->
               <div style="background:white; padding:6px; border-radius:8px; border:2px solid #6366F1; box-shadow:0 4px 12px rgba(0,0,0,0.2); text-align:center;">
@@ -321,4 +409,5 @@ const DigitalIdView = {
 };
 
 window.DigitalIdView = DigitalIdView;
+
 

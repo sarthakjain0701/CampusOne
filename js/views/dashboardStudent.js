@@ -22,6 +22,7 @@ const DashboardStudent = {
   attendanceStats: null,
   subjectStats: null,
   libraryStats: null,
+  whatIfResult: null,
   profileMissing: false,
 
   afterRender() {
@@ -413,6 +414,67 @@ const DashboardStudent = {
        libraryHtml = `<span id="stu-dash-lib-fines" style="font-weight:600; color:var(--color-danger);">₹${l.fine}</span> Pending | <span id="stu-dash-lib-overdue" style="font-weight:600;">${l.overdue} Overdue</span>`;
     }
 
+    let intelligenceHtml = '';
+    if (!this.loading.attendance && !this.errors.attendance && !this.profileMissing && this.attendanceStats && this.attendanceStats.total > 0 && window.CampusIntelligenceService) {
+        const projection = window.CampusIntelligenceService.calculateProjection(this.attendanceStats.total, this.attendanceStats.present, 5);
+        intelligenceHtml = `
+          <!-- CAMPUS INTELLIGENCE -->
+          <div class="glass-panel" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,244,255,0.8)); border: 1px solid rgba(59, 130, 246, 0.3);">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="brain-circuit" style="color: var(--color-primary);"></i> Campus Intelligence
+            </h3>
+            
+            <div style="background: #FFF; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--glass-border); margin-bottom: 0.75rem;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-navy-dark); margin-bottom: 0.5rem; text-transform: uppercase;">Attendance Projection</div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                <span style="font-size: 0.85rem; color: var(--color-text-main);">Current:</span>
+                <span style="font-size: 0.95rem; font-weight: 700; color: var(--color-navy-dark);">${projection.current}%</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                <span style="font-size: 0.85rem; color: var(--color-text-main);">Best case (+5 classes):</span>
+                <span style="font-size: 0.95rem; font-weight: 700; color: var(--color-success);">${projection.bestCase}%</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.85rem; color: var(--color-text-main);">Worst case (-5 classes):</span>
+                <span style="font-size: 0.95rem; font-weight: 700; color: var(--color-danger);">${projection.worstCase}%</span>
+              </div>
+            </div>
+            
+            <button class="btn btn-secondary btn-sm" style="width: 100%; justify-content: center;" onclick="alert('Campus Intelligence Details (Phase 1)')">
+              Explore
+            </button>
+          </div>
+        `;
+        // Attendance Signals
+        const signals = window.CampusIntelligenceService.generateStudentSignals(this.attendanceStats);
+        if (signals && signals.length) {
+          const signalsHtml = `<div class="glass-panel" style="padding:1rem; background:rgba(255,255,255,0.7); margin-top:1rem;">
+            <h3 style="font-size:1.05rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">Attendance Signals</h3>
+            ${signals.map(s => `<div style="margin-bottom:0.5rem;">
+                <strong>${s.title}</strong> - ${s.severity}<br/>
+                <span style="font-size:0.85rem; color:var(--color-text-muted);">${s.evidence.join(', ')}</span><br/>
+                <span style="font-size:0.85rem;">Suggested: ${s.suggestedAction}</span>
+            </div>`).join('')}
+          </div>`;
+          intelligenceHtml += signalsHtml;
+        }
+        // What-If Simulator UI
+        const whatIfHtml = `<div class="glass-panel" style="padding:1rem; background:rgba(255,255,255,0.7); margin-top:1rem;">
+          <h3 style="font-size:1.05rem; font-weight:700; color:var(--color-navy-dark); margin-bottom:0.5rem;">What-If Simulator</h3>
+          <div style="display:flex; gap:0.5rem; align-items:center;">
+            <input id="whatif-present" type="number" placeholder="Add Present" style="width:80px; padding:0.25rem;"/>
+            <input id="whatif-absent" type="number" placeholder="Add Absent" style="width:80px; padding:0.25rem;"/>
+            <input id="whatif-target" type="number" placeholder="Target %" value="75" style="width:80px; padding:0.25rem;"/>
+            <button class="btn btn-primary btn-sm" onclick="DashboardStudent.runWhatIf()">Simulate</button>
+          </div>
+          ${this.whatIfResult ? `<div style="margin-top:0.5rem;">
+            <p>Projected Attendance: ${this.whatIfResult.projectedPercentage}% (${this.whatIfResult.scenarioType})</p>
+            <p>Classes needed to reach ${this.whatIfResult.targetPercentage}%: ${this.whatIfResult.additionalRequiredForTarget}</p>
+          </div>` : ''}
+        </div>`;
+        intelligenceHtml += whatIfHtml;
+    }
+
     return `
       <style>
         @keyframes pulse {
@@ -455,6 +517,8 @@ const DashboardStudent = {
               <div style="font-size: 0.95rem; font-weight: 800; color: var(--color-navy-dark);">View Today</div>
             </div>
           </div>
+
+          ${intelligenceHtml}
 
           <!-- RECENT NOTIFICATIONS -->
           <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.7); flex: 1;">
