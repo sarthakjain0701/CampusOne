@@ -274,6 +274,74 @@ const adminService = {
     return this.updateUser(docId, { status: status });
   },
 
+  async deleteUser(docId) {
+    const db = await this._ensureDb();
+    const cleanId = docId.toLowerCase().trim();
+
+    // 1. Verify Caller is Authenticated
+    const primaryAuth = window.firebase.auth();
+    const currentAuthUser = primaryAuth.currentUser;
+    if (!currentAuthUser) {
+      throw new Error("You must be logged in as an administrator to delete users.");
+    }
+
+    const callerEmail = (currentAuthUser.email || '').toLowerCase().trim();
+
+    // 2. Prevent Self-Deletion
+    if (cleanId === callerEmail) {
+      throw new Error("Cannot delete your own administrator account.");
+    }
+
+    // 3. Verify Admin privileges
+    try {
+      const adminDoc = await db.collection('admins').doc(callerEmail).get();
+      if (!adminDoc.exists) {
+        throw new Error("Unauthorized: Your account does not have administrator privileges.");
+      }
+      const adminData = adminDoc.data();
+      if ((adminData.role || '').toUpperCase() !== 'ADMIN' || (adminData.status || '').toUpperCase() !== 'ACTIVE') {
+        throw new Error("Unauthorized: Your administrator account is inactive.");
+      }
+    } catch (err) {
+      if (err.message && err.message.startsWith("Unauthorized:")) throw err;
+      console.warn("Admin authorization verification notice:", err);
+    }
+
+    // 4. Retrieve target user to identify collection and UID
+    const user = await this.getUserById(cleanId);
+    if (!user) {
+      throw new Error("User not found or already deleted.");
+    }
+
+    const targetCollection = user.collection;
+    if (!targetCollection) {
+      throw new Error("Unable to determine user role collection.");
+    }
+
+    // 5. Delete Firestore Profiles
+    // We intentionally do not delete historical data such as attendance or academic records.
+    try {
+      const batch = db.batch();
+      
+      // Delete from specific role collection
+      batch.delete(db.collection(targetCollection).doc(cleanId));
+      
+      // Delete from centralized users collection if uid exists
+      if (user.uid) {
+        batch.delete(db.collection('users').doc(user.uid));
+      }
+
+      await batch.commit();
+
+      this.invalidateCache();
+      return true;
+    } catch (err) {
+      console.error("Failed to delete user profile from Firestore", err);
+      if (err.code === 'permission-denied') throw new Error("Permission denied: You do not have administrator permissions to delete this user.");
+      throw new Error("Failed to delete user record. Please try again.");
+    }
+  },
+
   invalidateCache() {
     this._usersCache = null;
     this._lastFetchTime = 0;

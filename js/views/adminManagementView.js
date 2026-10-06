@@ -228,6 +228,9 @@ const AdminManagementView = {
                   <button class="action-menu-item ${isActive ? 'danger' : ''}" onclick="AdminManagementView.toggleStatus('${a.id}', '${a.status || 'ACTIVE'}')">
                     <i data-lucide="power" style="width:16px;"></i> ${isActive ? 'Deactivate' : 'Activate'}
                   </button>
+                  <button class="action-menu-item danger" onclick="AdminManagementView.confirmDeleteUser('${a.id}')">
+                    <i data-lucide="trash-2" style="width:16px;"></i> Delete User
+                  </button>
                 </div>
               </div>
             </td>
@@ -410,6 +413,65 @@ const AdminManagementView = {
         }
       }
     );
+  },
+
+  async confirmDeleteUser(docId) {
+    let user;
+    try {
+      user = await adminService.getUserById(docId);
+    } catch (err) {
+      UIService.showToast(err.message, "danger");
+      return;
+    }
+
+    if (!user) {
+      UIService.showToast("User not found or already deleted.", "danger");
+      this.loadUsers(true);
+      return;
+    }
+
+    const html = `
+      <div style="margin-bottom: 1rem;">
+        <p>Are you sure you want to permanently delete this user?</p>
+        <div style="background: #F1F5F9; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+          <p style="margin-bottom: 0.25rem;"><strong>Name:</strong> ${user.name || 'N/A'}</p>
+          <p style="margin-bottom: 0.25rem;"><strong>Email:</strong> ${user.email || user.id}</p>
+          <p style="margin-bottom: 0;"><strong>Role:</strong> ${(user.role || 'USER').toUpperCase()}</p>
+        </div>
+        <p style="margin-top: 1rem; color: var(--color-danger); font-weight: bold;">This action cannot be undone.</p>
+      </div>
+    `;
+
+    UIService.openModal("Delete User?", html, [
+      { text: "Cancel", className: "btn-secondary", id: "cancel-delete-btn", onClick: () => UIService.closeModal() },
+      { text: "Delete User", className: "btn-primary danger", id: "confirm-delete-btn", onClick: async (e) => {
+        const confirmBtn = document.getElementById('confirm-delete-btn');
+        const cancelBtn = document.getElementById('cancel-delete-btn');
+        if (confirmBtn) {
+          confirmBtn.innerHTML = `<i data-lucide="loader" class="spin" style="width:16px; height:16px;"></i> Deleting user...`;
+          confirmBtn.disabled = true;
+        }
+        if (cancelBtn) cancelBtn.disabled = true;
+
+        try {
+          await adminService.deleteUser(docId);
+          UIService.closeModal();
+          UIService.showToast("User deleted successfully.", "success");
+          this.loadUsers(true);
+        } catch (err) {
+          if (confirmBtn) {
+            confirmBtn.innerHTML = `Delete User`;
+            confirmBtn.disabled = false;
+          }
+          if (cancelBtn) cancelBtn.disabled = false;
+          UIService.showToast(err.message || "Unable to delete user. Please try again.", "danger");
+        }
+      }}
+    ]);
+
+    setTimeout(() => {
+      if(window.lucide) window.lucide.createIcons();
+    }, 10);
   }
 };
 
